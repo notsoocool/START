@@ -6,7 +6,7 @@ interface User {
 	id: string;
 	firstName: string;
 	lastName: string;
-    perms: "user" | "annotator" | "editor" | "admin" | "root";
+    perms: "User" | "Annotator" | "Editor" | "Admin" | "Root";
 }
 
 const MainPage = () => {

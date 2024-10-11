@@ -125,6 +125,7 @@ export default function ShlokaPage() {
           'morph_in_context',
           'kaaraka_sambandha',
           'possible_relations',
+          'bgcolor',
         ];
       
         // Filter the data to include only the selected fields
