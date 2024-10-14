@@ -41,6 +41,9 @@ export default function ShlokaPage() {
 	const [tsvData, setTsvData] = useState<string | null>(null);
 	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [graphUrls, setGraphUrls] = useState<{ [sentno: string]: string }>(
+		{}
+	);
 
 	// Fetch the shloka and chapter data by ID
 	useEffect(() => {
@@ -115,39 +118,63 @@ export default function ShlokaPage() {
 	};
 
 	const handleGenerateGraph = async () => {
-        // Select only the fields you want to pass
-        const selectedFields = [
-          'anvaya_no',
-          'word',
-          'poem',
-          'sandhied_word',
-          'morph_analysis',
-          'morph_in_context',
-          'kaaraka_sambandha',
-          'possible_relations',
-          'bgcolor',
-        ];
-      
-        // Filter the data to include only the selected fields
-        const filteredData = chapter.data.map((item: any, index: number) => {
-          const updatedItem = updatedData[index] || {};
-      
-          // Create a new object with only the selected fields
-          const filteredItem: any = {};
-          selectedFields.forEach((field) => {
-            filteredItem[field] = updatedItem[field] ?? item[field];
-          });
-      
-          return filteredItem;
-        });
-      
-        // Convert the filtered data to TSV format
-        const tsv = jsonToTsv(filteredData);
-        setTsvData(tsv);
-      
-        // Now pass the TSV data to the graph generation
-        await handleSubmitGraph(tsv);
-      };
+		// Select only the fields you want to pass
+		const selectedFields = [
+			"anvaya_no",
+			"word",
+			"poem",
+			"sandhied_word",
+			"morph_analysis",
+			"morph_in_context",
+			"kaaraka_sambandha",
+			"possible_relations",
+            "bgcolor"
+		];
+
+		// Group data by sentno
+		const groupedData: { [key: string]: any[] } = {};
+
+		chapter.data.forEach((item: any, index: number) => {
+			const updatedItem = updatedData[index] || {};
+			const sentno = updatedItem.sentno ?? item.sentno;
+
+			if (!groupedData[sentno]) {
+				groupedData[sentno] = [];
+			}
+
+			// Create a new object with only the selected fields
+			const filteredItem: any = {};
+			selectedFields.forEach((field) => {
+				filteredItem[field] = updatedItem[field] ?? item[field];
+			});
+
+			groupedData[sentno].push(filteredItem);
+		});
+
+		// Clear previous graph URLs and errors before starting
+		setGraphUrls({});
+		setErrorMessage(null);
+
+		// Generate a graph for each sentno group
+		for (const [sentno, dataForSentno] of Object.entries(groupedData)) {
+			try {
+				// Convert the filtered data to TSV format
+				const tsv = jsonToTsv(dataForSentno);
+
+				// Submit the graph generation request for this sentno
+				const imageUrl = await handleSubmitGraph(tsv);
+
+				// Update graph URLs for this sentno
+				setGraphUrls((prevGraphUrls) => ({
+					...prevGraphUrls,
+					[sentno]: imageUrl || "", // Ensure imageUrl is a string
+				}));
+			} catch (error) {
+				// If any error occurs, show the error message
+				setErrorMessage(`Error generating graph for sentno: ${sentno}`);
+			}
+		}
+	};
 
 	const handleSubmitGraph = async (tsvData: string) => {
 		const formData = new FormData();
@@ -175,12 +202,13 @@ export default function ShlokaPage() {
 			const imageUrlMatch = result.match(/<img src="([^"]+)"/);
 			if (imageUrlMatch && imageUrlMatch[1]) {
 				setImageUrl(`https://sanskrit.uohyd.ac.in${imageUrlMatch[1]}`);
+				return `https://sanskrit.uohyd.ac.in${imageUrlMatch[1]}`;
 			}
 		} catch (error) {
 			setErrorMessage(
 				"Error uploading TSV data: " + (error as Error).message
 			);
-			setImageUrl(null);
+			return null;
 		}
 	};
 
@@ -476,10 +504,15 @@ export default function ShlokaPage() {
 					<Button onClick={handleGenerateGraph} className="mb-4">
 						Generate Graph
 					</Button>
-					{imageUrl && <img src={imageUrl} alt="Generated Graph" />}
-					{errorMessage && (
-						<p className="text-red-500">{errorMessage}</p>
-					)}
+					{Object.entries(graphUrls).map(([sentno, imageUrl]) => (
+						<div key={sentno} className="mb-4">
+							<h3>Graph for sentno: {sentno}</h3>
+							<img
+								src={imageUrl}
+								alt={`Generated Graph for sentno ${sentno}`}
+							/>
+						</div>
+					))}
 				</CardContent>
 			</Card>
 		</div>

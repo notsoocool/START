@@ -15,4 +15,7 @@ export const colorMapping: { [key: string]: string } = {
 
 
 
-// anvaya_no	word	poem	sandhied_word	morph_analysis	morph_in_context	kaaraka_sambandha	possible_relations
+// hide/show_columns 
+// add_shloka 
+// text_field 
+// dictionary
