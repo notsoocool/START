@@ -29,6 +29,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { validKaarakaSambandhaValues } from "@/lib/constants";
 
 export default function ShlokaPage() {
 	const { id } = useParams(); // Get the shloka ID from the URL
@@ -39,6 +44,7 @@ export default function ShlokaPage() {
 	const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
 	const [updatedData, setUpdatedData] = useState<any[]>([]);
 	const [tsvData, setTsvData] = useState<string | null>(null);
+    const [changedRows, setChangedRows] = useState<Set<number>>(new Set()); // Track which rows have changed
 	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [graphUrls, setGraphUrls] = useState<{ [sentno: string]: string }>(
@@ -78,33 +84,82 @@ export default function ShlokaPage() {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
 	};
 
-	const handleSave = async (index: number, anvaya_no: any) => {
-		try {
-			const updatedValue = updatedData[index]; // Get the updated value for the specific index
-			const response = await fetch(`/api/chaponeAH/${shloka?.slokano}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					index: index, // Send the specific index being updated
-					...updatedValue, // Send all updated values for that index
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to save changes");
-			}
-
-			const updatedChapter = await response.json();
-			console.log("Updated chapter:", updatedChapter);
-
-			toast.success(`Changes saved successfully for index ${anvaya_no}`);
-		} catch (error) {
-			console.error("Error saving changes:", error);
-			toast.error("Failed to save changes. Please try again.");
-		}
-	};
+    const handleValueChange = (index: number, field: string, value: any) => {
+        const newData = [...updatedData];
+        newData[index] = {
+            ...newData[index],
+            [field]: value,
+        };
+        setUpdatedData(newData);
+    
+        // Get the original value for comparison
+        const originalValue = chapter.data[index][field];
+    
+        // Always track if the current value is different from the last saved value
+        if (value !== originalValue) {
+            setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
+        } else {
+            setChangedRows((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(index); // Remove index if value is the same as original
+                return newSet;
+            });
+        }
+    };
+    
+    // Updated handleSave function
+    const handleSave = async (index: number, anvaya_no: any) => {
+        try {
+            const updatedValue = updatedData[index]; // Get the updated value for the specific index
+            const previousValue = chapter.data[index]?.kaaraka_sambandha; // Retrieve the previous value
+            const newKaarakaValue = updatedValue.kaaraka_sambandha;
+    
+            if (newKaarakaValue !== previousValue) {
+                const extractedValue = newKaarakaValue.split(',')[0].trim(); // Extract only the first part before the comma
+    
+                if (!validKaarakaSambandhaValues.includes(extractedValue)) {
+                    toast.error("Kaaraka Sambandha does not exist in valid strings.");
+                    return; // Stop further execution if validation fails
+                }
+            } // Get the updated value for the specific index
+    
+            const response = await fetch(`/api/chaponeAH/${shloka?.slokano}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    index: index, // Send the specific index being updated
+                    ...updatedValue, // Send all updated values for that index
+                }),
+            });
+    
+            if (!response.ok) {
+                throw new Error("Failed to save changes");
+            }
+    
+            const updatedChapter = await response.json();
+            console.log("Updated chapter:", updatedChapter);
+    
+            // Clear changedRows after successful save
+            setChangedRows((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(index); // Remove the current index after save
+                return newSet;
+            });
+    
+            // Update the chapter state with the latest saved values
+            const newChapterData = [...chapter.data];
+            newChapterData[index] = updatedValue; // Update the saved value in the chapter data
+            setChapter({ ...chapter, data: newChapterData });
+    
+            toast.success(`Changes saved successfully for index ${anvaya_no}`);
+        } catch (error) {
+            console.error("Error saving changes:", error);
+            toast.error("Failed to save changes. Please try again.");
+        }
+    };
+    
 
 	const jsonToTsv = (data: any[]): string => {
 		const tsvRows = data.map(
@@ -212,6 +267,24 @@ export default function ShlokaPage() {
 		}
 	};
 
+    const [selectedColumns, setSelectedColumns] = useState<string[]>([
+        'index',
+        'word',
+        'morph_analysis',
+        'morph_in_context',
+        'kaaraka_sambandha',
+        'possible_relations',
+      ]);
+    
+      // Toggle column visibility
+      const handleColumnSelect = (column: string) => {
+        setSelectedColumns((prevSelected) =>
+          prevSelected.includes(column)
+            ? prevSelected.filter((item) => item !== column)
+            : [...prevSelected, column]
+        );
+      };
+
 	// Render loading state
 	if (loading) {
 		return (
@@ -273,234 +346,255 @@ export default function ShlokaPage() {
 					</div>
 
 					{/* Processed Segments Table */}
-					<h3 className="text-lg font-bold mb-4 mt-8">
-						Processed Segments:
-					</h3>
-					<div className="w-full flex justify-end">
-						<Popover>
-							<PopoverTrigger asChild>
-								<Button variant="outline">
-									<SliderIcon />
-								</Button>
-							</PopoverTrigger>
-							<PopoverContent className="w-80">
-								<div className="space-y-4">
-									<h4 className="font-medium leading-none">
-										Adjust Opacity
-									</h4>
-									<Slider
-										defaultValue={[opacity * 100]}
-										max={100}
-										step={1}
-										onValueChange={handleOpacityChange}
-									/>
-									<div className="flex justify-between items-center">
-										<span className="text-sm text-muted-foreground">
-											Current value:
-										</span>
-										<span className="font-medium">
-											{Math.round(opacity * 100)}
-										</span>
-									</div>
-								</div>
-							</PopoverContent>
-						</Popover>
+					
+					<div className=" w-full flex justify-between">
+                        <h3 className="text-lg font-bold mb-4 mt-8">
+                            Processed Segments:
+                        </h3>
+                        <div className="flex gap-5">
+                            <div className=" pt-8">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline">
+                                            <SliderIcon />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80">
+                                        <div className="space-y-4">
+                                            <h4 className="font-medium leading-none">
+                                                Adjust Opacity
+                                            </h4>
+                                            <Slider
+                                                defaultValue={[opacity * 100]}
+                                                max={100}
+                                                step={1}
+                                                onValueChange={handleOpacityChange}
+                                            />
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-muted-foreground">
+                                                    Current value:
+                                                </span>
+                                                <span className="font-medium">
+                                                    {Math.round(opacity * 100)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <Button variant="outline" className="mt-8">
+                                    Show/Hide Columns
+                                </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="sm:max-w-[425px]">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Columns</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    Choose the columns you want to show or hide.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="index"
+                                        checked={selectedColumns.includes('index')}
+                                        onCheckedChange={() => handleColumnSelect('index')}
+                                    />
+                                    <Label htmlFor="index">Index</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="word"
+                                        checked={selectedColumns.includes('word')}
+                                        onCheckedChange={() => handleColumnSelect('word')}
+                                    />
+                                    <Label htmlFor="word">Word</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="morphAnalysis"
+                                        checked={selectedColumns.includes('morph_analysis')}
+                                        onCheckedChange={() => handleColumnSelect('morph_analysis')}
+                                    />
+                                    <Label htmlFor="morphAnalysis">Morph Analysis</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="morphInContext"
+                                        checked={selectedColumns.includes('morph_in_context')}
+                                        onCheckedChange={() => handleColumnSelect('morph_in_context')}
+                                    />
+                                    <Label htmlFor="morphInContext">Morph In Context</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="kaarakaSambandha"
+                                        checked={selectedColumns.includes('kaaraka_sambandha')}
+                                        onCheckedChange={() => handleColumnSelect('kaaraka_sambandha')}
+                                    />
+                                    <Label htmlFor="kaarakaSambandha">Kaaraka Relation</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="possibleRelations"
+                                        checked={selectedColumns.includes('possible_relations')}
+                                        onCheckedChange={() => handleColumnSelect('possible_relations')}
+                                    />
+                                    <Label htmlFor="possibleRelations">Possible Relations</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="hindiMeaning"
+                                        checked={selectedColumns.includes('hindi_meaning')}
+                                        onCheckedChange={() => handleColumnSelect('hindi_meaning')}
+                                    />
+                                    <Label htmlFor="hindiMeaning">Hindi Meaning</Label>
+                                    </div>
+                                </div>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction>Save</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
 					</div>
 
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Index</TableHead>
-								<TableHead>Word</TableHead>
-								<TableHead>Morph Analysis</TableHead>
-								<TableHead>Morph In Context</TableHead>
-								<TableHead>Kaaraka Sambandha</TableHead>
-								<TableHead>Possible Relations</TableHead>
-								<TableHead>Hindi Meaning</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{chapter.data && chapter.data.length > 0 ? (
-								chapter.data.map(
-									(processed: any, procIndex: any) => {
-										const currentProcessedData =
-											updatedData[procIndex];
+					<div>
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                {selectedColumns.includes('index') && <TableHead>Index</TableHead>}
+                                {selectedColumns.includes('word') && <TableHead>Word</TableHead>}
+                                {selectedColumns.includes('morph_analysis') && (
+                                <TableHead>Morph Analysis</TableHead>
+                                )}
+                                {selectedColumns.includes('morph_in_context') && (
+                                <TableHead>Morph In Context</TableHead>
+                                )}
+                                {selectedColumns.includes('kaaraka_sambandha') && (
+                                <TableHead>Kaaraka Sambandha</TableHead>
+                                )}
+                                {selectedColumns.includes('possible_relations') && (
+                                <TableHead>Possible Relations</TableHead>
+                                )}
+                                {selectedColumns.includes('hindi_meaning') && (
+                                <TableHead>Hindi Meaning</TableHead>
+                                )}
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                                {chapter.data && chapter.data.length > 0 ? (
+                                                    chapter.data.map(
+                                                        (processed: any, procIndex: any) => {
+                                                            const currentProcessedData =
+                                                                updatedData[procIndex];
 
-										return (
-											<TableRow
-												key={procIndex}
-												onMouseEnter={() =>
-													setHoveredRowIndex(
-														procIndex
-													)
-												}
-												onMouseLeave={() =>
-													setHoveredRowIndex(null)
-												}
-												style={{
-													backgroundColor: `${
-														processed.bgcolor
-													}${Math.round(
-														(hoveredRowIndex ===
-														procIndex
-															? Math.min(
-																	opacity +
-																		0.2,
-																	1
-															  )
-															: opacity) * 255
-													)
-														.toString(16)
-														.padStart(2, "0")}`, // Convert opacity to hex
-												}}
-											>
-												<TableCell>
-													{processed.anvaya_no}
-												</TableCell>
-												<TableCell>
-													{processed.word}
-												</TableCell>
-												<TableCell>
-													{processed.morph_analysis}
-												</TableCell>
-												<TableCell>
-													<Select
-														value={
-															currentProcessedData?.morph_in_context
-														}
-														onValueChange={(
-															value
-														) => {
-															const newData = [
-																...updatedData,
-															];
-															if (
-																currentProcessedData
-															) {
-																newData[
-																	procIndex
-																].morph_in_context =
-																	value; // Update morph_in_context
-																setUpdatedData(
-																	newData
-																);
-															}
-														}}
-													>
-														<SelectTrigger className="w-[180px]">
-															<SelectValue
-																placeholder={
-																	processed.morph_analysis
-																}
-															/>
-														</SelectTrigger>
-														<SelectContent>
-															{processed.morph_analysis
-																.split("/")
-																.map(
-																	(
-																		morph: string,
-																		index: number
-																	) => (
-																		<SelectItem
-																			key={
-																				index
-																			}
-																			value={morph.trim()}
-																		>
-																			{morph.trim()}
-																		</SelectItem>
-																	)
-																)}
-														</SelectContent>
-													</Select>
-												</TableCell>
-												<TableCell>
-													<Select
-														onValueChange={(
-															value
-														) => {
-															const newData = [
-																...updatedData,
-															];
-															if (
-																currentProcessedData
-															) {
-																newData[
-																	procIndex
-																].kaaraka_sambandha =
-																	value; // Update kaaraka_sambandha
-																setUpdatedData(
-																	newData
-																);
-															}
-														}}
-													>
-														<SelectTrigger className="w-[180px]">
-															<SelectValue
-																placeholder={
-																	processed.kaaraka_sambandha
-																}
-															/>
-														</SelectTrigger>
-														<SelectContent>
-															{processed.possible_relations
-																.split("#")
-																.map(
-																	(
-																		relation: string,
-																		index: number
-																	) => (
-																		<SelectItem
-																			key={
-																				index
-																			}
-																			value={relation.trim()}
-																		>
-																			{relation.trim()}
-																		</SelectItem>
-																	)
-																)}
-														</SelectContent>
-													</Select>
-												</TableCell>
-												<TableCell>
-													{
-														processed.possible_relations
-													}
-												</TableCell>
-												<TableCell>
-													{processed.hindi_meaning}
-												</TableCell>
-												<TableCell>
-													<Button
-														onClick={() =>
-															handleSave(
-																procIndex,
-																processed.anvaya_no
-															)
-														} // Save changes for the current index
-														className="w-full"
-													>
-														Save
-													</Button>
-												</TableCell>
-											</TableRow>
-										);
-									}
-								)
-							) : (
-								<TableRow>
-									<TableCell
-										colSpan={7}
-										className="text-center"
-									>
-										No data available
-									</TableCell>
-								</TableRow>
-							)}
-						</TableBody>
-					</Table>
+                                                            return (
+                                                                <TableRow
+                                                                    key={procIndex}
+                                                                    onMouseEnter={() =>
+                                                                        setHoveredRowIndex(
+                                                                            procIndex
+                                                                        )
+                                                                    }
+                                                                    onMouseLeave={() =>
+                                                                        setHoveredRowIndex(null)
+                                                                    }
+                                                                    style={{
+                                                                        backgroundColor: `${processed.bgcolor}${Math.round(
+                                                                            (hoveredRowIndex ===
+                                                                            procIndex
+                                                                                ? Math.min(
+                                                                                        opacity +
+                                                                                            0.2,
+                                                                                        1
+                                                                                )
+                                                                                : opacity) * 255
+                                                                        )
+                                                                            .toString(16)
+                                                                            .padStart(2, "0")}`, // Convert opacity to hex
+                                                                    }}
+                                                                >
+                                    {selectedColumns.includes('index') && (
+                                        <TableCell>{processed.anvaya_no}</TableCell>
+                                    )}
+                                    {selectedColumns.includes('word') && (
+                                        <TableCell>{processed.word}</TableCell>
+                                    )}
+                                    {selectedColumns.includes('morph_analysis') && (
+                                        <TableCell>{processed.morph_analysis}</TableCell>
+                                    )}
+                                    {selectedColumns.includes('morph_in_context') && (
+                                        <TableCell>
+                                        <Select
+                                            value={currentProcessedData?.morph_in_context}
+                                            onValueChange={(value) =>
+                                                handleValueChange(procIndex, 'morph_in_context', value)
+                                            }
+                                        >
+                                            <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder={processed.morph_analysis} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                            {processed.morph_analysis
+                                                .split('/')
+                                                .map((morph: string, index: number) => (
+                                                <SelectItem key={index} value={morph.trim()}>
+                                                    {morph.trim()}
+                                                </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        </TableCell>
+                                    )}
+                                    {selectedColumns.includes('kaaraka_sambandha') && (
+                                       <TableCell>
+                                       <Input
+                                           type="text"
+                                           value={currentProcessedData?.kaaraka_sambandha || ''}
+                                           onChange={(e) =>
+                                               handleValueChange(procIndex, 'kaaraka_sambandha', e.target.value)
+                                           }
+                                           className="w-[180px] p-2 border rounded"
+                                           placeholder="Enter Kaaraka Sambandha"
+                                       />
+                                   </TableCell>
+                                   
+                                    )}
+                                    {selectedColumns.includes('possible_relations') && (
+                                        <TableCell>{processed.possible_relations}</TableCell>
+                                    )}
+                                    {selectedColumns.includes('hindi_meaning') && (
+                                        <TableCell>{processed.hindi_meaning}</TableCell>
+                                    )}
+                                    <TableCell>
+                                    {changedRows.has(procIndex) && (
+                                   
+                                        <Button
+                                            onClick={() => handleSave(procIndex, processed.anvaya_no)}
+                                            className="w-full"
+                                        >
+                                            Save
+                                        </Button>
+                                   
+                                )}
+                                    </TableCell>
+                                    </TableRow>
+                                );
+                                })
+                            ) : (
+                                <TableRow>
+                                <TableCell colSpan={7} className="text-center">
+                                    No data available
+                                </TableCell>
+                                </TableRow>
+                            )}
+                            </TableBody>
+                        </Table>
+                    </div>
 					<Button onClick={handleGenerateGraph} className="mb-4">
 						Generate Graph
 					</Button>
