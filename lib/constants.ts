@@ -1,5 +1,18 @@
-export const colorMapping: { [key: string]: string } = {
-	N1: "rgba(0, 191, 255, 1)", // Blue
+export const colors = {
+    N1: "#00BFFF",    // Blue
+    N2: "#93DB70",    // Green
+    N3: "#40E0D0",    // Turquoise
+    N4: "#B0E2FF",    // Light Blue
+    N5: "#B4FFB4",    // Light Green
+    N6: "#87CEEB",    // Sky Blue
+    N7: "#C6E2EB",    // Light Cyan
+    N8: "#6FFFC3",    // Light Green
+    NA: "#FF99FF",    // Pink
+    KP: "#FF1975",    // Red
+    CP: "#FFFF00"     // Yellow
+};
+export const colorMapping = {
+    N1: "rgba(0, 191, 255, 1)", // Blue
 	N2: "rgba(147, 219, 112, 1)", // Green
 	N3: "rgba(64, 224, 208, 1)", // Turquoise
 	N4: "rgba(176, 226, 255, 1)", // Light Blue
@@ -15,6 +28,8 @@ export const colorMapping: { [key: string]: string } = {
 export const validKaarakaSambandhaValues = [
     "नित्य_सम्बन्धः",
     "प्रतियोगी",
+    "नञ्-तत्पुरुषः",
+    
     "भावलक्षणसप्तमी_समानकालः",
     "भावलक्षणसप्तमी_पूर्वकालः",
     "भावलक्षणसप्तमी_अनन्तरकालः",
@@ -145,7 +160,6 @@ export const validKaarakaSambandhaValues = [
 
 
 
-// hide/show_columns 
 // add_shloka 
 // text_field 
 // dictionary

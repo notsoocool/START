@@ -33,7 +33,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { validKaarakaSambandhaValues } from "@/lib/constants";
+import { colors, validKaarakaSambandhaValues } from "@/lib/constants";
 
 export default function ShlokaPage() {
 	const { id } = useParams(); // Get the shloka ID from the URL
@@ -43,7 +43,6 @@ export default function ShlokaPage() {
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
 	const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
 	const [updatedData, setUpdatedData] = useState<any[]>([]);
-	const [tsvData, setTsvData] = useState<string | null>(null);
     const [changedRows, setChangedRows] = useState<Set<number>>(new Set()); // Track which rows have changed
 	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -452,6 +451,14 @@ export default function ShlokaPage() {
                                     />
                                     <Label htmlFor="hindiMeaning">Hindi Meaning</Label>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="bgColor"
+                                        checked={selectedColumns.includes('bgcolor')}
+                                        onCheckedChange={() => handleColumnSelect('bgcolor')}
+                                    />
+                                    <Label htmlFor="hindiMeaning">Color Code</Label>
+                                    </div>
                                 </div>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -483,41 +490,44 @@ export default function ShlokaPage() {
                                 {selectedColumns.includes('hindi_meaning') && (
                                 <TableHead>Hindi Meaning</TableHead>
                                 )}
+                                {selectedColumns.includes('bgcolor') && (
+                                <TableHead>Color Code</TableHead>
+                                )}
                             </TableRow>
                             </TableHeader>
                             <TableBody>
-                                                {chapter.data && chapter.data.length > 0 ? (
-                                                    chapter.data.map(
-                                                        (processed: any, procIndex: any) => {
-                                                            const currentProcessedData =
-                                                                updatedData[procIndex];
+                            {chapter.data && chapter.data.length > 0 ? (
+                            chapter.data.map(
+                                (processed: any, procIndex: any) => {
+                                    const currentProcessedData =
+                                        updatedData[procIndex];
 
-                                                            return (
-                                                                <TableRow
-                                                                    key={procIndex}
-                                                                    onMouseEnter={() =>
-                                                                        setHoveredRowIndex(
-                                                                            procIndex
-                                                                        )
-                                                                    }
-                                                                    onMouseLeave={() =>
-                                                                        setHoveredRowIndex(null)
-                                                                    }
-                                                                    style={{
-                                                                        backgroundColor: `${processed.bgcolor}${Math.round(
-                                                                            (hoveredRowIndex ===
-                                                                            procIndex
-                                                                                ? Math.min(
-                                                                                        opacity +
-                                                                                            0.2,
-                                                                                        1
-                                                                                )
-                                                                                : opacity) * 255
-                                                                        )
-                                                                            .toString(16)
-                                                                            .padStart(2, "0")}`, // Convert opacity to hex
-                                                                    }}
-                                                                >
+                                    return (
+                                        <TableRow
+                                            key={procIndex}
+                                            onMouseEnter={() =>
+                                                setHoveredRowIndex(
+                                                    procIndex
+                                                )
+                                            }
+                                            onMouseLeave={() =>
+                                                setHoveredRowIndex(null)
+                                            }
+                                            style={{
+                                                backgroundColor: `${processed.bgcolor}${Math.round(
+                                                    (hoveredRowIndex ===
+                                                    procIndex
+                                                        ? Math.min(
+                                                                opacity +
+                                                                    0.2,
+                                                                1
+                                                        )
+                                                        : opacity) * 255
+                                                )
+                                                    .toString(16)
+                                                    .padStart(2, "0")}`, // Convert opacity to hex
+                                            }}
+                                        >
                                     {selectedColumns.includes('index') && (
                                         <TableCell>{processed.anvaya_no}</TableCell>
                                     )}
@@ -570,6 +580,36 @@ export default function ShlokaPage() {
                                     {selectedColumns.includes('hindi_meaning') && (
                                         <TableCell>{processed.hindi_meaning}</TableCell>
                                     )}
+                                     {selectedColumns.includes('bgcolor') && (
+                                        <TableCell>
+                                            <Select
+                                                value={currentProcessedData?.bgcolor || ''}
+                                                onValueChange={(value) => handleValueChange(procIndex, 'bgcolor', value)}
+                                            >
+                                                <SelectTrigger className="w-[180px]">
+                                                    <span
+                                                        style={{
+                                                            backgroundColor: currentProcessedData?.bgcolor || 'transparent',
+                                                            display: 'inline-block',
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            marginRight: '8px',
+                                                            borderRadius: '3px', // Optional: Add border radius for better appearance
+                                                        }}
+                                                    ></span>
+                                                    {Object.keys(colors).find((key) => colors[key as keyof typeof colors] === currentProcessedData?.bgcolor) || 'Select Color'}
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {Object.entries(colors).map(([key, color]) => (
+                                                        <SelectItem key={key} value={color}>
+                                                            <span style={{ backgroundColor: color, display: 'inline-block', width: '20px', height: '20px', marginRight: '8px' }}></span>
+                                                            {key}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                    )}
                                     <TableCell>
                                     {changedRows.has(procIndex) && (
                                    
@@ -582,6 +622,7 @@ export default function ShlokaPage() {
                                    
                                 )}
                                     </TableCell>
+                                   
                                     </TableRow>
                                 );
                                 })
