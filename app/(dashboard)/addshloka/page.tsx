@@ -58,6 +58,7 @@ export default function ShlokaPage() {
     const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
     const [graphUrls, setGraphUrls] = useState<{ [key: string]: string }>({});
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [editedSandhiSplit, setEditedSandhiSplit] = useState<string>(""); // New state for editing
 
 
 	const handleOpacityChange = (value: number[]) => {
@@ -123,6 +124,7 @@ export default function ShlokaPage() {
 
 			// Combine the segments into a string
 			setSandhiSplit(segments.join(" "));
+			setEditedSandhiSplit(segments.join(" ")); 
 		} catch (err) {
 			setError("Failed to fetch segmentation or process data.");
 			console.error(err);
@@ -229,6 +231,11 @@ export default function ShlokaPage() {
 		fetchSandhiSplit(combined); // Updated to fetch sandhi split
 	};
 
+    // Function to reprocess the edited sandhi split
+    const handleReprocess = () => {
+        fetchSandhiSplit(editedSandhiSplit);
+    };
+
 	// Return the UI with the Shloka
 	return (
 		<div className="p-8">
@@ -268,10 +275,21 @@ export default function ShlokaPage() {
 					{combinedShloka && (
 						<div className="mt-6">
 							<h3 className="font-semibold">Sandhi Split:</h3>
-							<p>{sandhiSplit}</p>
+							{sandhiSplit && (
+								<div className="mt-2">
+									<Input
+										value={editedSandhiSplit}
+										onChange={(e) => setEditedSandhiSplit(e.target.value)}
+										className="w-full border p-2"
+									/>
+									<Button onClick={handleReprocess} className="mt-4">
+										Reprocess Edited Sandhi Split
+									</Button>
+								</div>
+							)}
 						</div>
 					)}
-
+                    
 					{loading && <p className="mt-4 text-blue-600">Processing...</p>}
 
 					{/* Processed Segments Table */}
