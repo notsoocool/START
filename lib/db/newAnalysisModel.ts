@@ -1,0 +1,115 @@
+import mongoose, { Schema, Document } from "mongoose";
+
+export interface Analysis extends Document {
+	chaptno: string;
+	slokano: string;
+	sentno: string;
+	bgcolor?: string; // Optional field
+	graph: string;
+	anvaya_no: string;
+	word: string;
+	poem: string;
+	sandhied_word: string;
+	morph_analysis: string;
+	morph_in_context: string;
+	kaaraka_sambandha: string;
+	hindi_meaning?: string; // Optional field
+	english_meaning: string;
+	samAsa: string;
+	prayoga: string;
+	sarvanAma: string;
+	name_classification: string;
+	book: string; // New field to store the book name
+	part1?: string; // New optional field
+	part2?: string; // New optional field
+}
+
+const AnalysisSchema: Schema = new Schema({
+	chaptno: {
+		type: String,
+		required: true,
+	},
+	slokano: {
+		type: String,
+		required: true,
+	},
+	sentno: {
+		type: String,
+		required: true,
+	},
+	bgcolor: {
+		type: String,
+		required: false,
+	},
+	graph: {
+		type: String,
+		required: true,
+	},
+	anvaya_no: {
+		type: String,
+		required: true,
+	},
+	word: {
+		type: String,
+		required: true,
+	},
+	poem: {
+		type: String,
+		required: true,
+	},
+	sandhied_word: {
+		type: String,
+		required: true,
+	},
+	morph_analysis: {
+		type: String,
+		required: true,
+	},
+	morph_in_context: {
+		type: String,
+		required: true,
+	},
+	kaaraka_sambandha: {
+		type: String,
+		required: true,
+	},
+	hindi_meaning: {
+		type: String,
+		required: false,
+	},
+	english_meaning: {
+		type: String,
+		required: true,
+	},
+	samAsa: {
+		type: String,
+		required: true,
+	},
+	prayoga: {
+		type: String,
+		required: true,
+	},
+	sarvanAma: {
+		type: String,
+		required: true,
+	},
+	name_classification: {
+		type: String,
+		required: true,
+	},
+	book: {
+		type: String,
+		required: true,
+	},
+	part1: {
+		type: String,
+		required: false,
+	},
+	part2: {
+		type: String,
+		required: false,
+	},
+});
+
+export default mongoose.models.Analysis ||
+	mongoose.model<Analysis>("Analysis", AnalysisSchema);

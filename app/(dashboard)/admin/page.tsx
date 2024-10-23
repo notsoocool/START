@@ -1,183 +1,71 @@
-// app/Admin/page.tsx
 "use client";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter for navigation
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import UploadJsonPage from "@/components/global/upload-json"; // Import your JSON upload component
+import UserPerms from "@/components/global/user-perms"; // Import your permission change component
+import router from "next/router";
+import { toast } from "sonner";
 
-type User = {
-	userID: string;
-	name: string;
-	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root"; // Include Root in User type
-};
+export default function AdminPage() {
 
-export default function adminPanel() {
-	const [users, setUsers] = useState<User[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [currentUser, setCurrentUser] = useState<{
-		id: string;
-		firstName: string;
-		lastName: string;
-		perms: User["perms"];
-	} | null>(null); // Updated type for current user
-	const router = useRouter(); // Initialize useRouter
+  const [activeTab, setActiveTab] = useState("upload");
+  
+  useEffect(() => {
+    const checkAuthorization = async () => {
+      try {
+        const response = await fetch("/api/getCurrentUser");
+        if (!response.ok) {
+          throw new Error("User not authenticated");
+        }
 
-	useEffect(() => {
-		const fetchUsers = async () => {
-			const response = await fetch("/api/getAllUsers");
+        const data = await response.json();
 
-			if (!response.ok) {
-				const data = await response.json();
-				setError(data.error);
-				setLoading(false);
-				return;
-			}
 
-			const data = await response.json();
-			setUsers(data);
-			setLoading(false);
-		};
+        if (data.perms !== "Admin" && data.perms !== "Root") {
+            router.push("/"); // Redirect to main page
+        }
+      } catch (error) {
+        toast.error("Authorization check failed:");
+        router.push("/");
+      }
+    };
 
-		fetchUsers();
-	}, []);
+    checkAuthorization();
+  }, [router]);
 
-	useEffect(() => {
-		const fetchCurrentUser = async () => {
-			const response = await fetch("/api/getCurrentUser");
+  return (
+    <Tabs defaultValue="upload" className="space-y-4 mx-4 my-4">
+      <TabsList>
+        <TabsTrigger value="upload" onClick={() => setActiveTab("upload")}>
+          Upload JSON
+        </TabsTrigger>
+        <TabsTrigger value="permissions" onClick={() => setActiveTab("permissions")}>
+          Change User Permissions
+        </TabsTrigger>
+      </TabsList>
 
-			if (!response.ok) {
-				console.error("Error fetching current user");
-				return;
-			}
+      <TabsContent value="upload">
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Upload JSON</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <UploadJsonPage />
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-			const data = await response.json();
-			setCurrentUser(data); // Set current user data with updated structure
-
-			// Redirect if current user is not Admin or Root
-			if (data.perms !== "Admin" && data.perms !== "Root") {
-				router.push("/"); // Redirect to main page
-			}
-		};
-
-		fetchCurrentUser();
-	}, [router]);
-
-	const handlePermissionChange = async (
-		userId: string,
-		newPermission: User["perms"]
-	) => {
-		const response = await fetch(`/api/updateUser`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ userId, newPermission }),
-		});
-
-		if (response.ok) {
-			setUsers((prevUsers) =>
-				prevUsers.map((user) =>
-					user.userID === userId
-						? { ...user, perms: newPermission }
-						: user
-				)
-			);
-		} else {
-			const data = await response.json();
-			alert(`Error: ${data.error}`);
-		}
-	};
-
-	if (loading) return <p>Loading...</p>;
-	if (error) return <p>Error: {error}</p>;
-
-	return (
-		<div className="container mx-auto py-10">
-			<h1 className="text-2xl font-bold mb-5">User Management</h1>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Name</TableHead>
-						<TableHead>Current Permission</TableHead>
-						<TableHead>Change Permission</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{users.map((user) => (
-						<TableRow key={user.userID}>
-							<TableCell>{user.name}</TableCell>
-							<TableCell>
-								{user.perms === "Root" ? "Root" : user.perms}
-							</TableCell>
-							<TableCell>
-								<Select
-									value={user.perms}
-									onValueChange={(value) =>
-										handlePermissionChange(
-											user.userID,
-											value as User["perms"]
-										)
-									}
-									disabled={
-										(user.perms === "Admin" &&
-											currentUser?.perms !== "Root") ||
-										(user.perms === "Root" &&
-											currentUser?.perms === "Root") ||
-										(user.perms === "Root" &&
-											currentUser?.perms === "Admin")
-									} // Disable if user is Admin and current user is not Root
-								>
-									<SelectTrigger className="w-[180px]">
-										<SelectValue placeholder="Select permission" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="User">
-											User
-										</SelectItem>
-										<SelectItem value="Annotator">
-											Annotator
-										</SelectItem>
-										<SelectItem value="Editor">
-											Editor
-										</SelectItem>
-										<SelectItem
-											value="Admin"
-											disabled={
-												currentUser?.perms !== "Root"
-											}
-										>
-											Admin
-										</SelectItem>
-										<SelectItem
-											value="Root"
-											disabled
-											className="text-red-500"
-										>
-											Root
-										</SelectItem>{" "}
-										{/* Mark Root as danger */}
-									</SelectContent>
-								</Select>
-							</TableCell>
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-		</div>
-	);
+      <TabsContent value="permissions">
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Change User Permissions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <UserPerms />
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  );
 }
