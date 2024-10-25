@@ -22,8 +22,8 @@ export async function POST() {
     const existingUser = await Perms.findOne({ userID: id });
     if (existingUser) {
         return NextResponse.json(
-            { error: "User already exists" },
-            { status: 400 }
+            { message: "User already exists" },
+            { status: 200 }
         );
     }
 
