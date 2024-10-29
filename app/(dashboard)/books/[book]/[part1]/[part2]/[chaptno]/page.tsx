@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { toast } from "sonner";
-import { useTheme } from "next-themes";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
@@ -16,6 +13,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { useParams } from "next/navigation";
 
 // Define the shloka type
 type Shloka = {
@@ -34,14 +32,16 @@ export default function Shlokas() {
 
 	// Refs for each shloka card to track visibility
 	const shlokaRefs = useRef<{ [key: string]: HTMLElement | null }>({});
-
+	const { book, part1, part2, chaptno } = useParams();
 	useEffect(() => {
 		const fetchShlokas = async () => {
 			setLoading(true);
 			try {
-				const response = await fetch("/api/ahShloka"); // Adjust API route
+				const response = await fetch(
+					`/api/books/${book}/${part1}/${part2}/${chaptno}`
+				); // Adjust API route
 				const data = await response.json();
-				setShlokas(data);
+				setShlokas(data.shlokas);
 			} catch (error) {
 				console.error("Error fetching shlokas:", error);
 			} finally {
@@ -54,23 +54,23 @@ export default function Shlokas() {
 
 	// Scroll event to observe which shloka is visible
 	const handleScroll = useCallback(() => {
-        Object.keys(shlokaRefs.current).forEach((shlokaId) => {
-            const ref = shlokaRefs.current[shlokaId];
-            if (ref) {
-                const rect = ref.getBoundingClientRect();
-                const elementTop = rect.top;
-                const elementBottom = rect.bottom;
-    
-                // Check if the element is near the middle of the viewport
-                if (
-                    elementTop < window.innerHeight / 3 && // Adjust this threshold as needed
-                    elementBottom > window.innerHeight / 3
-                ) {
-                    setActiveShlokaId(shlokaId);
-                }
-            }
-        });
-    }, []);
+		Object.keys(shlokaRefs.current).forEach((shlokaId) => {
+			const ref = shlokaRefs.current[shlokaId];
+			if (ref) {
+				const rect = ref.getBoundingClientRect();
+				const elementTop = rect.top;
+				const elementBottom = rect.bottom;
+
+				// Check if the element is near the middle of the viewport
+				if (
+					elementTop < window.innerHeight / 3 && // Adjust this threshold as needed
+					elementBottom > window.innerHeight / 3
+				) {
+					setActiveShlokaId(shlokaId);
+				}
+			}
+		});
+	}, []);
 
 	useEffect(() => {
 		window.addEventListener("scroll", handleScroll);
@@ -116,27 +116,40 @@ export default function Shlokas() {
 					</div>
 					{shlokas.map((shloka) => (
 						<Button
-                        key={shloka._id}
-                        variant={shloka._id === activeShlokaId ? "secondary" : "ghost"}
-                        onClick={() => {
-                            const element = document.getElementById(shloka._id);
-                            if (element) {
-                                const elementTop = element.getBoundingClientRect().top + window.scrollY; // Get the element's position relative to the document
-                                const offset = 100; // Adjust this value based on the new card height (you can fine-tune it)
-                                const newScrollPosition = elementTop - offset; // Ensure smooth scrolling is accurate
-                                window.scrollTo({
-                                    top: newScrollPosition, // Adjusted scroll position
-                                    behavior: "smooth", // Smooth scrolling
-                                });
-                            } else {
-                                console.error("Element not found for ID:", shloka._id);
-                            }
-                        }}
-                    >
-                        <span className="text-xs font-medium">
-                            Chapter {shloka.chaptno} - Shloka {shloka.slokano}
-                        </span>
-                    </Button>
+							key={shloka._id}
+							variant={
+								shloka._id === activeShlokaId
+									? "secondary"
+									: "ghost"
+							}
+							onClick={() => {
+								const element = document.getElementById(
+									shloka._id
+								);
+								if (element) {
+									const elementTop =
+										element.getBoundingClientRect().top +
+										window.scrollY; // Get the element's position relative to the document
+									const offset = 100; // Adjust this value based on the new card height (you can fine-tune it)
+									const newScrollPosition =
+										elementTop - offset; // Ensure smooth scrolling is accurate
+									window.scrollTo({
+										top: newScrollPosition, // Adjusted scroll position
+										behavior: "smooth", // Smooth scrolling
+									});
+								} else {
+									console.error(
+										"Element not found for ID:",
+										shloka._id
+									);
+								}
+							}}
+						>
+							<span className="text-xs font-medium">
+								Chapter {shloka.chaptno} - Shloka{" "}
+								{shloka.slokano}
+							</span>
+						</Button>
 					))}
 				</div>
 			</div>
@@ -145,7 +158,10 @@ export default function Shlokas() {
 			<div className="p-2 pt-8 w-9/12">
 				<div className="grid grid-cols-1 gap-6" ref={shlokasRef}>
 					{shlokas.map((shloka) => (
-						<Link href={`/shlokas/${shloka._id}`} key={shloka._id}>
+						<Link
+							href={`/books/${book}/${part1}/${part2}/${shloka.chaptno}/${shloka._id}`}
+							key={shloka._id}
+						>
 							<Card
 								id={shloka._id}
 								ref={(el) => {

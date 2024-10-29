@@ -8,6 +8,7 @@ export async function POST(req: Request) {
 
   // Parse the incoming JSON body
   const { book, part1, part2, shlokaData, analysisData } = await req.json();
+  console.log({ book, part1, part2, shlokaData, analysisData });
 
   // Validate required fields
   if (!book) {

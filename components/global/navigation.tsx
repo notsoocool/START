@@ -13,18 +13,18 @@ const routes = [
 		href: "/",
 		label: "Home",
 	},
-	{
-		href: "/shlokas",
-		label: "Shlokas",
-	},
+	// {
+	// 	href: "/shlokas",
+	// 	label: "Shlokas",
+	// },
 	{
 		href: "/addshloka",
 		label: "Add Shloka",
 	},
-	// {
-	// 	href: "/docs",
-	// 	label: "Documentation",
-	// },
+	{
+		href: "/books",
+		label: "Sacred Books",
+	},
 ];
 
 export const Navigation = () => {

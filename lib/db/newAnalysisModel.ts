@@ -13,6 +13,7 @@ export interface Analysis extends Document {
 	morph_analysis: string;
 	morph_in_context: string;
 	kaaraka_sambandha: string;
+    possible_relations: string;
 	hindi_meaning?: string; // Optional field
 	english_meaning: string;
 	samAsa: string;
@@ -73,6 +74,10 @@ const AnalysisSchema: Schema = new Schema({
 		type: String,
 		required: true,
 	},
+    possible_relations: {
+        type: String,
+        required: true,
+    },
 	hindi_meaning: {
 		type: String,
 		required: false,

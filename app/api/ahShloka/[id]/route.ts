@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import AHShloka from "@/lib/db/shlokasModel";
+import AHShloka from "@/lib/db/newShlokaModel";
 import dbConnect from "@/lib/db/connect";
 import { ObjectId } from "mongodb";
 

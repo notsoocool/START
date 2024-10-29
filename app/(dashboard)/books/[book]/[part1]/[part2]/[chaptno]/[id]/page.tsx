@@ -35,9 +35,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { colors, validKaarakaSambandhaValues } from "@/lib/constants";
 
-export default function ShlokaPage() {
-	const { id } = useParams(); // Get the shloka ID from the URL
-	const [shloka, setShloka] = useState<Shloka | null>(null);
+export default function AnalysisPage() {
+	const { book, part1, part2, chaptno, id } = useParams(); // Get the shloka ID from the URL
+	const [shloka, setShloka] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [chapter, setChapter] = useState<any>(null);
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
@@ -61,7 +61,7 @@ export default function ShlokaPage() {
 				setShloka(shlokaData);
 
 				const chapterResponse = await fetch(
-					`/api/chaponeAH/${shlokaData.slokano}`
+					`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`
 				);
 				const chapterData = await chapterResponse.json();
 				setChapter(chapterData);
@@ -92,7 +92,7 @@ export default function ShlokaPage() {
         setUpdatedData(newData);
     
         // Get the original value for comparison
-        const originalValue = chapter.data[index][field];
+        const originalValue = chapter[index][field];
     
         // Always track if the current value is different from the last saved value
         if (value !== originalValue) {
@@ -110,7 +110,7 @@ export default function ShlokaPage() {
     const handleSave = async (index: number, anvaya_no: any) => {
         try {
             const updatedValue = updatedData[index]; // Get the updated value for the specific index
-            const previousValue = chapter.data[index]?.kaaraka_sambandha; // Retrieve the previous value
+            const previousValue = chapter[index]?.kaaraka_sambandha; // Retrieve the previous value
             const newKaarakaValue = updatedValue.kaaraka_sambandha;
     
             if (newKaarakaValue !== previousValue) {
@@ -122,7 +122,7 @@ export default function ShlokaPage() {
                 }
             } // Get the updated value for the specific index
     
-            const response = await fetch(`/api/chaponeAH/${shloka?.slokano}`, {
+            const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -148,7 +148,7 @@ export default function ShlokaPage() {
             });
     
             // Update the chapter state with the latest saved values
-            const newChapterData = [...chapter.data];
+            const newChapterData = [...chapter];
             newChapterData[index] = updatedValue; // Update the saved value in the chapter data
             setChapter({ ...chapter, data: newChapterData });
     
@@ -188,7 +188,7 @@ export default function ShlokaPage() {
 		// Group data by sentno
 		const groupedData: { [key: string]: any[] } = {};
 
-		chapter.data.forEach((item: any, index: number) => {
+		chapter.forEach((item: any, index: number) => {
 			const updatedItem = updatedData[index] || {};
 			const sentno = updatedItem.sentno ?? item.sentno;
 
@@ -496,8 +496,8 @@ export default function ShlokaPage() {
                             </TableRow>
                             </TableHeader>
                             <TableBody>
-                            {chapter.data && chapter.data.length > 0 ? (
-                            chapter.data.map(
+                            {chapter && chapter.length > 0 ? (
+                            chapter.map(
                                 (processed: any, procIndex: any) => {
                                     const currentProcessedData =
                                         updatedData[procIndex];
