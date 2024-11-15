@@ -27,11 +27,27 @@ export async function GET(req: Request, { params }: { params: Params }) {
 			slokano,
 		};
 
-		console.log("Query being used:", query);
+        let analysis = await Analysis.find(query).sort({ sentno: 1 });
 
-		const analysis = await Analysis.find(query);
+		// If analysis data exists, apply custom sorting to `anvaya_no`
+		if (analysis && analysis.length > 0) {
+			analysis = analysis.sort((a, b) => {
+				// First, sort by sentno
+				if (a.sentno !== b.sentno) {
+					return a.sentno - b.sentno;
+				}
 
-		if (!analysis) {
+				// If sentno is the same, then sort by anvaya_no
+				const [aMain, aSub] = a.anvaya_no.split('.').map(Number);
+				const [bMain, bSub] = b.anvaya_no.split('.').map(Number);
+
+				if (aMain !== bMain) {
+					return aMain - bMain;
+				}
+
+				return aSub - bSub;
+			});
+		} else {
 			console.log("No matching analysis found");
 			return NextResponse.json(
 				{ message: "Analysis not found" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,12 +34,22 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { colors, validKaarakaSambandhaValues } from "@/lib/constants";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+declare global {
+    interface Window {
+        toggleChildren?: (event: MouseEvent) => void;
+    }
+}
 
 export default function AnalysisPage() {
 	const { book, part1, part2, chaptno, id } = useParams(); // Get the shloka ID from the URL
 	const [shloka, setShloka] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [chapter, setChapter] = useState<any>(null);
+    const [meaning, setMeaning] = useState<string | null>(null);
+	const [isHovered, setIsHovered] = useState(false);
+    const [initialLoad, setInitialLoad] = useState(true);
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
 	const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
 	const [updatedData, setUpdatedData] = useState<any[]>([]);
@@ -50,34 +60,31 @@ export default function AnalysisPage() {
 		{}
 	);
 
-	// Fetch the shloka and chapter data by ID
-	useEffect(() => {
-		const fetchShlokaData = async () => {
-			if (!id) return;
-			try {
-				setLoading(true);
-				const response = await fetch(`/api/ahShloka/${id}`);
-				const shlokaData = await response.json();
-				setShloka(shlokaData);
-
-				const chapterResponse = await fetch(
-					`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`
-				);
-				const chapterData = await chapterResponse.json();
-				setChapter(chapterData);
-
-				// Initialize updatedData with chapter data
-				setUpdatedData(
-					chapterData.data.map((item: any) => ({ ...item }))
-				);
-			} catch (error) {
-				console.error("Error fetching shloka or chapter:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
-		fetchShlokaData();
-	}, [id]);
+    useEffect(() => {
+        if (!id) return;
+        
+        const fetchShlokaData = async () => {
+          try {
+            setLoading(true);
+            const response = await fetch(`/api/ahShloka/${id}`);
+            const shlokaData = await response.json();
+            setShloka(shlokaData);
+    
+            const chapterResponse = await fetch(
+              `/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`
+            );
+            const chapterData = await chapterResponse.json();
+            setChapter(chapterData);
+            setUpdatedData(chapterData.map((item: any) => ({ ...item })));
+          } catch (error) {
+            console.error("Error fetching shloka or chapter:", error);
+          } finally {
+            setLoading(false);
+            setInitialLoad(false);
+          }
+        };
+        fetchShlokaData();
+      }, [id]);
 
 	const handleOpacityChange = (value: number[]) => {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
@@ -215,14 +222,12 @@ export default function AnalysisPage() {
 				// Convert the filtered data to TSV format
 				const tsv = jsonToTsv(dataForSentno);
 
-				// Submit the graph generation request for this sentno
-				const imageUrl = await handleSubmitGraph(tsv);
+				const svgContent = await handleSubmitGraph(tsv);
 
-				// Update graph URLs for this sentno
-				setGraphUrls((prevGraphUrls) => ({
-					...prevGraphUrls,
-					[sentno]: imageUrl || "", // Ensure imageUrl is a string
-				}));
+                setGraphUrls((prevGraphUrls) => ({
+                    ...prevGraphUrls,
+                    [sentno]: svgContent || "", // Store SVG content directly
+                }));
 			} catch (error) {
 				// If any error occurs, show the error message
 				setErrorMessage(`Error generating graph for sentno: ${sentno}`);
@@ -253,11 +258,7 @@ export default function AnalysisPage() {
 			setErrorMessage(null);
 
 			// Extract image URL from response
-			const imageUrlMatch = result.match(/<img src="([^"]+)"/);
-			if (imageUrlMatch && imageUrlMatch[1]) {
-				setImageUrl(`https://sanskrit.uohyd.ac.in${imageUrlMatch[1]}`);
-				return `https://sanskrit.uohyd.ac.in${imageUrlMatch[1]}`;
-			}
+			return result;
 		} catch (error) {
 			setErrorMessage(
 				"Error uploading TSV data: " + (error as Error).message
@@ -266,6 +267,34 @@ export default function AnalysisPage() {
 		}
 	};
 
+
+    const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+    useEffect(() => {
+    // Iterate over each SVG container and run the script within that container
+    Object.keys(graphUrls).forEach((sentno) => {
+      const svgContainer = svgContainerRefs.current[sentno] || null;
+      if (svgContainer) {
+        const scripts = svgContainer.querySelectorAll("script");
+        scripts.forEach((script) => {
+          const newScript = document.createElement("script");
+          newScript.textContent = script.textContent;
+          svgContainer.appendChild(newScript); // Execute the script inside the SVG container
+        });
+      }
+    });
+  }, [graphUrls]); // Re-run the effect when graphUrls change
+
+  // Handle node toggling directly inside the SVG
+  const handleToggleChildren = (sentno: string, id: string) => {
+    const svgContainer = svgContainerRefs.current[sentno];
+    if (svgContainer) {
+      const children = svgContainer.querySelector(`#${id}`);
+      if (children) {
+        children.classList.toggle("hidden");
+      }
+    }
+  };
     const [selectedColumns, setSelectedColumns] = useState<string[]>([
         'index',
         'word',
@@ -283,7 +312,22 @@ export default function AnalysisPage() {
             : [...prevSelected, column]
         );
       };
-
+      if (initialLoad) {
+        return (
+			<div className="max-w-screen-2xl mx-auto w-full p-8">
+				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+					<CardHeader className="border-b border-primary-100">
+						<Skeleton className="h-6 w-40" />
+					</CardHeader>
+					<CardContent>
+						<div className="h-[300px] w-full flex items-center justify-center">
+							<Loader2 className="size-6 text-slate-300 animate-spin" />
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+      }
 	// Render loading state
 	if (loading) {
 		return (
@@ -302,26 +346,26 @@ export default function AnalysisPage() {
 		);
 	}
 
-	// Render error state if shloka is not found
-	if (!shloka || !chapter) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<CardTitle>Shloka not found</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex items-center justify-center">
-							<p className="text-lg text-slate-300">
-								<ExclamationTriangleIcon className="w-6 h-6 mr-2" />
-								The shloka you are looking for does not exist.
-							</p>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
+// Then check for missing data
+if (!shloka || !chapter) {
+    return (
+        <div className="max-w-screen-2xl mx-auto w-full">
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+                <CardHeader className="border-b border-primary-100">
+                    <CardTitle>Shloka not found</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-[300px] w-full flex items-center justify-center">
+                        <p className="text-lg text-slate-300 flex items-center">
+                            <ExclamationTriangleIcon className="w-6 h-6 mr-2" />
+                            The shloka you are looking for does not exist.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 	// Render the UI with the Shloka
 	return (
@@ -531,8 +575,8 @@ export default function AnalysisPage() {
                                     {selectedColumns.includes('index') && (
                                         <TableCell>{processed.anvaya_no}</TableCell>
                                     )}
-                                    {selectedColumns.includes('word') && (
-                                        <TableCell>{processed.word}</TableCell>
+                                    {selectedColumns.includes("word") && (
+                                        <WordCell word={processed.word} />
                                     )}
                                     {selectedColumns.includes('morph_analysis') && (
                                         <TableCell>{processed.morph_analysis}</TableCell>
@@ -637,19 +681,79 @@ export default function AnalysisPage() {
                         </Table>
                     </div>
 					<Button onClick={handleGenerateGraph} className="mb-4">
-						Generate Graph
-					</Button>
-					{Object.entries(graphUrls).map(([sentno, imageUrl]) => (
-						<div key={sentno} className="mb-4">
-							<h3>Graph for sentno: {sentno}</h3>
-							<img
-								src={imageUrl}
-								alt={`Generated Graph for sentno ${sentno}`}
-							/>
-						</div>
-					))}
+                        Generate Graph
+                    </Button>
+
+                    {Object.entries(graphUrls).map(([sentno, svgContent]) => (
+                        <div key={sentno} className="mb-4">
+                            <h3>Graph for sentno: {sentno}</h3>
+                            <div
+                                ref={(el) => {
+                                    svgContainerRefs.current[sentno] = el;
+                                }}
+                                dangerouslySetInnerHTML={{ __html: svgContent }}
+                                style={{ width: "100%", maxWidth: "600px" }}
+                            />
+                        </div>
+                    ))}
 				</CardContent>
 			</Card>
 		</div>
 	);
 }
+
+
+const WordCell: React.FC<{ word: string }> = ({ word }) => {
+    const [meaning, setMeaning] = useState<string | null>(null);
+    const [isHovered, setIsHovered] = useState(false);
+  
+    const fetchMeaning = async () => {
+      try {
+        const response = await fetch(
+          `https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`
+        );
+        const data = await response.json();
+        console.log("Meaning data:", data[0].Meaning);
+        if (data ) {
+          setMeaning(data[0].Meaning); // Adjust this if the API returns the meaning in a different field
+        } else {
+          setMeaning("Meaning not found");
+        }
+      } catch (error) {
+        console.error("Error fetching meaning:", error);
+        setMeaning("Error fetching meaning");
+      }
+    };
+  
+    const handleMouseEnter = () => {
+      setIsHovered(true);
+      if (!meaning) {
+        fetchMeaning();
+      }
+    };
+  
+    const handleMouseLeave = () => {
+      setIsHovered(false);
+    };
+  
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger
+            asChild
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <TableCell>
+              <span>{word}</span>
+            </TableCell>
+          </TooltipTrigger>
+          {isHovered && meaning && (
+            <TooltipContent>
+              <p>{meaning}</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
