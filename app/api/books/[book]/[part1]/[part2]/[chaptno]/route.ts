@@ -16,14 +16,16 @@ export async function GET(request: Request, { params }: { params: Params }) {
 
     // Query to match the specified book, part1, part2, and chapter
     const query = {
-        book: book !== "null" ? book : undefined,
-        part1: part1 !== "null" ? part1 : undefined,
-        part2: part2 !== "null" ? part2 : undefined,
+        ...(book !== "null" && { book }),
+        ...(part1 !== "null" && { part1 }),
+        ...(part2 !== "null" && { part2 }),
         chaptno,
     };
 
-    // Fetch all shlokas for the specified chapter
-    const shlokas = await AHShloka.find(query);
+    // Fetch all shlokas for the specified chapter and sort by slokano (numeric order)
+    const shlokas = await AHShloka.find(query).sort({
+        slokano: 1, // Sort by slokano in ascending order
+    });
 
     return NextResponse.json({ shlokas });
 }

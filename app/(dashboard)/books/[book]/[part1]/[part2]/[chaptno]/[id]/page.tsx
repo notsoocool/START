@@ -7,29 +7,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { ExclamationTriangleIcon, SliderIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -37,9 +30,9 @@ import { colors, validKaarakaSambandhaValues } from "@/lib/constants";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 declare global {
-    interface Window {
-        toggleChildren?: (event: MouseEvent) => void;
-    }
+	interface Window {
+		toggleChildren?: (event: MouseEvent) => void;
+	}
 }
 
 export default function AnalysisPage() {
@@ -47,125 +40,121 @@ export default function AnalysisPage() {
 	const [shloka, setShloka] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [chapter, setChapter] = useState<any>(null);
-    const [meaning, setMeaning] = useState<string | null>(null);
-	const [isHovered, setIsHovered] = useState(false);
-    const [initialLoad, setInitialLoad] = useState(true);
+	const [initialLoad, setInitialLoad] = useState(true);
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
 	const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
 	const [updatedData, setUpdatedData] = useState<any[]>([]);
-    const [changedRows, setChangedRows] = useState<Set<number>>(new Set()); // Track which rows have changed
-	const [imageUrl, setImageUrl] = useState<string | null>(null);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [graphUrls, setGraphUrls] = useState<{ [sentno: string]: string }>(
-		{}
-	);
+	const [changedRows, setChangedRows] = useState<Set<number>>(new Set()); // Track which rows have changed
+	const [, setErrorMessage] = useState<string | null>(null);
+	const [graphUrls, setGraphUrls] = useState<{ [sentno: string]: string }>({});
+	const [rowMeanings, setRowMeanings] = useState<{ [key: number]: string }>({}); // Store meanings per row
+	const [selectedMeaning, setSelectedMeaning] = useState<{ [key: number]: string }>({});
+	const [allMeanings, setAllMeanings] = useState<any[]>([]); // Holds all the meanings from API response
+	const [selectedDictIndex, setSelectedDictIndex] = useState<number>(0); // Default to the first dictionary
 
-    useEffect(() => {
-        if (!id) return;
-        
-        const fetchShlokaData = async () => {
-          try {
-            setLoading(true);
-            const response = await fetch(`/api/ahShloka/${id}`);
-            const shlokaData = await response.json();
-            setShloka(shlokaData);
-    
-            const chapterResponse = await fetch(
-              `/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`
-            );
-            const chapterData = await chapterResponse.json();
-            setChapter(chapterData);
-            setUpdatedData(chapterData.map((item: any) => ({ ...item })));
-          } catch (error) {
-            console.error("Error fetching shloka or chapter:", error);
-          } finally {
-            setLoading(false);
-            setInitialLoad(false);
-          }
-        };
-        fetchShlokaData();
-      }, [id]);
+	useEffect(() => {
+		if (!id) return;
+
+		const fetchShlokaData = async () => {
+			try {
+				setLoading(true);
+				const response = await fetch(`/api/ahShloka/${id}`);
+				const shlokaData = await response.json();
+				setShloka(shlokaData);
+
+				const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
+				const chapterData = await chapterResponse.json();
+				setChapter(chapterData);
+				setUpdatedData(chapterData.map((item: any) => ({ ...item })));
+			} catch (error) {
+				console.error("Error fetching shloka or chapter:", error);
+			} finally {
+				setLoading(false);
+				setInitialLoad(false);
+			}
+		};
+		fetchShlokaData();
+	}, [id]);
 
 	const handleOpacityChange = (value: number[]) => {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
 	};
 
-    const handleValueChange = (index: number, field: string, value: any) => {
-        const newData = [...updatedData];
-        newData[index] = {
-            ...newData[index],
-            [field]: value,
-        };
-        setUpdatedData(newData);
-    
-        // Get the original value for comparison
-        const originalValue = chapter[index][field];
-    
-        // Always track if the current value is different from the last saved value
-        if (value !== originalValue) {
-            setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
-        } else {
-            setChangedRows((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(index); // Remove index if value is the same as original
-                return newSet;
-            });
-        }
-    };
-    
-    // Updated handleSave function
-    const handleSave = async (index: number, anvaya_no: any) => {
-        try {
-            const updatedValue = updatedData[index]; // Get the updated value for the specific index
-            const previousValue = chapter[index]?.kaaraka_sambandha; // Retrieve the previous value
-            const newKaarakaValue = updatedValue.kaaraka_sambandha;
-    
-            if (newKaarakaValue !== previousValue) {
-                const extractedValue = newKaarakaValue.split(',')[0].trim(); // Extract only the first part before the comma
-    
-                if (!validKaarakaSambandhaValues.includes(extractedValue)) {
-                    toast.error("Kaaraka Sambandha does not exist in valid strings.");
-                    return; // Stop further execution if validation fails
-                }
-            } // Get the updated value for the specific index
-    
-            const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    index: index, // Send the specific index being updated
-                    ...updatedValue, // Send all updated values for that index
-                }),
-            });
-    
-            if (!response.ok) {
-                throw new Error("Failed to save changes");
-            }
-    
-            const updatedChapter = await response.json();
-            console.log("Updated chapter:", updatedChapter);
-    
-            // Clear changedRows after successful save
-            setChangedRows((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(index); // Remove the current index after save
-                return newSet;
-            });
-    
-            // Update the chapter state with the latest saved values
-            const newChapterData = [...chapter];
-            newChapterData[index] = updatedValue; // Update the saved value in the chapter data
-            setChapter({ ...chapter, data: newChapterData });
-    
-            toast.success(`Changes saved successfully for index ${anvaya_no}`);
-        } catch (error) {
-            console.error("Error saving changes:", error);
-            toast.error("Failed to save changes. Please try again.");
-        }
-    };
-    
+	const handleValueChange = (index: number, field: string, value: any) => {
+		const newData = [...updatedData];
+		newData[index] = {
+			...newData[index],
+			[field]: value,
+		};
+		setUpdatedData(newData);
+
+		// Get the original value for comparison
+		const originalValue = chapter[index][field];
+
+		// Always track if the current value is different from the last saved value
+		if (value !== originalValue) {
+			setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
+		} else {
+			setChangedRows((prev) => {
+				const newSet = new Set(prev);
+				newSet.delete(index); // Remove index if value is the same as original
+				return newSet;
+			});
+		}
+	};
+
+	// Updated handleSave function
+	const handleSave = async (index: number, anvaya_no: any) => {
+		try {
+			const updatedValue = updatedData[index]; // Get the updated value for the specific index
+			const previousValue = chapter[index]?.kaaraka_sambandha; // Retrieve the previous value
+			const newKaarakaValue = updatedValue.kaaraka_sambandha;
+
+			if (newKaarakaValue !== previousValue) {
+				const extractedValue = newKaarakaValue.split(",")[0].trim(); // Extract only the first part before the comma
+
+				if (!validKaarakaSambandhaValues.includes(extractedValue)) {
+					toast.error("Kaaraka Sambandha does not exist in valid strings.");
+					return; // Stop further execution if validation fails
+				}
+			} // Get the updated value for the specific index
+
+			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					index: index, // Send the specific index being updated
+					...updatedValue, // Send all updated values for that index
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error("Failed to save changes");
+			}
+
+			const updatedChapter = await response.json();
+			console.log("Updated chapter:", updatedChapter);
+
+			// Clear changedRows after successful save
+			setChangedRows((prev) => {
+				const newSet = new Set(prev);
+				newSet.delete(index); // Remove the current index after save
+				return newSet;
+			});
+
+			// Update the chapter state with the latest saved values
+			const newChapterData = [...chapter];
+			newChapterData[index] = updatedValue; // Update the saved value in the chapter data
+			setChapter({ ...chapter, data: newChapterData });
+
+			toast.success(`Changes saved successfully for index ${anvaya_no}`);
+		} catch (error) {
+			console.error("Error saving changes:", error);
+			toast.error("Failed to save changes. Please try again.");
+		}
+	};
 
 	const jsonToTsv = (data: any[]): string => {
 		const tsvRows = data.map(
@@ -189,7 +178,7 @@ export default function AnalysisPage() {
 			"morph_in_context",
 			"kaaraka_sambandha",
 			"possible_relations",
-            "bgcolor"
+			"bgcolor",
 		];
 
 		// Group data by sentno
@@ -209,6 +198,29 @@ export default function AnalysisPage() {
 				filteredItem[field] = updatedItem[field] ?? item[field];
 			});
 
+			// ** Update the `anvaya_no` to include the sentence number **
+			if (filteredItem.anvaya_no && sentno) {
+				const parts = filteredItem.anvaya_no.split(".");
+				const modifiedAnvayaNo = `S${sentno}.${parts.join(".")}`;
+				filteredItem.anvaya_no = modifiedAnvayaNo;
+			}
+
+			// ** Update the `kaaraka_sambandha` to include the sentence number **
+			if (filteredItem.kaaraka_sambandha && sentno) {
+				const kaarakaEntries = filteredItem.kaaraka_sambandha.split(";");
+
+				const modifiedKaaraka = kaarakaEntries.map((entry: { split: (arg0: string) => [any, any] }) => {
+					const [relation, sentenceNumber] = entry.split(",");
+					// Check if there is a sentence number part (e.g., "1.2")
+					if (sentenceNumber) {
+						return `${relation},S${sentno}.${sentenceNumber}`;
+					}
+					return entry; // Return unchanged if no sentence number is found
+				});
+
+				filteredItem.kaaraka_sambandha = modifiedKaaraka.join(";");
+			}
+
 			groupedData[sentno].push(filteredItem);
 		});
 
@@ -224,10 +236,10 @@ export default function AnalysisPage() {
 
 				const svgContent = await handleSubmitGraph(tsv);
 
-                setGraphUrls((prevGraphUrls) => ({
-                    ...prevGraphUrls,
-                    [sentno]: svgContent || "", // Store SVG content directly
-                }));
+				setGraphUrls((prevGraphUrls) => ({
+					...prevGraphUrls,
+					[sentno]: svgContent || "", // Store SVG content directly
+				}));
 			} catch (error) {
 				// If any error occurs, show the error message
 				setErrorMessage(`Error generating graph for sentno: ${sentno}`);
@@ -240,18 +252,13 @@ export default function AnalysisPage() {
 		formData.append("tsv", tsvData);
 
 		try {
-			const response = await fetch(
-				"https://sanskrit.uohyd.ac.in/cgi-bin/scl/Post-editing/ViewGraph.cgi",
-				{
-					method: "POST",
-					body: formData,
-				}
-			);
+			const response = await fetch("https://sanskrit.uohyd.ac.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
+				method: "POST",
+				body: formData,
+			});
 
 			if (!response.ok) {
-				throw new Error(
-					"Error uploading TSV data: " + response.statusText
-				);
+				throw new Error("Error uploading TSV data: " + response.statusText);
 			}
 
 			const result = await response.text();
@@ -260,60 +267,87 @@ export default function AnalysisPage() {
 			// Extract image URL from response
 			return result;
 		} catch (error) {
-			setErrorMessage(
-				"Error uploading TSV data: " + (error as Error).message
-			);
+			setErrorMessage("Error uploading TSV data: " + (error as Error).message);
 			return null;
 		}
 	};
 
+	const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-    const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+	useEffect(() => {
+		// Iterate over each SVG container and run the script within that container
+		Object.keys(graphUrls).forEach((sentno) => {
+			const svgContainer = svgContainerRefs.current[sentno] || null;
+			if (svgContainer) {
+				const scripts = svgContainer.querySelectorAll("script");
+				scripts.forEach((script) => {
+					const newScript = document.createElement("script");
+					newScript.textContent = script.textContent;
+					svgContainer.appendChild(newScript); // Execute the script inside the SVG container
+				});
+			}
+		});
+	}, [graphUrls]); // Re-run the effect when graphUrls change
 
-    useEffect(() => {
-    // Iterate over each SVG container and run the script within that container
-    Object.keys(graphUrls).forEach((sentno) => {
-      const svgContainer = svgContainerRefs.current[sentno] || null;
-      if (svgContainer) {
-        const scripts = svgContainer.querySelectorAll("script");
-        scripts.forEach((script) => {
-          const newScript = document.createElement("script");
-          newScript.textContent = script.textContent;
-          svgContainer.appendChild(newScript); // Execute the script inside the SVG container
-        });
-      }
-    });
-  }, [graphUrls]); // Re-run the effect when graphUrls change
+	// Handle node toggling directly inside the SVG
+	const [selectedColumns, setSelectedColumns] = useState<string[]>([
+		"index",
+		"word",
+		"morph_analysis",
+		"morph_in_context",
+		"kaaraka_sambandha",
+		"possible_relations",
+	]);
 
-  // Handle node toggling directly inside the SVG
-  const handleToggleChildren = (sentno: string, id: string) => {
-    const svgContainer = svgContainerRefs.current[sentno];
-    if (svgContainer) {
-      const children = svgContainer.querySelector(`#${id}`);
-      if (children) {
-        children.classList.toggle("hidden");
-      }
-    }
-  };
-    const [selectedColumns, setSelectedColumns] = useState<string[]>([
-        'index',
-        'word',
-        'morph_analysis',
-        'morph_in_context',
-        'kaaraka_sambandha',
-        'possible_relations',
-      ]);
-    
-      // Toggle column visibility
-      const handleColumnSelect = (column: string) => {
-        setSelectedColumns((prevSelected) =>
-          prevSelected.includes(column)
-            ? prevSelected.filter((item) => item !== column)
-            : [...prevSelected, column]
-        );
-      };
-      if (initialLoad) {
-        return (
+	// Toggle column visibility
+	const handleColumnSelect = (column: string) => {
+		setSelectedColumns((prevSelected) => (prevSelected.includes(column) ? prevSelected.filter((item) => item !== column) : [...prevSelected, column]));
+	};
+
+	const extractWord = (morphInContext: string) => {
+		const bracketIndex = morphInContext.indexOf("{");
+		return bracketIndex === -1 ? morphInContext : morphInContext.slice(0, bracketIndex).trim();
+	};
+
+	const fetchMeaning = async (word: string, procIndex: number) => {
+		try {
+			const response = await fetch(`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`);
+			const jsonData = await response.json();
+			console.log("Meaning data:", jsonData);
+
+			if (jsonData && jsonData.length > 0) {
+				setAllMeanings(jsonData); // Store all meanings
+				// Update selected meaning based on the selected dictionary index
+				setSelectedMeaning((prevSelected) => ({
+					...prevSelected,
+					[procIndex]: jsonData[selectedDictIndex]?.Meaning || "Meaning not found", // Use the selected dictionary index
+				}));
+			} else {
+				setSelectedMeaning((prevSelected) => ({
+					...prevSelected,
+					[procIndex]: "Meaning not found",
+				}));
+			}
+		} catch (error) {
+			console.error("Error fetching meaning:", error);
+			setSelectedMeaning((prevSelected) => ({
+				...prevSelected,
+				[procIndex]: "Error fetching meaning",
+			}));
+		}
+	};
+
+    const formatMeaning = (meaning: string) => {
+        // Split the meaning text based on numbers (e.g., 1., 2., etc.)
+        const parts = meaning.split(/(?=\d+\.)/); // This splits the string while keeping the number
+        return parts.map((part, index) => (
+            <p key={index}>{part.trim()}</p> // Each part is rendered as a new paragraph
+        ));
+    };
+
+
+	if (initialLoad) {
+		return (
 			<div className="max-w-screen-2xl mx-auto w-full p-8">
 				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
 					<CardHeader className="border-b border-primary-100">
@@ -327,7 +361,7 @@ export default function AnalysisPage() {
 				</Card>
 			</div>
 		);
-      }
+	}
 	// Render loading state
 	if (loading) {
 		return (
@@ -346,26 +380,26 @@ export default function AnalysisPage() {
 		);
 	}
 
-// Then check for missing data
-if (!shloka || !chapter) {
-    return (
-        <div className="max-w-screen-2xl mx-auto w-full">
-            <Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-                <CardHeader className="border-b border-primary-100">
-                    <CardTitle>Shloka not found</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px] w-full flex items-center justify-center">
-                        <p className="text-lg text-slate-300 flex items-center">
-                            <ExclamationTriangleIcon className="w-6 h-6 mr-2" />
-                            The shloka you are looking for does not exist.
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
+	// Then check for missing data
+	if (!shloka || !chapter) {
+		return (
+			<div className="max-w-screen-2xl mx-auto w-full">
+				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+					<CardHeader className="border-b border-primary-100">
+						<CardTitle>Shloka not found</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="h-[300px] w-full flex items-center justify-center">
+							<p className="text-lg text-slate-300 flex items-center">
+								<ExclamationTriangleIcon className="w-6 h-6 mr-2" />
+								The shloka you are looking for does not exist.
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	// Render the UI with the Shloka
 	return (
@@ -379,9 +413,7 @@ if (!shloka || !chapter) {
 				<CardContent className="p-10">
 					{/* Original Shloka */}
 					<div>
-						<h3 className="text-lg font-bold mb-4">
-							Original Shloka:
-						</h3>
+						<h3 className="text-lg font-bold mb-4">Original Shloka:</h3>
 						<div className="text-sm flex flex-col gap-2">
 							<p>{shloka.spart1}</p>
 							{shloka.spart2 && <p>{shloka.spart2}</p>}
@@ -389,371 +421,295 @@ if (!shloka || !chapter) {
 					</div>
 
 					{/* Processed Segments Table */}
-					
-					<div className=" w-full flex justify-between">
-                        <h3 className="text-lg font-bold mb-4 mt-8">
-                            Processed Segments:
-                        </h3>
-                        <div className="flex gap-5">
-                            <div className=" pt-8">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline">
-                                            <SliderIcon />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-80">
-                                        <div className="space-y-4">
-                                            <h4 className="font-medium leading-none">
-                                                Adjust Opacity
-                                            </h4>
-                                            <Slider
-                                                defaultValue={[opacity * 100]}
-                                                max={100}
-                                                step={1}
-                                                onValueChange={handleOpacityChange}
-                                            />
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm text-muted-foreground">
-                                                    Current value:
-                                                </span>
-                                                <span className="font-medium">
-                                                    {Math.round(opacity * 100)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <Button variant="outline" className="mt-8">
-                                    Show/Hide Columns
-                                </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="sm:max-w-[425px]">
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Columns</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                    Choose the columns you want to show or hide.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="index"
-                                        checked={selectedColumns.includes('index')}
-                                        onCheckedChange={() => handleColumnSelect('index')}
-                                    />
-                                    <Label htmlFor="index">Index</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="word"
-                                        checked={selectedColumns.includes('word')}
-                                        onCheckedChange={() => handleColumnSelect('word')}
-                                    />
-                                    <Label htmlFor="word">Word</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="morphAnalysis"
-                                        checked={selectedColumns.includes('morph_analysis')}
-                                        onCheckedChange={() => handleColumnSelect('morph_analysis')}
-                                    />
-                                    <Label htmlFor="morphAnalysis">Morph Analysis</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="morphInContext"
-                                        checked={selectedColumns.includes('morph_in_context')}
-                                        onCheckedChange={() => handleColumnSelect('morph_in_context')}
-                                    />
-                                    <Label htmlFor="morphInContext">Morph In Context</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="kaarakaSambandha"
-                                        checked={selectedColumns.includes('kaaraka_sambandha')}
-                                        onCheckedChange={() => handleColumnSelect('kaaraka_sambandha')}
-                                    />
-                                    <Label htmlFor="kaarakaSambandha">Kaaraka Relation</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="possibleRelations"
-                                        checked={selectedColumns.includes('possible_relations')}
-                                        onCheckedChange={() => handleColumnSelect('possible_relations')}
-                                    />
-                                    <Label htmlFor="possibleRelations">Possible Relations</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="hindiMeaning"
-                                        checked={selectedColumns.includes('hindi_meaning')}
-                                        onCheckedChange={() => handleColumnSelect('hindi_meaning')}
-                                    />
-                                    <Label htmlFor="hindiMeaning">Hindi Meaning</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="bgColor"
-                                        checked={selectedColumns.includes('bgcolor')}
-                                        onCheckedChange={() => handleColumnSelect('bgcolor')}
-                                    />
-                                    <Label htmlFor="hindiMeaning">Color Code</Label>
-                                    </div>
-                                </div>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction>Save</AlertDialogAction>
-                                </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
+					<div className="w-full flex justify-between">
+						<h3 className="text-lg font-bold mb-4 mt-8">Processed Segments:</h3>
+						<div className="flex gap-5">
+							<div className="pt-8">
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button variant="outline">
+											<SliderIcon />
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-80">
+										<div className="space-y-4">
+											<h4 className="font-medium leading-none">Adjust Opacity</h4>
+											<Slider defaultValue={[opacity * 100]} max={100} step={1} onValueChange={handleOpacityChange} />
+											<div className="flex justify-between items-center">
+												<span className="text-sm text-muted-foreground">Current value:</span>
+												<span className="font-medium">{Math.round(opacity * 100)}</span>
+											</div>
+										</div>
+									</PopoverContent>
+								</Popover>
+							</div>
+							<div className="pt-8">
+                            <Popover>
+    <PopoverTrigger asChild>
+        <Button variant="outline">Select Meaning</Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-80">
+        <div className="space-y-2">
+            <h4 className="font-medium leading-none">Select a Dictionary</h4>
+            {allMeanings.map((meaning, index) => (
+                <Button
+                    key={index}
+                    variant="ghost"
+                    onClick={() => {
+                        setSelectedDictIndex(index); // Update selected dictionary index
+                        setSelectedMeaning((prevSelected) => ({
+                            ...prevSelected,
+                            [index]: meaning.Meaning, // Set meaning for this dictionary index
+                        }));
+                    }}
+                    className={selectedDictIndex === index ? "bg-blue-500 text-white" : ""} // Highlight selected dictionary
+                >
+                    {index + 1}. {meaning.DICT}
+                </Button>
+            ))}
+        </div>
+    </PopoverContent>
+</Popover>
+
+							</div>
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button variant="outline" className="mt-8">
+										Show/Hide Columns
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent className="sm:max-w-[425px]">
+									<AlertDialogHeader>
+										<AlertDialogTitle>Columns</AlertDialogTitle>
+										<AlertDialogDescription>Choose the columns you want to show or hide.</AlertDialogDescription>
+									</AlertDialogHeader>
+									<div className="grid gap-4 py-4">
+										<div className="flex items-center gap-2">
+											<Checkbox id="index" checked={selectedColumns.includes("index")} onCheckedChange={() => handleColumnSelect("index")} />
+											<Label htmlFor="index">Index</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox id="word" checked={selectedColumns.includes("word")} onCheckedChange={() => handleColumnSelect("word")} />
+											<Label htmlFor="word">Word</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="morphAnalysis"
+												checked={selectedColumns.includes("morph_analysis")}
+												onCheckedChange={() => handleColumnSelect("morph_analysis")}
+											/>
+											<Label htmlFor="morphAnalysis">Morph Analysis</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="morphInContext"
+												checked={selectedColumns.includes("morph_in_context")}
+												onCheckedChange={() => handleColumnSelect("morph_in_context")}
+											/>
+											<Label htmlFor="morphInContext">Morph In Context</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="kaarakaSambandha"
+												checked={selectedColumns.includes("kaaraka_sambandha")}
+												onCheckedChange={() => handleColumnSelect("kaaraka_sambandha")}
+											/>
+											<Label htmlFor="kaarakaSambandha">Kaaraka Relation</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="possibleRelations"
+												checked={selectedColumns.includes("possible_relations")}
+												onCheckedChange={() => handleColumnSelect("possible_relations")}
+											/>
+											<Label htmlFor="possibleRelations">Possible Relations</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="hindiMeaning"
+												checked={selectedColumns.includes("hindi_meaning")}
+												onCheckedChange={() => handleColumnSelect("hindi_meaning")}
+											/>
+											<Label htmlFor="hindiMeaning">Hindi Meaning</Label>
+										</div>
+										<div className="flex items-center gap-2">
+											<Checkbox id="bgColor" checked={selectedColumns.includes("bgcolor")} onCheckedChange={() => handleColumnSelect("bgcolor")} />
+											<Label htmlFor="bgColor">Color Code</Label>
+										</div>
+									</div>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction>Save</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</div>
 					</div>
 
 					<div>
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                {selectedColumns.includes('index') && <TableHead>Index</TableHead>}
-                                {selectedColumns.includes('word') && <TableHead>Word</TableHead>}
-                                {selectedColumns.includes('morph_analysis') && (
-                                <TableHead>Morph Analysis</TableHead>
-                                )}
-                                {selectedColumns.includes('morph_in_context') && (
-                                <TableHead>Morph In Context</TableHead>
-                                )}
-                                {selectedColumns.includes('kaaraka_sambandha') && (
-                                <TableHead>Kaaraka Sambandha</TableHead>
-                                )}
-                                {selectedColumns.includes('possible_relations') && (
-                                <TableHead>Possible Relations</TableHead>
-                                )}
-                                {selectedColumns.includes('hindi_meaning') && (
-                                <TableHead>Hindi Meaning</TableHead>
-                                )}
-                                {selectedColumns.includes('bgcolor') && (
-                                <TableHead>Color Code</TableHead>
-                                )}
-                            </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {chapter && chapter.length > 0 ? (
-                            chapter.map(
-                                (processed: any, procIndex: any) => {
-                                    const currentProcessedData =
-                                        updatedData[procIndex];
+						<Table>
+							<TableHeader>
+								<TableRow>
+									{selectedColumns.includes("index") && <TableHead>Index</TableHead>}
+									{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
+									{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
+									{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
+									{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Sambandha</TableHead>}
+									{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
+									{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
+									{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{chapter && chapter.length > 0 ? (
+									chapter.map((processed: any, procIndex: any) => {
+										const currentProcessedData = updatedData[procIndex];
+										const isHovered = hoveredRowIndex === procIndex;
 
-                                    return (
-                                        <TableRow
+										const lookupWord = extractWord(processed.morph_in_context);
+
+										return (
+											<TableRow
                                             key={procIndex}
-                                            onMouseEnter={() =>
-                                                setHoveredRowIndex(
-                                                    procIndex
-                                                )
-                                            }
-                                            onMouseLeave={() =>
-                                                setHoveredRowIndex(null)
-                                            }
+                                            onMouseEnter={() => {
+                                                setHoveredRowIndex(procIndex);
+                                                if (!rowMeanings[procIndex]) {
+                                                    // Fetch meaning only if not already fetched
+                                                    fetchMeaning(lookupWord, procIndex);
+                                                }
+                                            }}
+                                            onMouseLeave={() => setHoveredRowIndex(null)}
                                             style={{
                                                 backgroundColor: `${processed.bgcolor}${Math.round(
-                                                    (hoveredRowIndex ===
-                                                    procIndex
-                                                        ? Math.min(
-                                                                opacity +
-                                                                    0.2,
-                                                                1
-                                                        )
-                                                        : opacity) * 255
+                                                    (isHovered ? Math.min(opacity + 0.2, 1) : opacity) * 255
                                                 )
                                                     .toString(16)
                                                     .padStart(2, "0")}`, // Convert opacity to hex
                                             }}
-                                        >
-                                    {selectedColumns.includes('index') && (
-                                        <TableCell>{processed.anvaya_no}</TableCell>
-                                    )}
-                                    {selectedColumns.includes("word") && (
-                                        <WordCell word={processed.word} />
-                                    )}
-                                    {selectedColumns.includes('morph_analysis') && (
-                                        <TableCell>{processed.morph_analysis}</TableCell>
-                                    )}
-                                    {selectedColumns.includes('morph_in_context') && (
-                                        <TableCell>
-                                        <Select
-                                            value={currentProcessedData?.morph_in_context}
-                                            onValueChange={(value) =>
-                                                handleValueChange(procIndex, 'morph_in_context', value)
-                                            }
-                                        >
-                                            <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder={processed.morph_analysis} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                            {processed.morph_analysis
-                                                .split('/')
-                                                .map((morph: string, index: number) => (
-                                                <SelectItem key={index} value={morph.trim()}>
-                                                    {morph.trim()}
-                                                </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        </TableCell>
-                                    )}
-                                    {selectedColumns.includes('kaaraka_sambandha') && (
-                                       <TableCell>
-                                       <Input
-                                           type="text"
-                                           value={currentProcessedData?.kaaraka_sambandha || ''}
-                                           onChange={(e) =>
-                                               handleValueChange(procIndex, 'kaaraka_sambandha', e.target.value)
-                                           }
-                                           className="w-[180px] p-2 border rounded"
-                                           placeholder="Enter Kaaraka Sambandha"
-                                       />
-                                   </TableCell>
-                                   
-                                    )}
-                                    {selectedColumns.includes('possible_relations') && (
-                                        <TableCell>{processed.possible_relations}</TableCell>
-                                    )}
-                                    {selectedColumns.includes('hindi_meaning') && (
-                                        <TableCell>{processed.hindi_meaning}</TableCell>
-                                    )}
-                                     {selectedColumns.includes('bgcolor') && (
-                                        <TableCell>
-                                            <Select
-                                                value={currentProcessedData?.bgcolor || ''}
-                                                onValueChange={(value) => handleValueChange(procIndex, 'bgcolor', value)}
-                                            >
-                                                <SelectTrigger className="w-[180px]">
-                                                    <span
-                                                        style={{
-                                                            backgroundColor: currentProcessedData?.bgcolor || 'transparent',
-                                                            display: 'inline-block',
-                                                            width: '20px',
-                                                            height: '20px',
-                                                            marginRight: '8px',
-                                                            borderRadius: '3px', // Optional: Add border radius for better appearance
-                                                        }}
-                                                    ></span>
-                                                    {Object.keys(colors).find((key) => colors[key as keyof typeof colors] === currentProcessedData?.bgcolor) || 'Select Color'}
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {Object.entries(colors).map(([key, color]) => (
-                                                        <SelectItem key={key} value={color}>
-                                                            <span style={{ backgroundColor: color, display: 'inline-block', width: '20px', height: '20px', marginRight: '8px' }}></span>
-                                                            {key}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                    )}
-                                    <TableCell>
-                                    {changedRows.has(procIndex) && (
-                                   
-                                        <Button
-                                            onClick={() => handleSave(procIndex, processed.anvaya_no)}
-                                            className="w-full"
-                                        >
-                                            Save
-                                        </Button>
-                                   
-                                )}
-                                    </TableCell>
-                                   
-                                    </TableRow>
-                                );
-                                })
-                            ) : (
-                                <TableRow>
-                                <TableCell colSpan={7} className="text-center">
-                                    No data available
-                                </TableCell>
-                                </TableRow>
-                            )}
-                            </TableBody>
-                        </Table>
-                    </div>
+											>
+												{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
+												{selectedColumns.includes("word") && (
+													<TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <TableCell>
+                                                                <span>{processed.word}</span>
+                                                            </TableCell>
+                                                        </TooltipTrigger>
+                                                        {isHovered && selectedMeaning[procIndex] && (
+                                                            <TooltipContent>
+                                                                {formatMeaning(selectedMeaning[procIndex])}
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                </TooltipProvider>
+												)}
+												{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
+												{selectedColumns.includes("morph_in_context") && (
+													<TableCell>
+														<Select
+															value={currentProcessedData?.morph_in_context}
+															onValueChange={(value) => handleValueChange(procIndex, "morph_in_context", value)}
+														>
+															<SelectTrigger className="w-[180px]">
+																<SelectValue placeholder={processed.morph_analysis} />
+															</SelectTrigger>
+															<SelectContent>
+																{processed.morph_analysis.split("/").map((morph: string, index: number) => (
+																	<SelectItem key={index} value={morph.trim()}>
+																		{morph.trim()}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</TableCell>
+												)}
+												{selectedColumns.includes("kaaraka_sambandha") && (
+													<TableCell>
+														<Input
+															type="text"
+															value={currentProcessedData?.kaaraka_sambandha || ""}
+															onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
+															className="w-[180px] p-2 border rounded"
+															placeholder="Enter Kaaraka Sambandha"
+														/>
+													</TableCell>
+												)}
+												{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
+												{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
+												{selectedColumns.includes("bgcolor") && (
+													<TableCell>
+														<Select value={currentProcessedData?.bgcolor || ""} onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}>
+															<SelectTrigger className="w-[180px]">
+																<span
+																	style={{
+																		backgroundColor: currentProcessedData?.bgcolor || "transparent",
+																		display: "inline-block",
+																		width: "20px",
+																		height: "20px",
+																		marginRight: "8px",
+																		borderRadius: "3px", // Optional: Add border radius for better appearance
+																	}}
+																></span>
+																{Object.keys(colors).find((key) => colors[key as keyof typeof colors] === currentProcessedData?.bgcolor) || "Select Color"}
+															</SelectTrigger>
+															<SelectContent>
+																{Object.entries(colors).map(([key, color]) => (
+																	<SelectItem key={key} value={color}>
+																		<span
+																			style={{
+																				backgroundColor: color,
+																				display: "inline-block",
+																				width: "20px",
+																				height: "20px",
+																				marginRight: "8px",
+																			}}
+																		></span>
+																		{key}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</TableCell>
+												)}
+												<TableCell>
+													{changedRows.has(procIndex) && (
+														<Button onClick={() => handleSave(procIndex, processed.anvaya_no)} className="w-full">
+															Save
+														</Button>
+													)}
+												</TableCell>
+											</TableRow>
+										);
+									})
+								) : (
+									<TableRow>
+										<TableCell colSpan={7} className="text-center">
+											No data available
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+					</div>
 					<Button onClick={handleGenerateGraph} className="mb-4">
-                        Generate Graph
-                    </Button>
+						Generate Graph
+					</Button>
 
-                    {Object.entries(graphUrls).map(([sentno, svgContent]) => (
-                        <div key={sentno} className="mb-4">
-                            <h3>Graph for sentno: {sentno}</h3>
-                            <div
-                                ref={(el) => {
-                                    svgContainerRefs.current[sentno] = el;
-                                }}
-                                dangerouslySetInnerHTML={{ __html: svgContent }}
-                                style={{ width: "100%", maxWidth: "600px" }}
-                            />
-                        </div>
-                    ))}
+					{Object.entries(graphUrls).map(([sentno, svgContent]) => (
+						<div key={sentno} className="mb-4">
+							<h3>Graph for sentno: {sentno}</h3>
+							<div
+								ref={(el) => {
+									svgContainerRefs.current[sentno] = el;
+								}}
+								dangerouslySetInnerHTML={{ __html: svgContent }}
+								style={{ width: "100%", maxWidth: "600px" }}
+							/>
+						</div>
+					))}
 				</CardContent>
 			</Card>
 		</div>
 	);
 }
-
-
-const WordCell: React.FC<{ word: string }> = ({ word }) => {
-    const [meaning, setMeaning] = useState<string | null>(null);
-    const [isHovered, setIsHovered] = useState(false);
-  
-    const fetchMeaning = async () => {
-      try {
-        const response = await fetch(
-          `https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`
-        );
-        const data = await response.json();
-        console.log("Meaning data:", data[0].Meaning);
-        if (data ) {
-          setMeaning(data[0].Meaning); // Adjust this if the API returns the meaning in a different field
-        } else {
-          setMeaning("Meaning not found");
-        }
-      } catch (error) {
-        console.error("Error fetching meaning:", error);
-        setMeaning("Error fetching meaning");
-      }
-    };
-  
-    const handleMouseEnter = () => {
-      setIsHovered(true);
-      if (!meaning) {
-        fetchMeaning();
-      }
-    };
-  
-    const handleMouseLeave = () => {
-      setIsHovered(false);
-    };
-  
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger
-            asChild
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            <TableCell>
-              <span>{word}</span>
-            </TableCell>
-          </TooltipTrigger>
-          {isHovered && meaning && (
-            <TooltipContent>
-              <p>{meaning}</p>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-    );
-  };
