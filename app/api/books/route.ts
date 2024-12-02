@@ -47,3 +47,34 @@ export async function GET() {
 
     return NextResponse.json(tree);
 }
+
+export async function DELETE(request: { url: string | URL; }) {
+    await dbConnect();
+
+    const { searchParams } = new URL(request.url);
+    const book = searchParams.get("book"); // Get the book query parameter
+
+    try {
+        if (book) {
+            // Delete all entries for the specified book
+            const result = await AHShloka.deleteMany({ book });
+            return NextResponse.json({
+                success: true,
+                message: `${result.deletedCount} entries deleted for the book: ${book}`,
+            });
+        } else {
+            // Delete all entries if no book is specified
+            const result = await AHShloka.deleteMany({});
+            return NextResponse.json({
+                success: true,
+                message: `${result.deletedCount} entries deleted for all books`,
+            });
+        }
+    } catch (error) {
+        return NextResponse.json({
+            success: false,
+            message: "Error deleting entries",
+            error: (error as Error).message,
+        }, { status: 500 });
+    }
+}

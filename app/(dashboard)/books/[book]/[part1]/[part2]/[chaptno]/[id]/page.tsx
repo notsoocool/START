@@ -51,6 +51,8 @@ export default function AnalysisPage() {
 	const [selectedMeaning, setSelectedMeaning] = useState<{ [key: number]: string }>({});
 	const [allMeanings, setAllMeanings] = useState<any[]>([]); // Holds all the meanings from API response
 	const [selectedDictIndex, setSelectedDictIndex] = useState<number>(0); // Default to the first dictionary
+    const [originalData, setOriginalData] = useState<any[]>([]);
+
 
 	useEffect(() => {
 		if (!id) return;
@@ -66,6 +68,7 @@ export default function AnalysisPage() {
 				const chapterData = await chapterResponse.json();
 				setChapter(chapterData);
 				setUpdatedData(chapterData.map((item: any) => ({ ...item })));
+                setOriginalData(chapterData.map((item: any) => ({ ...item })));  // Save the original data
 			} catch (error) {
 				console.error("Error fetching shloka or chapter:", error);
 			} finally {
@@ -80,81 +83,180 @@ export default function AnalysisPage() {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
 	};
 
-	const handleValueChange = (index: number, field: string, value: any) => {
-		const newData = [...updatedData];
-		newData[index] = {
-			...newData[index],
-			[field]: value,
-		};
-		setUpdatedData(newData);
+	// const handleValueChange = (index: number, field: string, value: any) => {
+	// 	const newData = [...updatedData];
+	// 	newData[index] = {
+	// 		...newData[index],
+	// 		[field]: value,
+	// 	};
+	// 	setUpdatedData(newData);
 
-		// Get the original value for comparison
-		const originalValue = chapter[index][field];
+	// 	// Get the original value for comparison
+	// 	const originalValue = chapter[index][field];
 
-		// Always track if the current value is different from the last saved value
-		if (value !== originalValue) {
-			setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
-		} else {
-			setChangedRows((prev) => {
-				const newSet = new Set(prev);
-				newSet.delete(index); // Remove index if value is the same as original
-				return newSet;
-			});
-		}
+	// 	// Always track if the current value is different from the last saved value
+	// 	if (value !== originalValue) {
+	// 		setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
+	// 	} else {
+	// 		setChangedRows((prev) => {
+	// 			const newSet = new Set(prev);
+	// 			newSet.delete(index); // Remove index if value is the same as original
+	// 			return newSet;
+	// 		});
+	// 	}
+	// };
+
+	// // Updated handleSave function
+	// const handleSave = async (index: number, anvaya_no: string, sentno: string) => {
+	//     try {
+	//         const updatedValue = updatedData[index];
+	//         const previousValue = chapter[index];
+
+	//         const requestData: any = {
+	//             index,
+	//             anvaya_no,
+	//             sentno,  // Include sentno along with anvaya_no
+	//         };
+
+	//         Object.keys(updatedValue).forEach((key) => {
+	//             if (updatedValue[key] !== previousValue[key]) {
+	//                 requestData[key] = updatedValue[key];
+	//             }
+	//         });
+
+	//         // Log the request data for debugging
+	//         console.log("Request Body:", requestData);
+
+	//         if (Object.keys(requestData).length === 1) {
+	//             toast.info("No changes detected.");
+	//             return;
+	//         }
+
+	//         // Send the PATCH request to the API
+	//         const response = await fetch(
+	//             `/api/analysis/${book}/${part1 || "null"}/${part2 || "null"}/${chaptno}/${shloka?.slokano}`,
+	//             {
+	//                 method: "PATCH",
+	//                 headers: {
+	//                     "Content-Type": "application/json",
+	//                 },
+	//                 body: JSON.stringify(requestData),
+	//             }
+	//         );
+
+	//         if (!response.ok) {
+	//             throw new Error(`Failed to save changes. Status: ${response.status}`);
+	//         }
+
+	//         const updatedChapter = await response.json();
+	//         console.log("Updated chapter:", updatedChapter);  // Debugging: log updated chapter data
+
+	//         // Clear the changed row index after successful save
+	//         setChangedRows((prev) => {
+	//             const newSet = new Set(prev);
+	//             newSet.delete(index);
+	//             return newSet;
+	//         });
+
+	//         // Update the local state with the updated data
+	//         setChapter((prevChapter: any) => {
+	//             const newChapter = [...prevChapter];
+	//             newChapter[index] = { ...prevChapter[index], ...requestData };
+	//             return newChapter;
+	//         });
+
+	//         toast.success(`Changes saved successfully for index ${anvaya_no}`);
+	//     } catch (error) {
+	//         console.error("Error saving changes:", error);
+	//         toast.error("Failed to save changes.");
+	//     }
+	// };
+
+	const handleValueChange = (procIndex: number, field: string, value: string) => {
+		// Update the updatedData state
+		setUpdatedData((prevData) => {
+			const newData = [...prevData];
+			newData[procIndex] = {
+				...newData[procIndex],
+				[field]: value,
+			};
+			return newData;
+		});
+
+		// Mark the row as changed
+		setChangedRows((prev) => new Set(prev.add(procIndex)));
 	};
 
-	// Updated handleSave function
-	const handleSave = async (index: number, anvaya_no: any) => {
-		try {
-			const updatedValue = updatedData[index]; // Get the updated value for the specific index
-			const previousValue = chapter[index]?.kaaraka_sambandha; // Retrieve the previous value
-			const newKaarakaValue = updatedValue.kaaraka_sambandha;
-
-			if (newKaarakaValue !== previousValue) {
-				const extractedValue = newKaarakaValue.split(",")[0].trim(); // Extract only the first part before the comma
-
-				if (!validKaarakaSambandhaValues.includes(extractedValue)) {
-					toast.error("Kaaraka Sambandha does not exist in valid strings.");
-					return; // Stop further execution if validation fails
-				}
-			} // Get the updated value for the specific index
-
-			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					index: index, // Send the specific index being updated
-					...updatedValue, // Send all updated values for that index
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to save changes");
-			}
-
-			const updatedChapter = await response.json();
-			console.log("Updated chapter:", updatedChapter);
-
-			// Clear changedRows after successful save
-			setChangedRows((prev) => {
-				const newSet = new Set(prev);
-				newSet.delete(index); // Remove the current index after save
-				return newSet;
-			});
-
-			// Update the chapter state with the latest saved values
-			const newChapterData = [...chapter];
-			newChapterData[index] = updatedValue; // Update the saved value in the chapter data
-			setChapter({ ...chapter, data: newChapterData });
-
-			toast.success(`Changes saved successfully for index ${anvaya_no}`);
-		} catch (error) {
-			console.error("Error saving changes:", error);
-			toast.error("Failed to save changes. Please try again.");
-		}
-	};
+    const handleSave = async (procIndex: number) => {
+        const currentData = updatedData[procIndex];  // The updated row data
+        const originalRowData = originalData[procIndex]; // Get the original data for this row
+      
+        // Prepare the data to send in the update request
+        const updateData: any = {};
+      
+        // Only update fields that have changed compared to the original data
+        if (currentData.kaaraka_sambandha !== originalRowData?.kaaraka_sambandha) {
+          updateData.kaaraka_sambandha = currentData.kaaraka_sambandha;
+        }
+        if (currentData.morph_in_context !== originalRowData?.morph_in_context) {
+          updateData.morph_in_context = currentData.morph_in_context;
+        }
+        if (currentData.bgcolor !== originalRowData?.bgcolor) {
+          updateData.bgcolor = currentData.bgcolor;
+        }
+      
+        // If there are no changes, return early
+        if (Object.keys(updateData).length === 0) {
+          console.log("No changes detected.");
+          return;
+        }
+      
+        // Ensure the correct anvaya_no and sentno are passed in the request
+        const { anvaya_no, sentno } = currentData;  // Get the correct anvaya_no and sentno for the row
+      
+        try {
+          // Send the update request to the API
+          const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              anvaya_no,  // Correct anvaya_no
+              sentno,     // Correct sentno
+              ...updateData, // Only the updated fields (like kaaraka_sambandha, morph_in_context, bgcolor)
+            }),
+          });
+      
+          const result = await response.json();
+      
+          if (response.ok) {
+            console.log('Update successful:', result);
+      
+            // Update the React state with the new data
+            setUpdatedData((prevData) => {
+              const newData = [...prevData];
+              newData[procIndex] = {
+                ...newData[procIndex],
+                ...updateData,  // Merge the updated fields
+              };
+              return newData;
+            });
+      
+            // Mark this row as not changed anymore
+            setChangedRows((prev) => {
+              const newRows = new Set(prev);
+              newRows.delete(procIndex);  // Remove the changed state for this row
+              return newRows;
+            });
+          } else {
+            console.error('Error updating data:', result);
+          }
+        } catch (error) {
+          console.error('Error updating data:', error);
+        }
+      };
+       
 
 	const jsonToTsv = (data: any[]): string => {
 		const tsvRows = data.map(
@@ -313,7 +415,6 @@ export default function AnalysisPage() {
 		try {
 			const response = await fetch(`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`);
 			const jsonData = await response.json();
-			console.log("Meaning data:", jsonData);
 
 			if (jsonData && jsonData.length > 0) {
 				setAllMeanings(jsonData); // Store all meanings
@@ -337,14 +438,13 @@ export default function AnalysisPage() {
 		}
 	};
 
-    const formatMeaning = (meaning: string) => {
-        // Split the meaning text based on numbers (e.g., 1., 2., etc.)
-        const parts = meaning.split(/(?=\d+\.)/); // This splits the string while keeping the number
-        return parts.map((part, index) => (
-            <p key={index}>{part.trim()}</p> // Each part is rendered as a new paragraph
-        ));
-    };
-
+	const formatMeaning = (meaning: string) => {
+		// Split the meaning text based on numbers (e.g., 1., 2., etc.)
+		const parts = meaning.split(/(?=\d+\.)/); // This splits the string while keeping the number
+		return parts.map((part, index) => (
+			<p key={index}>{part.trim()}</p> // Each part is rendered as a new paragraph
+		));
+	};
 
 	if (initialLoad) {
 		return (
@@ -444,33 +544,32 @@ export default function AnalysisPage() {
 								</Popover>
 							</div>
 							<div className="pt-8">
-                            <Popover>
-    <PopoverTrigger asChild>
-        <Button variant="outline">Select Meaning</Button>
-    </PopoverTrigger>
-    <PopoverContent className="w-80">
-        <div className="space-y-2">
-            <h4 className="font-medium leading-none">Select a Dictionary</h4>
-            {allMeanings.map((meaning, index) => (
-                <Button
-                    key={index}
-                    variant="ghost"
-                    onClick={() => {
-                        setSelectedDictIndex(index); // Update selected dictionary index
-                        setSelectedMeaning((prevSelected) => ({
-                            ...prevSelected,
-                            [index]: meaning.Meaning, // Set meaning for this dictionary index
-                        }));
-                    }}
-                    className={selectedDictIndex === index ? "bg-blue-500 text-white" : ""} // Highlight selected dictionary
-                >
-                    {index + 1}. {meaning.DICT}
-                </Button>
-            ))}
-        </div>
-    </PopoverContent>
-</Popover>
-
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button variant="outline">Select Meaning</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-80">
+										<div className="space-y-2">
+											<h4 className="font-medium leading-none">Select a Dictionary</h4>
+											{allMeanings.map((meaning, index) => (
+												<Button
+													key={index}
+													variant="ghost"
+													onClick={() => {
+														setSelectedDictIndex(index); // Update selected dictionary index
+														setSelectedMeaning((prevSelected) => ({
+															...prevSelected,
+															[index]: meaning.Meaning, // Set meaning for this dictionary index
+														}));
+													}}
+													className={selectedDictIndex === index ? "bg-blue-500 text-white" : ""} // Highlight selected dictionary
+												>
+													{index + 1}. {meaning.DICT}
+												</Button>
+											))}
+										</div>
+									</PopoverContent>
+								</Popover>
 							</div>
 							<AlertDialog>
 								<AlertDialogTrigger asChild>
@@ -570,39 +669,33 @@ export default function AnalysisPage() {
 
 										return (
 											<TableRow
-                                            key={procIndex}
-                                            onMouseEnter={() => {
-                                                setHoveredRowIndex(procIndex);
-                                                if (!rowMeanings[procIndex]) {
-                                                    // Fetch meaning only if not already fetched
-                                                    fetchMeaning(lookupWord, procIndex);
-                                                }
-                                            }}
-                                            onMouseLeave={() => setHoveredRowIndex(null)}
-                                            style={{
-                                                backgroundColor: `${processed.bgcolor}${Math.round(
-                                                    (isHovered ? Math.min(opacity + 0.2, 1) : opacity) * 255
-                                                )
-                                                    .toString(16)
-                                                    .padStart(2, "0")}`, // Convert opacity to hex
-                                            }}
+												key={procIndex}
+												onMouseEnter={() => {
+													setHoveredRowIndex(procIndex);
+													if (!rowMeanings[procIndex]) {
+														// Fetch meaning only if not already fetched
+														fetchMeaning(lookupWord, procIndex);
+													}
+												}}
+												onMouseLeave={() => setHoveredRowIndex(null)}
+												style={{
+													backgroundColor: `${processed.bgcolor}${Math.round((isHovered ? Math.min(opacity + 0.2, 1) : opacity) * 255)
+														.toString(16)
+														.padStart(2, "0")}`, // Convert opacity to hex
+												}}
 											>
 												{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
 												{selectedColumns.includes("word") && (
 													<TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <TableCell>
-                                                                <span>{processed.word}</span>
-                                                            </TableCell>
-                                                        </TooltipTrigger>
-                                                        {isHovered && selectedMeaning[procIndex] && (
-                                                            <TooltipContent>
-                                                                {formatMeaning(selectedMeaning[procIndex])}
-                                                            </TooltipContent>
-                                                        )}
-                                                    </Tooltip>
-                                                </TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<TableCell>
+																	<span>{processed.word}</span>
+																</TableCell>
+															</TooltipTrigger>
+															{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
+														</Tooltip>
+													</TooltipProvider>
 												)}
 												{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
 												{selectedColumns.includes("morph_in_context") && (
@@ -674,7 +767,7 @@ export default function AnalysisPage() {
 												)}
 												<TableCell>
 													{changedRows.has(procIndex) && (
-														<Button onClick={() => handleSave(procIndex, processed.anvaya_no)} className="w-full">
+														<Button onClick={() => handleSave(procIndex)} className="w-full">
 															Save
 														</Button>
 													)}

@@ -29,3 +29,32 @@ export async function GET(request: Request, { params }: { params: Params }) {
 
     return NextResponse.json({ shlokas });
 }
+
+export async function DELETE(request: Request, { params }: { params: Params }) {
+    await dbConnect();
+    const { book, part1, part2, chaptno } = params;
+
+    // Build the query dynamically, excluding null values
+    const query = {
+        ...(book !== "null" && { book }),
+        ...(part1 !== "null" && { part1 }),
+        ...(part2 !== "null" && { part2 }),
+        chaptno,
+    };
+
+    try {
+        // Delete all entries matching the query
+        const result = await AHShloka.deleteMany(query);
+
+        // Respond with the number of deleted entries
+        return NextResponse.json({
+            message: `Deleted ${result.deletedCount} entries successfully.`,
+        });
+    } catch (error) {
+        console.error("Error deleting entries:", error);
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500 }
+        );
+    }
+}

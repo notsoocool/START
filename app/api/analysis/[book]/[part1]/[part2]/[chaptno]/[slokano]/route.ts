@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Params }) {
 			slokano,
 		};
 
-        let analysis = await Analysis.find(query).sort({ sentno: 1 });
+		let analysis = await Analysis.find(query).sort({ sentno: 1 });
 
 		// If analysis data exists, apply custom sorting to `anvaya_no`
 		if (analysis && analysis.length > 0) {
@@ -38,8 +38,8 @@ export async function GET(req: Request, { params }: { params: Params }) {
 				}
 
 				// If sentno is the same, then sort by anvaya_no
-				const [aMain, aSub] = a.anvaya_no.split('.').map(Number);
-				const [bMain, bSub] = b.anvaya_no.split('.').map(Number);
+				const [aMain, aSub] = a.anvaya_no.split(".").map(Number);
+				const [bMain, bSub] = b.anvaya_no.split(".").map(Number);
 
 				if (aMain !== bMain) {
 					return aMain - bMain;
@@ -49,76 +49,73 @@ export async function GET(req: Request, { params }: { params: Params }) {
 			});
 		} else {
 			console.log("No matching analysis found");
-			return NextResponse.json(
-				{ message: "Analysis not found" },
-				{ status: 404 }
-			);
+			return NextResponse.json({ message: "Analysis not found" }, { status: 404 });
 		}
 
 		return NextResponse.json(analysis);
 	} catch (error) {
 		console.error("Error fetching analysis:", error);
-		return NextResponse.json(
-			{ message: "Internal Server Error" },
-			{ status: 500 }
-		);
+		return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
 	}
 }
 
-export async function PATCH(request: Request, { params }: { params: { book: string; part1: string; part2: string; chaptno: string; slokano: string } }) {
-    const { book, part1, part2, chaptno, slokano } = params;
+// PUT API handler to update specific row by anvaya_no and sentno
+export async function PUT(req: Request, { params }: { params: Params }) {
+	const { book, part1, part2, chaptno, slokano } = params;
+	const { anvaya_no, sentno, ...updateData } = await req.json();
 
-    await dbConnect(); // Connect to the database
+	await dbConnect(); // Connect to the database
 
-    try {
-        // Log the received parameters
-        console.log("Params received:", params);
+	try {
+		// Construct query to find the row by slokano, anvaya_no, and sentno
+		const query = {
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+			anvaya_no,
+			sentno,
+		};
 
-        // Construct the query, handling null values for optional parts
-        const query = {
-            book,
-            part1: part1 !== "null" ? part1 : null,
-            part2: part2 !== "null" ? part2 : null,
-            chaptno,
-            slokano,
-        };
+		// Update the matching row
+		const updatedRow = await Analysis.findOneAndUpdate(query, updateData, {
+			new: true, // Return the updated document
+		});
 
-        // Parse and validate the JSON body
-        const { index, ...updatedFields } = await request.json();
-        if (typeof index === 'undefined' || !Number.isInteger(index)) {
-            return NextResponse.json({ error: "Index is required and must be an integer" }, { status: 400 });
-        }
+		if (!updatedRow) {
+			return NextResponse.json({ message: "Row not found" }, { status: 404 });
+		}
 
-        // Build the update object dynamically
-        const updateObject: { [key: string]: any } = {};
-        for (const [key, value] of Object.entries(updatedFields)) {
-            if (typeof value !== 'undefined') {
-                updateObject[`${index}.${key}`] = value;
-            }
-        }
-
-        // If no valid fields are provided, return an error
-        if (Object.keys(updateObject).length === 0) {
-            return NextResponse.json({ error: "No fields to update" }, { status: 400 });
-        }
-
-        // Execute the update in the ChaponeAH model
-        const updatedChapter = await Analysis.findOneAndUpdate(
-            query,
-            { $set: updateObject },
-            { new: true }
-        );
-
-        // Check if the document was found and updated
-        if (!updatedChapter) {
-            return NextResponse.json({ error: "Chapter not found or update failed" }, { status: 404 });
-        }
-
-        // Return the updated chapter document
-        return NextResponse.json(updatedChapter);
-    } catch (error) {
-        console.error("Error updating Analysis:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
+		return NextResponse.json({ message: "Update successful", updatedRow });
+	} catch (error) {
+		console.error("Error updating row:", error);
+		return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+	}
 }
 
+export async function DELETE(req: Request, { params }: { params: Params }) {
+	const { book, part1, part2, chaptno } = params;
+
+	await dbConnect(); // Connect to the database
+
+	try {
+		// Construct the query
+		const query = {
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+		};
+
+		// Execute the delete operation
+		const result = await Analysis.deleteMany(query);
+
+		return NextResponse.json({
+			message: `Deleted ${result.deletedCount} entries successfully.`,
+		});
+	} catch (error) {
+		console.error("Error deleting entries:", error);
+		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+	}
+}
