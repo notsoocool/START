@@ -1,69 +1,55 @@
-// app/page.tsx (or your main page file)
-"use client"
+"use client";
 import { useEffect, useState } from "react";
 
 interface User {
 	id: string;
 	firstName: string;
 	lastName: string;
-    perms: "User" | "Annotator" | "Editor" | "Admin" | "Root";
+	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root";
 }
 
 const MainPage = () => {
 	const [user, setUser] = useState<User | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(null);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		const fetchUserData = async () => {
-			const response = await fetch("/api/getCurrentUser");
+		const fetchAndHandleUser = async () => {
+			try {
+				// Step 1: Fetch existing user
+				const userResponse = await fetch("/api/getCurrentUser");
+				if (userResponse.ok) {
+					const existingUser = await userResponse.json();
+					setUser(existingUser);
+				} else if (userResponse.status === 404) {
+					// Step 2: Create new user if not found
+					const newUserResponse = await fetch("/api/createUser", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({ perms: "User" }), // Default permission
+					});
 
-			if (!response.ok) {
-				const data = await response.json();
-				setError(data.error);
+					if (newUserResponse.ok) {
+						const newUser = await newUserResponse.json();
+						setUser(newUser);
+					} else {
+						const errorData = await newUserResponse.json();
+						throw new Error(errorData.error || "Failed to create new user");
+					}
+				} else {
+					throw new Error("Unexpected error while fetching user");
+				}
+			} catch (err: any) {
+				setError(err.message);
+			} finally {
 				setLoading(false);
-				return;
 			}
-
-			const data = await response.json();
-			setUser(data);
-			setLoading(false);
 		};
-        const loadUserInfo = async () => {
-            const response = await fetch("/api/createUser", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
 
-            const data = await response.json();
-            if (response.ok) {
-                console.log("User info saved successfully!");
-            } else {
-                console.log(`Error: ${data.error}`);
-            }
-        };
-
-		fetchUserData();
-        loadUserInfo();
+		fetchAndHandleUser();
 	}, []);
-    const saveUserInfo = async () => {
-        const response = await fetch("/api/createUser", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-    
-        const data = await response.json();
-        if (response.ok) {
-            alert("User info saved successfully!");
-        } else {
-            alert(`Error: ${data.error}`);
-        }
-    };
-    
 
 	if (loading) return <p>Loading...</p>;
 	if (error) return <p>Error: {error}</p>;
@@ -76,12 +62,11 @@ const MainPage = () => {
 					<p>User ID: {user.id}</p>
 					<p>First Name: {user.firstName}</p>
 					<p>Last Name: {user.lastName}</p>
-                    <p>Permission: {user.perms}</p>
+					<p>Permission: {user.perms}</p>
 				</div>
 			) : (
 				<p>User not found.</p>
 			)}
-            
 		</div>
 	);
 };

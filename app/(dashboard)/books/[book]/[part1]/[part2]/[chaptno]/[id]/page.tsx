@@ -768,12 +768,19 @@ export default function AnalysisPage() {
 						<div key={sentno} className="mb-4">
 							<h3>Graph for sentno: {sentno}</h3>
 							<div
-								ref={(el) => {
-									svgContainerRefs.current[sentno] = el;
+								style={{
+									overflowX: "auto", // Enable horizontal scrolling with scrollbar always visible
+									whiteSpace: "nowrap", // Prevent content wrapping
 								}}
-								dangerouslySetInnerHTML={{ __html: svgContent }}
-								style={{ width: "100%", maxWidth: "600px" }}
-							/>
+							>
+								<div
+									ref={(el) => {
+										svgContainerRefs.current[sentno] = el;
+									}}
+									dangerouslySetInnerHTML={{ __html: svgContent }}
+									style={{ width: "100%", maxWidth: "600px" }}
+								/>
+							</div>
 						</div>
 					))}
 				</CardContent>
