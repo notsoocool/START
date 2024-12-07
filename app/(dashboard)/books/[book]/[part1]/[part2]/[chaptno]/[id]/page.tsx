@@ -51,8 +51,9 @@ export default function AnalysisPage() {
 	const [selectedMeaning, setSelectedMeaning] = useState<{ [key: number]: string }>({});
 	const [allMeanings, setAllMeanings] = useState<any[]>([]); // Holds all the meanings from API response
 	const [selectedDictIndex, setSelectedDictIndex] = useState<number>(0); // Default to the first dictionary
-    const [originalData, setOriginalData] = useState<any[]>([]);
-
+	const [originalData, setOriginalData] = useState<any[]>([]);
+	const [permissions, setPermissions] = useState(null);
+	const [loadingPermissions, setLoadingPermissions] = useState(true);
 
 	useEffect(() => {
 		if (!id) return;
@@ -68,7 +69,7 @@ export default function AnalysisPage() {
 				const chapterData = await chapterResponse.json();
 				setChapter(chapterData);
 				setUpdatedData(chapterData.map((item: any) => ({ ...item })));
-                setOriginalData(chapterData.map((item: any) => ({ ...item })));  // Save the original data
+				setOriginalData(chapterData.map((item: any) => ({ ...item }))); // Save the original data
 			} catch (error) {
 				console.error("Error fetching shloka or chapter:", error);
 			} finally {
@@ -82,95 +83,6 @@ export default function AnalysisPage() {
 	const handleOpacityChange = (value: number[]) => {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
 	};
-
-	// const handleValueChange = (index: number, field: string, value: any) => {
-	// 	const newData = [...updatedData];
-	// 	newData[index] = {
-	// 		...newData[index],
-	// 		[field]: value,
-	// 	};
-	// 	setUpdatedData(newData);
-
-	// 	// Get the original value for comparison
-	// 	const originalValue = chapter[index][field];
-
-	// 	// Always track if the current value is different from the last saved value
-	// 	if (value !== originalValue) {
-	// 		setChangedRows((prev) => new Set(prev).add(index)); // Add index if value changed
-	// 	} else {
-	// 		setChangedRows((prev) => {
-	// 			const newSet = new Set(prev);
-	// 			newSet.delete(index); // Remove index if value is the same as original
-	// 			return newSet;
-	// 		});
-	// 	}
-	// };
-
-	// // Updated handleSave function
-	// const handleSave = async (index: number, anvaya_no: string, sentno: string) => {
-	//     try {
-	//         const updatedValue = updatedData[index];
-	//         const previousValue = chapter[index];
-
-	//         const requestData: any = {
-	//             index,
-	//             anvaya_no,
-	//             sentno,  // Include sentno along with anvaya_no
-	//         };
-
-	//         Object.keys(updatedValue).forEach((key) => {
-	//             if (updatedValue[key] !== previousValue[key]) {
-	//                 requestData[key] = updatedValue[key];
-	//             }
-	//         });
-
-	//         // Log the request data for debugging
-	//         console.log("Request Body:", requestData);
-
-	//         if (Object.keys(requestData).length === 1) {
-	//             toast.info("No changes detected.");
-	//             return;
-	//         }
-
-	//         // Send the PATCH request to the API
-	//         const response = await fetch(
-	//             `/api/analysis/${book}/${part1 || "null"}/${part2 || "null"}/${chaptno}/${shloka?.slokano}`,
-	//             {
-	//                 method: "PATCH",
-	//                 headers: {
-	//                     "Content-Type": "application/json",
-	//                 },
-	//                 body: JSON.stringify(requestData),
-	//             }
-	//         );
-
-	//         if (!response.ok) {
-	//             throw new Error(`Failed to save changes. Status: ${response.status}`);
-	//         }
-
-	//         const updatedChapter = await response.json();
-	//         console.log("Updated chapter:", updatedChapter);  // Debugging: log updated chapter data
-
-	//         // Clear the changed row index after successful save
-	//         setChangedRows((prev) => {
-	//             const newSet = new Set(prev);
-	//             newSet.delete(index);
-	//             return newSet;
-	//         });
-
-	//         // Update the local state with the updated data
-	//         setChapter((prevChapter: any) => {
-	//             const newChapter = [...prevChapter];
-	//             newChapter[index] = { ...prevChapter[index], ...requestData };
-	//             return newChapter;
-	//         });
-
-	//         toast.success(`Changes saved successfully for index ${anvaya_no}`);
-	//     } catch (error) {
-	//         console.error("Error saving changes:", error);
-	//         toast.error("Failed to save changes.");
-	//     }
-	// };
 
 	const handleValueChange = (procIndex: number, field: string, value: string) => {
 		// Update the updatedData state
@@ -187,76 +99,75 @@ export default function AnalysisPage() {
 		setChangedRows((prev) => new Set(prev.add(procIndex)));
 	};
 
-    const handleSave = async (procIndex: number) => {
-        const currentData = updatedData[procIndex];  // The updated row data
-        const originalRowData = originalData[procIndex]; // Get the original data for this row
-      
-        // Prepare the data to send in the update request
-        const updateData: any = {};
-      
-        // Only update fields that have changed compared to the original data
-        if (currentData.kaaraka_sambandha !== originalRowData?.kaaraka_sambandha) {
-          updateData.kaaraka_sambandha = currentData.kaaraka_sambandha;
-        }
-        if (currentData.morph_in_context !== originalRowData?.morph_in_context) {
-          updateData.morph_in_context = currentData.morph_in_context;
-        }
-        if (currentData.bgcolor !== originalRowData?.bgcolor) {
-          updateData.bgcolor = currentData.bgcolor;
-        }
-      
-        // If there are no changes, return early
-        if (Object.keys(updateData).length === 0) {
-          console.log("No changes detected.");
-          return;
-        }
-      
-        // Ensure the correct anvaya_no and sentno are passed in the request
-        const { anvaya_no, sentno } = currentData;  // Get the correct anvaya_no and sentno for the row
-      
-        try {
-          // Send the update request to the API
-          const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              anvaya_no,  // Correct anvaya_no
-              sentno,     // Correct sentno
-              ...updateData, // Only the updated fields (like kaaraka_sambandha, morph_in_context, bgcolor)
-            }),
-          });
-      
-          const result = await response.json();
-      
-          if (response.ok) {
-            console.log('Update successful:', result);
-      
-            // Update the React state with the new data
-            setUpdatedData((prevData) => {
-              const newData = [...prevData];
-              newData[procIndex] = {
-                ...newData[procIndex],
-                ...updateData,  // Merge the updated fields
-              };
-              return newData;
-            });
-      
-            // Mark this row as not changed anymore
-            setChangedRows((prev) => {
-              const newRows = new Set(prev);
-              newRows.delete(procIndex);  // Remove the changed state for this row
-              return newRows;
-            });
-          } else {
-            console.error('Error updating data:', result);
-          }
-        } catch (error) {
-          console.error('Error updating data:', error);
-        }
-      };
-       
+	const handleSave = async (procIndex: number) => {
+		const currentData = updatedData[procIndex]; // The updated row data
+		const originalRowData = originalData[procIndex]; // Get the original data for this row
+
+		// Prepare the data to send in the update request
+		const updateData: any = {};
+
+		// Only update fields that have changed compared to the original data
+		if (currentData.kaaraka_sambandha !== originalRowData?.kaaraka_sambandha) {
+			updateData.kaaraka_sambandha = currentData.kaaraka_sambandha;
+		}
+		if (currentData.morph_in_context !== originalRowData?.morph_in_context) {
+			updateData.morph_in_context = currentData.morph_in_context;
+		}
+		if (currentData.bgcolor !== originalRowData?.bgcolor) {
+			updateData.bgcolor = currentData.bgcolor;
+		}
+
+		// If there are no changes, return early
+		if (Object.keys(updateData).length === 0) {
+			console.log("No changes detected.");
+			return;
+		}
+
+		// Ensure the correct anvaya_no and sentno are passed in the request
+		const { anvaya_no, sentno } = currentData; // Get the correct anvaya_no and sentno for the row
+
+		try {
+			// Send the update request to the API
+			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					anvaya_no, // Correct anvaya_no
+					sentno, // Correct sentno
+					...updateData, // Only the updated fields (like kaaraka_sambandha, morph_in_context, bgcolor)
+				}),
+			});
+
+			const result = await response.json();
+
+			if (response.ok) {
+				console.log("Update successful:", result);
+
+				// Update the React state with the new data
+				setUpdatedData((prevData) => {
+					const newData = [...prevData];
+					newData[procIndex] = {
+						...newData[procIndex],
+						...updateData, // Merge the updated fields
+					};
+					return newData;
+				});
+
+				// Mark this row as not changed anymore
+				setChangedRows((prev) => {
+					const newRows = new Set(prev);
+					newRows.delete(procIndex); // Remove the changed state for this row
+					return newRows;
+				});
+			} else {
+				console.error("Error updating data:", result);
+			}
+		} catch (error) {
+			console.error("Error updating data:", error);
+		}
+	};
 
 	const jsonToTsv = (data: any[]): string => {
 		const tsvRows = data.map(
@@ -435,6 +346,157 @@ export default function AnalysisPage() {
 				...prevSelected,
 				[procIndex]: "Error fetching meaning",
 			}));
+		}
+	};
+	useEffect(() => {
+		const fetchPermissions = async () => {
+			try {
+				const response = await fetch("/api/getCurrentUser");
+				if (!response.ok) {
+					throw new Error("User not authenticated");
+				}
+				const data = await response.json();
+				setPermissions(data.perms); // Store permissions
+			} catch (error) {
+				console.error("Error fetching permissions:", error);
+				setPermissions(null); // Handle error case
+			} finally {
+				setLoadingPermissions(false); // Stop loading
+			}
+		};
+
+		fetchPermissions();
+	}, []);
+
+	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
+		if (loadingPermissions) {
+			return <TableCell>Loading...</TableCell>;
+		}
+
+		if (!permissions) {
+			return <TableCell>Error loading permissions</TableCell>;
+		}
+
+		const renderMorphInContext = () => (
+			<TableCell>
+				<Select value={currentProcessedData?.morph_in_context} onValueChange={(value) => handleValueChange(procIndex, "morph_in_context", value)}>
+					<SelectTrigger className="w-[180px]">
+						<SelectValue placeholder={processed.morph_analysis} />
+					</SelectTrigger>
+					<SelectContent>
+						{processed.morph_analysis.split("/").map((morph: any, index: any) => (
+							<SelectItem key={index} value={morph.trim()}>
+								{morph.trim()}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</TableCell>
+		);
+
+		const renderKaarakaSambandha = () => (
+			<TableCell>
+				<Input
+					type="text"
+					value={currentProcessedData?.kaaraka_sambandha || ""}
+					onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
+					className="w-[180px] p-2 border rounded"
+					placeholder="Enter Kaaraka Sambandha"
+				/>
+			</TableCell>
+		);
+
+		const renderBgColor = () => (
+			<TableCell>
+				<Select value={currentProcessedData?.bgcolor || ""} onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}>
+					<SelectTrigger className="w-[180px]">
+						<span
+							style={{
+								backgroundColor: currentProcessedData?.bgcolor || "transparent",
+								display: "inline-block",
+								width: "20px",
+								height: "20px",
+								marginRight: "8px",
+								borderRadius: "3px", // Optional: Add border radius for better appearance
+							}}
+						></span>
+						{Object.entries(colors).find(([key, value]) => value === currentProcessedData?.bgcolor)?.[0] || "Select Color"}
+					</SelectTrigger>
+					<SelectContent>
+						{Object.entries(colors).map(([key, color]) => (
+							<SelectItem key={key} value={color}>
+								<span
+									style={{
+										backgroundColor: color,
+										display: "inline-block",
+										width: "20px",
+										height: "20px",
+										marginRight: "8px",
+									}}
+								></span>
+								{key}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</TableCell>
+		);
+
+		if (permissions !== "Admin" && permissions !== "Root") {
+			return (
+				<>
+					{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
+					{selectedColumns.includes("word") && (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<TableCell>
+										<span>{processed.word}</span>
+									</TableCell>
+								</TooltipTrigger>
+								{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
+							</Tooltip>
+						</TooltipProvider>
+					)}
+					{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
+					{selectedColumns.includes("morph_in_context") && <TableCell>{processed.morph_in_context}</TableCell>}
+					{selectedColumns.includes("kaaraka_sambandha") && <TableCell>{processed.kaaraka_sambandha}</TableCell>}
+					{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
+					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
+					{selectedColumns.includes("bgcolor") && <TableCell>{processed.bgcolor}</TableCell>}
+				</>
+			);
+		} else {
+			return (
+				<>
+					{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
+					{selectedColumns.includes("word") && (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<TableCell>
+										<span>{processed.word}</span>
+									</TableCell>
+								</TooltipTrigger>
+								{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
+							</Tooltip>
+						</TooltipProvider>
+					)}
+					{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
+					{selectedColumns.includes("morph_in_context") && renderMorphInContext()}
+					{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
+					{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
+					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
+					{selectedColumns.includes("bgcolor") && renderBgColor()}
+					<TableCell>
+						{changedRows.has(procIndex) && (
+							<Button onClick={() => handleSave(procIndex)} className="w-full">
+								Save
+							</Button>
+						)}
+					</TableCell>
+				</>
+			);
 		}
 	};
 
@@ -684,94 +746,7 @@ export default function AnalysisPage() {
 														.padStart(2, "0")}`, // Convert opacity to hex
 												}}
 											>
-												{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
-												{selectedColumns.includes("word") && (
-													<TooltipProvider>
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<TableCell>
-																	<span>{processed.word}</span>
-																</TableCell>
-															</TooltipTrigger>
-															{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
-														</Tooltip>
-													</TooltipProvider>
-												)}
-												{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
-												{selectedColumns.includes("morph_in_context") && (
-													<TableCell>
-														<Select
-															value={currentProcessedData?.morph_in_context}
-															onValueChange={(value) => handleValueChange(procIndex, "morph_in_context", value)}
-														>
-															<SelectTrigger className="w-[180px]">
-																<SelectValue placeholder={processed.morph_analysis} />
-															</SelectTrigger>
-															<SelectContent>
-																{processed.morph_analysis.split("/").map((morph: string, index: number) => (
-																	<SelectItem key={index} value={morph.trim()}>
-																		{morph.trim()}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													</TableCell>
-												)}
-												{selectedColumns.includes("kaaraka_sambandha") && (
-													<TableCell>
-														<Input
-															type="text"
-															value={currentProcessedData?.kaaraka_sambandha || ""}
-															onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
-															className="w-[180px] p-2 border rounded"
-															placeholder="Enter Kaaraka Sambandha"
-														/>
-													</TableCell>
-												)}
-												{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
-												{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
-												{selectedColumns.includes("bgcolor") && (
-													<TableCell>
-														<Select value={currentProcessedData?.bgcolor || ""} onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}>
-															<SelectTrigger className="w-[180px]">
-																<span
-																	style={{
-																		backgroundColor: currentProcessedData?.bgcolor || "transparent",
-																		display: "inline-block",
-																		width: "20px",
-																		height: "20px",
-																		marginRight: "8px",
-																		borderRadius: "3px", // Optional: Add border radius for better appearance
-																	}}
-																></span>
-																{Object.keys(colors).find((key) => colors[key as keyof typeof colors] === currentProcessedData?.bgcolor) || "Select Color"}
-															</SelectTrigger>
-															<SelectContent>
-																{Object.entries(colors).map(([key, color]) => (
-																	<SelectItem key={key} value={color}>
-																		<span
-																			style={{
-																				backgroundColor: color,
-																				display: "inline-block",
-																				width: "20px",
-																				height: "20px",
-																				marginRight: "8px",
-																			}}
-																		></span>
-																		{key}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													</TableCell>
-												)}
-												<TableCell>
-													{changedRows.has(procIndex) && (
-														<Button onClick={() => handleSave(procIndex)} className="w-full">
-															Save
-														</Button>
-													)}
-												</TableCell>
+												{renderColumnsBasedOnPermissions(processed, procIndex, currentProcessedData, isHovered, lookupWord)}
 											</TableRow>
 										);
 									})
