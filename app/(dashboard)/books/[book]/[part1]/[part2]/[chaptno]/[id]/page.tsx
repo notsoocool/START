@@ -54,6 +54,16 @@ export default function AnalysisPage() {
 	const [originalData, setOriginalData] = useState<any[]>([]);
 	const [permissions, setPermissions] = useState(null);
 	const [loadingPermissions, setLoadingPermissions] = useState(true);
+	const columnOptions = [
+		{ id: "index", label: "Index" },
+		{ id: "word", label: "Word" },
+		{ id: "morph_analysis", label: "Morph Analysis" },
+		{ id: "morph_in_context", label: "Morph In Context" },
+		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
+		{ id: "possible_relations", label: "Possible Relations" },
+		{ id: "hindi_meaning", label: "Hindi Meaning" },
+		{ id: "bgcolor", label: "Color Code" },
+	];
 
 	useEffect(() => {
 		if (!id) return;
@@ -143,7 +153,7 @@ export default function AnalysisPage() {
 			const result = await response.json();
 
 			if (response.ok) {
-				console.log("Update successful:", result);
+				toast.success("Update successful:", result);
 
 				// Update the React state with the new data
 				setUpdatedData((prevData) => {
@@ -162,10 +172,10 @@ export default function AnalysisPage() {
 					return newRows;
 				});
 			} else {
-				console.error("Error updating data:", result);
+				toast.error("Error updating data:", result);
 			}
 		} catch (error) {
-			console.error("Error updating data:", error);
+			toast.error("Error updating data: " + (error as Error).message);
 		}
 	};
 
@@ -645,58 +655,12 @@ export default function AnalysisPage() {
 										<AlertDialogDescription>Choose the columns you want to show or hide.</AlertDialogDescription>
 									</AlertDialogHeader>
 									<div className="grid gap-4 py-4">
-										<div className="flex items-center gap-2">
-											<Checkbox id="index" checked={selectedColumns.includes("index")} onCheckedChange={() => handleColumnSelect("index")} />
-											<Label htmlFor="index">Index</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox id="word" checked={selectedColumns.includes("word")} onCheckedChange={() => handleColumnSelect("word")} />
-											<Label htmlFor="word">Word</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox
-												id="morphAnalysis"
-												checked={selectedColumns.includes("morph_analysis")}
-												onCheckedChange={() => handleColumnSelect("morph_analysis")}
-											/>
-											<Label htmlFor="morphAnalysis">Morph Analysis</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox
-												id="morphInContext"
-												checked={selectedColumns.includes("morph_in_context")}
-												onCheckedChange={() => handleColumnSelect("morph_in_context")}
-											/>
-											<Label htmlFor="morphInContext">Morph In Context</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox
-												id="kaarakaSambandha"
-												checked={selectedColumns.includes("kaaraka_sambandha")}
-												onCheckedChange={() => handleColumnSelect("kaaraka_sambandha")}
-											/>
-											<Label htmlFor="kaarakaSambandha">Kaaraka Relation</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox
-												id="possibleRelations"
-												checked={selectedColumns.includes("possible_relations")}
-												onCheckedChange={() => handleColumnSelect("possible_relations")}
-											/>
-											<Label htmlFor="possibleRelations">Possible Relations</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox
-												id="hindiMeaning"
-												checked={selectedColumns.includes("hindi_meaning")}
-												onCheckedChange={() => handleColumnSelect("hindi_meaning")}
-											/>
-											<Label htmlFor="hindiMeaning">Hindi Meaning</Label>
-										</div>
-										<div className="flex items-center gap-2">
-											<Checkbox id="bgColor" checked={selectedColumns.includes("bgcolor")} onCheckedChange={() => handleColumnSelect("bgcolor")} />
-											<Label htmlFor="bgColor">Color Code</Label>
-										</div>
+										{columnOptions.map(({ id, label }) => (
+											<div key={id} className="flex items-center gap-2">
+												<Checkbox id={id} checked={selectedColumns.includes(id)} onCheckedChange={() => handleColumnSelect(id)} />
+												<Label htmlFor={id}>{label}</Label>
+											</div>
+										))}
 									</div>
 									<AlertDialogFooter>
 										<AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -710,16 +674,7 @@ export default function AnalysisPage() {
 					<div>
 						<Table>
 							<TableHeader>
-								<TableRow>
-									{selectedColumns.includes("index") && <TableHead>Index</TableHead>}
-									{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
-									{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
-									{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
-									{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Sambandha</TableHead>}
-									{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
-									{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
-									{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
-								</TableRow>
+								<TableRow>{columnOptions.map(({ id, label }) => (selectedColumns.includes(id) ? <TableHead key={id}>{label}</TableHead> : null))}</TableRow>
 							</TableHeader>
 							<TableBody>
 								{chapter && chapter.length > 0 ? (
