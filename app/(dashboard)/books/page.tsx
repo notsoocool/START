@@ -24,10 +24,10 @@ const iconMap = {
 };
 
 const colorMap = {
-	book: "bg-purple-100 hover:bg-purple-200",
-	subpart: "bg-blue-100 hover:bg-blue-200",
-	"sub-subpart": "bg-green-100 hover:bg-green-200",
-	chapter: "bg-yellow-100 hover:bg-yellow-200",
+	book: "bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 shadow-sm",
+	subpart: "bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 shadow-sm",
+	"sub-subpart": "bg-gradient-to-r from-green-100 to-green-200 hover:from-green-200 hover:to-green-300 shadow-sm",
+	chapter: "bg-gradient-to-r from-yellow-100 to-yellow-200 hover:from-yellow-200 hover:to-yellow-300 shadow-sm",
 };
 
 // Component to display each tree node and handle the expand/collapse state
@@ -95,79 +95,85 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 
 export default function SacredTexts() {
 	const [books, setBooks] = useState<Item[]>([]);
-    useEffect(() => {
-        const fetchBooks = async () => {
-            try {
-                const response = await fetch("/api/books");
-                const data = await response.json();
-    
-                const transformedData = data.map((book: any) => ({
-                    id: book.book,
-                    title: book.book,
-                    type: "book",
-                    children: book.part1 && book.part1.length > 0
-                        ? book.part1
-                            .map((part1: any) => {
-                                // Case 1: If part1 and part2 are both null, render chapters directly under book
-                                if (part1.part === null) {
-                                    // Render chapters directly under book if part1 is null and part2 contains chapters
-                                    return part1.part2.map((part2: any) => ({
-                                        id: `${book.book}`,
-                                        title: part2.part ,
-                                        type: "sub-subpart",
-                                        children: part2.chapters.map((chapter: string) => ({
-                                            id: `${book.book}-chapter-${chapter}`,
-                                            title: `Chapter ${chapter}`,
-                                            type: "chapter",
-                                        })),
-                                    }));
-                                }    
-                                // Case 3: If both part1 and part2 exist, create subparts and sub-subparts
-                                return {
-                                    id: `${book.book}-${part1.part}`,
-                                    title: part1.part,
-                                    type: "subpart",
-                                    children: part1.part2.map((part2: any) => ({
-                                            id: `${book.book}-${part1.part}-${part2.part}`,
-                                            title: part2.part,
-                                            type: "sub-subpart",
-                                            children: part2.chapters.map((chapter: string) => ({
-                                                id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
-                                                title: `Chapter ${chapter}`,
-                                                type: "chapter",
-                                            })),
-                                        }))
-                                        .flat(), // Flatten the array if part2 contains nested chapters
-                                };
-                            })
-                            .flat() // Flatten the array if part1 contains nested parts
-                        : book.chapters // If part1 doesn't exist, display chapters directly under the book
-                            ? book.chapters.map((chapter: string) => ({
-                                id: `${book.book}-chapter-${chapter}`,
-                                title: `Chapter ${chapter}`,
-                                type: "chapter",
-                            }))
-                            : [], // Fallback in case there are no chapters or part1
-                }));
-    
-                setBooks(transformedData);
-            } catch (error) {
-                console.error("Error fetching books:", error);
-            }
-        };
-    
-        fetchBooks();
-    }, []);
-    
-    
+	const [isLoading, setIsLoading] = useState(true);
+
+	useEffect(() => {
+		const fetchBooks = async () => {
+			try {
+				setIsLoading(true);
+				const response = await fetch("/api/books");
+				const data = await response.json();
+
+				const transformedData = data.map((book: any) => ({
+					id: book.book,
+					title: book.book,
+					type: "book",
+					children: book.part1 && book.part1.length > 0
+						? book.part1
+							.map((part1: any) => {
+								// Case 1: If part1 is null, return chapters directly
+								if (part1.part === null) {
+									return part1.part2[0].chapters.map((chapter: string) => ({
+										id: `${book.book}-chapter-${chapter}`,
+										title: `Chapter ${chapter}`,
+										type: "chapter",
+									}));
+								}    
+								// Case 2: If both part1 and part2 exist...
+								return {
+									id: `${book.book}-${part1.part}`,
+									title: part1.part,
+									type: "subpart",
+									children: part1.part2.map((part2: any) => ({
+											id: `${book.book}-${part1.part}-${part2.part}`,
+											title: part2.part,
+											type: "sub-subpart",
+											children: part2.chapters.map((chapter: string) => ({
+												id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+												title: `Chapter ${chapter}`,
+												type: "chapter",
+											})),
+										}))
+										.flat(), // Flatten the array if part2 contains nested chapters
+								};
+							})
+							.flat() // Flatten the array if part1 contains nested parts
+						: book.chapters // This case handles books with direct chapters
+							? book.chapters.map((chapter: string) => ({
+								id: `${book.book}-chapter-${chapter}`,
+								title: `Chapter ${chapter}`,
+								type: "chapter",
+							}))
+							: [], 
+				}));
+
+				setBooks(transformedData);
+			} catch (error) {
+				console.error("Error fetching books:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		fetchBooks();
+	}, []);
+
 	return (
-		<div className="w-full h-full p-4 bg-gradient-to-br">
-			<div className="space-y-4">
-				<h2 className="text-3xl font-bold mb-6 text-center">Sacred Texts</h2>
-				<div className="w-[30rem]">
-					{books.map((book) => (
-						<TreeNode key={book.id} item={book} />
-					))}
+		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+			<div className="max-w-4xl mx-auto space-y-6">
+				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">
+					Sacred Texts
+				</h2>
+				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
+					{isLoading ? (
+						<div className="flex justify-center items-center py-12">
+							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+						</div>
+					) : (
+						books.map((book) => (
+							<TreeNode key={book.id} item={book} />
+						))
+					)}
 				</div>
 			</div>
 		</div>

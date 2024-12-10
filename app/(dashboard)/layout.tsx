@@ -9,9 +9,9 @@ const DashboardLayout = ({ children }: Props) => {
 	return (
 		<div className="flex flex-col min-h-screen">
 			<Header />
-            <Toaster />
+			<Toaster />
 			<main className="flex-grow px-3 lg:px-14">{children}</main>
-            <Footer />
+			<Footer />
 		</div>
 	);
 };

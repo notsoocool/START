@@ -13,13 +13,21 @@ export const NavButton = ({ href, label, isActive }: Props) => {
         <Button
             asChild
             size="sm"
-            variant="outline"
+            variant="ghost"
             className={cn(
-                "w-full lg:w-auto justify-between font-normal hover:bg-foreground/20 hover:text-foreground border-none focus-visible:ring-offset-0 focus-visible:ring-transparent outline-none text-foreground focus:bg-foreground/30 transition",
-                isActive ? "bg-foreground/10 text-foreground": "bg-transparent",
-            )}>
+                "relative w-full lg:w-auto font-medium transition-all duration-300",
+                "hover:bg-purple-100 dark:hover:bg-purple-900/30",
+                "hover:text-purple-700 dark:hover:text-purple-300",
+                isActive && [
+                    "text-purple-700 dark:text-purple-300",
+                    "after:absolute after:bottom-0 after:left-0 after:right-0",
+                    "after:h-0.5 after:bg-purple-600 dark:after:bg-purple-400",
+                    "after:rounded-full"
+                ]
+            )}
+        >
             <Link href={href}>
-            {label}
+                {label}
             </Link>
         </Button>
     );
