@@ -1,10 +1,11 @@
-```markdown
 ## Database Structure
 
 The application uses MongoDB with Mongoose for data management. Here's a detailed overview of our data models:
 
 ### Database Connection
+
 The application implements a singleton pattern for database connections to ensure efficient resource usage:
+
 - Maintains a single connection throughout the application lifecycle
 - Automatically handles connection states
 - Environment-based configuration using `MONGO_URI`
@@ -12,6 +13,7 @@ The application implements a singleton pattern for database connections to ensur
 ### Data Models
 
 #### 1. Shloka Model
+
 Represents Sanskrit verses with their structural information:
 
 ```typescript
@@ -27,6 +29,7 @@ Represents Sanskrit verses with their structural information:
 ```
 
 #### 2. Analysis Model
+
 Provides detailed linguistic analysis of Sanskrit verses:
 
 ```typescript
@@ -57,17 +60,19 @@ Provides detailed linguistic analysis of Sanskrit verses:
 ```
 
 #### 3. Permissions Model
+
 Manages user roles and permissions:
 
 ```typescript
 {
-  userID: string;     // Unique user identifier
-  name: string;       // User's name
-  perms: string;      // Permission level (default: "User")
+	userID: string; // Unique user identifier
+	name: string; // User's name
+	perms: string; // Permission level (default: "User")
 }
 ```
 
 ### Permission Levels
+
 - **User**: Basic access
 - **Annotator**: Can add annotations
 - **Editor**: Can edit content
@@ -75,6 +80,7 @@ Manages user roles and permissions:
 - **Root**: Full system access
 
 ### Database Features
+
 - **Validation**: Required field enforcement
 - **Flexible Schema**: Optional fields for extensibility
 - **Type Safety**: TypeScript interfaces for all models
@@ -82,7 +88,9 @@ Manages user roles and permissions:
 - **Efficient Querying**: Indexed fields for performance
 
 ### API Integration
+
 The models are used throughout the application's API routes for:
+
 - Fetching shlokas and their analyses
 - Managing user permissions
 - Creating and updating content
@@ -99,6 +107,7 @@ MONGO_URI=your_mongodb_connection_string
 ## Database Management
 
 ### Connecting to MongoDB
+
 ```typescript
 import dbConnect from "@/lib/db/connect";
 
@@ -107,6 +116,7 @@ await dbConnect();
 ```
 
 ### Model Usage Example
+
 ```typescript
 import Shloka from "@/lib/db/newShlokaModel";
 import Analysis from "@/lib/db/newAnalysisModel";
@@ -116,10 +126,11 @@ import Perms from "@/lib/db/permissionsModel";
 const shloka = await Shloka.findById(id);
 
 // Get analysis
-const analysis = await Analysis.find({ 
-  book: bookName, 
-  chaptno: chapter 
+const analysis = await Analysis.find({
+	book: bookName,
+	chaptno: chapter,
 });
 
 // Check permissions
 const userPerms = await Perms.findOne({ userID: userId });
+```
