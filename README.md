@@ -1,4 +1,3 @@
-```markdown
 # START - Sanskrit Text Analysis and Reading Tool
 
 A modern web application for exploring, analyzing, and learning Sanskrit literature with an interactive interface and comprehensive analysis tools.
@@ -221,4 +220,3 @@ For detailed documentation:
 - Additional Sanskrit texts
 - Community features
 - Advanced search capabilities
-```
