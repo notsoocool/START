@@ -1,4 +1,3 @@
-```markdown:components/README.md
 # Components Documentation
 
 ## Admin Components
@@ -124,4 +123,3 @@ Components use Tailwind CSS with custom classes for:
 - Sonner for toast notifications
 - Next.js routing
 - React hooks for state management
-```
