@@ -285,6 +285,17 @@ export default function AnalysisPage() {
 				setErrorMessage(`Error generating graph for sentno: ${sentno}`);
 			}
 		}
+
+		// Add this toast notification and scroll to graphs
+		toast.success("Graphs generated successfully!");
+		
+		// Add a small delay to ensure the graphs are rendered
+		setTimeout(() => {
+			const graphsSection = document.querySelector('[data-graphs-section]');
+			if (graphsSection) {
+				graphsSection.scrollIntoView({ behavior: 'smooth' });
+			}
+		}, 100);
 	};
 
 	const handleSubmitGraph = async (tsvData: string) => {
@@ -880,7 +891,7 @@ export default function AnalysisPage() {
 
 			{/* Graph Display Section */}
 			{Object.keys(graphUrls).length > 0 && (
-				<div className="space-y-6">
+				<div className="space-y-6" data-graphs-section>
 					<h2 className="text-xl font-semibold">Generated Graphs</h2>
 					<div className="grid gap-6">
 						{Object.entries(graphUrls).map(([sentno, svgContent]) => (
