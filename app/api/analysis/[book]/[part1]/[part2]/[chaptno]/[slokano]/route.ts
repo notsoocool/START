@@ -10,6 +10,20 @@ interface Params {
 	slokano: string;
 }
 
+// Add CORS headers helper function
+function corsHeaders() {
+	return {
+		'Access-Control-Allow-Origin': '*',
+		'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+		'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+	};
+}
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS() {
+	return NextResponse.json({}, { headers: corsHeaders() });
+}
+
 export async function GET(req: Request, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
 
@@ -49,13 +63,19 @@ export async function GET(req: Request, { params }: { params: Params }) {
 			});
 		} else {
 			console.log("No matching analysis found");
-			return NextResponse.json({ message: "Analysis not found" }, { status: 404 });
+			return NextResponse.json(
+				{ message: "Analysis not found" }, 
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
-		return NextResponse.json(analysis);
+		return NextResponse.json(analysis, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error fetching analysis:", error);
-		return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+		return NextResponse.json(
+			{ message: "Internal Server Error" }, 
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -84,13 +104,22 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 		});
 
 		if (!updatedRow) {
-			return NextResponse.json({ message: "Row not found" }, { status: 404 });
+			return NextResponse.json(
+				{ message: "Row not found" }, 
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
-		return NextResponse.json({ message: "Update successful", updatedRow });
+		return NextResponse.json(
+			{ message: "Update successful", updatedRow }, 
+			{ headers: corsHeaders() }
+		);
 	} catch (error) {
 		console.error("Error updating row:", error);
-		return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+		return NextResponse.json(
+			{ message: "Internal Server Error" }, 
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -113,9 +142,12 @@ export async function DELETE(req: Request, { params }: { params: Params }) {
 
 		return NextResponse.json({
 			message: `Deleted ${result.deletedCount} entries successfully.`,
-		});
+		}, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error deleting entries:", error);
-		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+		return NextResponse.json(
+			{ error: "Internal Server Error" }, 
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }

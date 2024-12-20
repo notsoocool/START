@@ -10,6 +10,20 @@ interface Params {
     chaptno: string;
 }
 
+// Add CORS headers helper function
+function corsHeaders() {
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+}
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS() {
+    return NextResponse.json({}, { headers: corsHeaders() });
+}
+
 export async function GET(request: Request, { params }: { params: Params }) {
     await dbConnect();
     const { book, part1, part2, chaptno } = params;
@@ -27,7 +41,7 @@ export async function GET(request: Request, { params }: { params: Params }) {
         slokano: 1, // Sort by slokano in ascending order
     });
 
-    return NextResponse.json({ shlokas });
+    return NextResponse.json({ shlokas }, { headers: corsHeaders() });
 }
 
 export async function DELETE(request: Request, { params }: { params: Params }) {
@@ -47,14 +61,15 @@ export async function DELETE(request: Request, { params }: { params: Params }) {
         const result = await AHShloka.deleteMany(query);
 
         // Respond with the number of deleted entries
-        return NextResponse.json({
-            message: `Deleted ${result.deletedCount} entries successfully.`,
-        });
+        return NextResponse.json(
+            { message: `Deleted ${result.deletedCount} entries successfully.` },
+            { headers: corsHeaders() }
+        );
     } catch (error) {
         console.error("Error deleting entries:", error);
         return NextResponse.json(
             { error: "Internal Server Error" },
-            { status: 500 }
+            { status: 500, headers: corsHeaders() }
         );
     }
 }

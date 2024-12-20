@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
+import { Loader2, PencilIcon, PlusCircleIcon } from "lucide-react";
 import { ExclamationTriangleIcon, SliderIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -53,7 +53,6 @@ export default function AnalysisPage() {
 	const [selectedDictIndex, setSelectedDictIndex] = useState<number>(0); // Default to the first dictionary
 	const [originalData, setOriginalData] = useState<any[]>([]);
 	const [permissions, setPermissions] = useState(null);
-	const [loadingPermissions, setLoadingPermissions] = useState(true);
 	const columnOptions = [
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
@@ -83,7 +82,6 @@ export default function AnalysisPage() {
 			} catch (error) {
 				console.error("Error fetching shloka or chapter:", error);
 			} finally {
-				setLoading(false);
 				setInitialLoad(false);
 			}
 		};
@@ -110,13 +108,17 @@ export default function AnalysisPage() {
 	};
 
 	const handleSave = async (procIndex: number) => {
-		const currentData = updatedData[procIndex]; // The updated row data
-		const originalRowData = originalData[procIndex]; // Get the original data for this row
+		const currentData = updatedData[procIndex];
+		const originalRowData = originalData[procIndex];
 
 		// Prepare the data to send in the update request
-		const updateData: any = {};
+		const updateData: any = {
+			// Always include morph_analysis in the update
+			morph_analysis: currentData.morph_analysis,
+			possible_relations: currentData.possible_relations,
+		};
 
-		// Only update fields that have changed compared to the original data
+		// Check other fields for changes
 		if (currentData.kaaraka_sambandha !== originalRowData?.kaaraka_sambandha) {
 			updateData.kaaraka_sambandha = currentData.kaaraka_sambandha;
 		}
@@ -127,26 +129,16 @@ export default function AnalysisPage() {
 			updateData.bgcolor = currentData.bgcolor;
 		}
 
-		// If there are no changes, return early
-		if (Object.keys(updateData).length === 0) {
-			console.log("No changes detected.");
-			return;
-		}
-
-		// Ensure the correct anvaya_no and sentno are passed in the request
-		const { anvaya_no, sentno } = currentData; // Get the correct anvaya_no and sentno for the row
-
 		try {
-			// Send the update request to the API
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "PUT",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					anvaya_no, // Correct anvaya_no
-					sentno, // Correct sentno
-					...updateData, // Only the updated fields (like kaaraka_sambandha, morph_in_context, bgcolor)
+					anvaya_no: currentData.anvaya_no,
+					sentno: currentData.sentno,
+					...updateData,
 				}),
 			});
 
@@ -155,20 +147,39 @@ export default function AnalysisPage() {
 			if (response.ok) {
 				toast.success("Update successful:", result);
 
-				// Update the React state with the new data
+				// Update all relevant states
 				setUpdatedData((prevData) => {
 					const newData = [...prevData];
 					newData[procIndex] = {
 						...newData[procIndex],
-						...updateData, // Merge the updated fields
+						...updateData,
 					};
 					return newData;
 				});
 
-				// Mark this row as not changed anymore
+				setOriginalData((prevData) => {
+					const newData = [...prevData];
+					newData[procIndex] = {
+						...newData[procIndex],
+						...updateData,
+					};
+					return newData;
+				});
+
+				// Update the chapter state as well
+				setChapter((prevChapter: any[]) => {
+					const newChapter = [...prevChapter];
+					newChapter[procIndex] = {
+						...newChapter[procIndex],
+						...updateData,
+					};
+					return newChapter;
+				});
+
+				// Clear the changed state for this row
 				setChangedRows((prev) => {
 					const newRows = new Set(prev);
-					newRows.delete(procIndex); // Remove the changed state for this row
+					newRows.delete(procIndex);
 					return newRows;
 				});
 			} else {
@@ -360,18 +371,19 @@ export default function AnalysisPage() {
 	};
 	useEffect(() => {
 		const fetchPermissions = async () => {
+			setLoading(true); // Start loading when fetching permissions
 			try {
 				const response = await fetch("/api/getCurrentUser");
 				if (!response.ok) {
 					throw new Error("User not authenticated");
 				}
 				const data = await response.json();
-				setPermissions(data.perms); // Store permissions
+				setPermissions(data.perms);
 			} catch (error) {
 				console.error("Error fetching permissions:", error);
-				setPermissions(null); // Handle error case
+				setPermissions(null);
 			} finally {
-				setLoadingPermissions(false); // Stop loading
+				setLoading(false); // Stop loading when permissions are fetched
 			}
 		};
 
@@ -379,12 +391,8 @@ export default function AnalysisPage() {
 	}, []);
 
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
-		if (loadingPermissions) {
-			return <TableCell>Loading...</TableCell>;
-		}
-
 		if (!permissions) {
-			return <TableCell>Error loading permissions</TableCell>;
+			return <TableCell></TableCell>;
 		}
 
 		const renderMorphInContext = () => (
@@ -404,14 +412,141 @@ export default function AnalysisPage() {
 			</TableCell>
 		);
 
-		const renderKaarakaSambandha = () => (
+		const renderMorphInContextTEXT = () => {
+			// Check if the current value is different from the original
+			const isChanged = currentProcessedData?.morph_in_context !== processed.morph_in_context;
+
+			const handleAddToMorphAnalysis = () => {
+				const currentValue = currentProcessedData?.morph_in_context?.trim() || "";
+				if (!currentValue) return;
+
+				console.log("Current Value:", currentValue);
+				console.log("Current morph_analysis:", processed.morph_analysis);
+
+				// Update both updatedData and originalData
+				setUpdatedData((prevData) => {
+					const newData = [...prevData];
+					const existingAnalysis = newData[procIndex].morph_analysis || "";
+
+					// Create the updated morph_analysis string
+					const updatedMorphAnalysis = existingAnalysis ? `${existingAnalysis}/${currentValue}` : currentValue;
+
+					console.log("Updated morph_analysis:", updatedMorphAnalysis);
+
+					newData[procIndex] = {
+						...newData[procIndex],
+						morph_analysis: updatedMorphAnalysis,
+					};
+					return newData;
+				});
+
+				// Also update originalData to reflect the change
+				setOriginalData((prevData) => {
+					const newData = [...prevData];
+					const existingAnalysis = newData[procIndex].morph_analysis || "";
+
+					const updatedMorphAnalysis = existingAnalysis ? `${existingAnalysis}/${currentValue}` : currentValue;
+
+					newData[procIndex] = {
+						...newData[procIndex],
+						morph_analysis: updatedMorphAnalysis,
+					};
+					return newData;
+				});
+
+				// Mark the row as changed
+				setChangedRows((prev) => new Set(prev.add(procIndex)));
+			};
+
+			return (
+				<TableCell>
+					<div className="flex items-center gap-2">
+						<Input
+							type="text"
+							value={currentProcessedData?.morph_in_context || ""}
+							onChange={(e) => handleValueChange(procIndex, "morph_in_context", e.target.value)}
+							className="w-[180px]"
+							placeholder="Enter Morph in Context"
+						/>
+						{isChanged && (
+							<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={handleAddToMorphAnalysis}>
+								<PlusCircleIcon className="size-4 text-white" />
+							</Button>
+						)}
+					</div>
+				</TableCell>
+			);
+		};
+
+		const renderKaarakaSambandha = () => {
+			// Check if the current value is different from the original
+			const isChanged = currentProcessedData?.kaaraka_sambandha !== processed.kaaraka_sambandha;
+
+			const handleAddToKaarakaSambandha = () => {
+				const currentValue = currentProcessedData?.kaaraka_sambandha?.trim() || "";
+				if (!currentValue) return;
+
+				// Update both updatedData and originalData
+				setUpdatedData((prevData) => {
+					const newData = [...prevData];
+					const existingKaaraka = newData[procIndex].possible_relations || "";
+
+					// Create the updated possible_relations string
+					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
+
+					newData[procIndex] = {
+						...newData[procIndex],
+						possible_relations: updatedKaaraka,
+					};
+					return newData;
+				});
+
+				// Also update originalData to reflect the change
+				setOriginalData((prevData) => {
+					const newData = [...prevData];
+					const existingKaaraka = newData[procIndex].possible_relations || "";
+
+					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
+
+					newData[procIndex] = {
+						...newData[procIndex],
+						possible_relations: updatedKaaraka,
+					};
+					return newData;
+				});
+
+				// Mark the row as changed
+				setChangedRows((prev) => new Set(prev.add(procIndex)));
+			};
+
+			return (
+				<TableCell>
+					<div className="flex items-center gap-2">
+						<Input
+							type="text"
+							value={currentProcessedData?.kaaraka_sambandha || ""}
+							onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
+							className="w-[180px]"
+							placeholder="Enter Kaaraka Sambandha"
+						/>
+						{isChanged && (
+							<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={handleAddToKaarakaSambandha}>
+								<PlusCircleIcon className="size-4 text-white" />
+							</Button>
+						)}
+					</div>
+				</TableCell>
+			);
+		};
+
+		const renderWord = () => (
 			<TableCell>
 				<Input
 					type="text"
-					value={currentProcessedData?.kaaraka_sambandha || ""}
-					onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
-					className="w-[180px] p-2 border rounded"
-					placeholder="Enter Kaaraka Sambandha"
+					value={currentProcessedData?.word || ""}
+					onChange={(e) => handleValueChange(procIndex, "word", e.target.value)}
+					className="w-[100px]"
+					placeholder="Enter Word"
 				/>
 			</TableCell>
 		);
@@ -484,18 +619,16 @@ export default function AnalysisPage() {
 						<TooltipProvider>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<TableCell>
-										<span>{processed.word}</span>
-									</TableCell>
+									<TableCell>{renderWord()}</TableCell>
 								</TooltipTrigger>
 								{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
 							</Tooltip>
 						</TooltipProvider>
 					)}
-					{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
-					{selectedColumns.includes("morph_in_context") && renderMorphInContext()}
+					{selectedColumns.includes("morph_analysis") && <TableCell>{currentProcessedData?.morph_analysis || processed.morph_analysis}</TableCell>}
+					{selectedColumns.includes("morph_in_context") && renderMorphInContextTEXT()}
 					{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
-					{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
+					{selectedColumns.includes("possible_relations") && <TableCell>{currentProcessedData?.possible_relations || processed.possible_relations}</TableCell>}
 					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
 					{selectedColumns.includes("bgcolor") && renderBgColor()}
 					<TableCell>

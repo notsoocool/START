@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel"; // Adjust the path as needed
 
+// Helper function to handle CORS
+const corsHeaders = {
+	'Access-Control-Allow-Origin': '*', // Be more restrictive in production
+	'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+	'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS() {
+	return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET() {
 	await dbConnect();
 
@@ -45,7 +57,7 @@ export async function GET() {
 		});
 	}
 
-	return NextResponse.json(tree);
+	return NextResponse.json(tree, { headers: corsHeaders });
 }
 
 export async function DELETE(request: Request) {
@@ -58,17 +70,23 @@ export async function DELETE(request: Request) {
 		if (book) {
 			// Delete all entries for the specified book
 			const result = await AHShloka.deleteMany({ book });
-			return NextResponse.json({
-				success: true,
-				message: `${result.deletedCount} entries deleted for the book: ${book}`,
-			});
+			return NextResponse.json(
+				{
+					success: true,
+					message: `${result.deletedCount} entries deleted for the book: ${book}`,
+				},
+				{ headers: corsHeaders }
+			);
 		} else {
 			// Delete all entries if no book is specified
 			const result = await AHShloka.deleteMany({});
-			return NextResponse.json({
-				success: true,
-				message: `${result.deletedCount} entries deleted for all books`,
-			});
+			return NextResponse.json(
+				{
+					success: true,
+					message: `${result.deletedCount} entries deleted for all books`,
+				},
+				{ headers: corsHeaders }
+			);
 		}
 	} catch (error) {
 		return NextResponse.json(
@@ -77,7 +95,7 @@ export async function DELETE(request: Request) {
 				message: "Error deleting entries",
 				error: (error as Error).message,
 			},
-			{ status: 500 }
+			{ status: 500, headers: corsHeaders }
 		);
 	}
 }

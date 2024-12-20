@@ -18,13 +18,13 @@ const routes = [
 	// 	href: "/shlokas",
 	// 	label: "Shlokas",
 	// },
-	{
-		href: "/addshloka",
-		label: "Add Shloka",
-	},
+	// {
+	// 	href: "/addshloka",
+	// 	label: "Add Shloka",
+	// },
 	{
 		href: "/books",
-		label: "Sacred Books",
+		label: "E-Readers",
 	},
 ];
 
@@ -49,9 +49,8 @@ export const Navigation = () => {
 
 			// Redirect if current user is not Admin or Root
 			if (data.perms === "Admin" || data.perms === "Root") {
-				setIsAdmin(true) // Redirect to main page
+				setIsAdmin(true); // Redirect to main page
 			}
-		
 		};
 
 		checkAdminStatus();
@@ -66,23 +65,15 @@ export const Navigation = () => {
 		return (
 			<Sheet open={isOpened} onOpenChange={setIsOpened}>
 				<SheetTrigger asChild>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-300"
-					>
+					<Button variant="ghost" size="sm" className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-300">
 						<Menu className="size-5 text-gray-600 dark:text-gray-400" />
 					</Button>
 				</SheetTrigger>
-				<SheetContent 
-					side="left" 
-					className="w-72 border-r border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-lg"
-				>
+				<SheetContent side="left" className="w-72 border-r border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-lg">
 					<nav className="flex flex-col gap-y-2 pt-6">
 						{routes.map((route) => (
 							<Button
 								key={route.href}
-								
 								variant="ghost"
 								onClick={() => onClick(route.href)}
 								className={cn(
@@ -117,20 +108,9 @@ export const Navigation = () => {
 	return (
 		<nav className="hidden lg:flex items-center gap-x-1">
 			{routes.map((route) => (
-				<NavButton
-					key={route.href}
-					href={route.href}
-					label={route.label}
-					isActive={pathname === route.href}
-				/>
+				<NavButton key={route.href} href={route.href} label={route.label} isActive={pathname === route.href} />
 			))}
-			{isAdmin && (
-				<NavButton
-					href="/admin"
-					label="Admin"
-					isActive={pathname === "/admin"}
-				/>
-			)}
+			{isAdmin && <NavButton href="/admin" label="Admin" isActive={pathname === "/admin"} />}
 		</nav>
 	);
 };
