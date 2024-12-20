@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, PencilIcon, PlusCircleIcon } from "lucide-react";
+import { Loader2, PencilIcon, PlusCircleIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { ExclamationTriangleIcon, SliderIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,22 +12,15 @@ import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { colors, validKaarakaSambandhaValues } from "@/lib/constants";
+import { colors } from "@/lib/constants";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { BookOpen } from "lucide-react";
+import { Share2Icon } from "@radix-ui/react-icons";
+import { Separator } from "@/components/ui/separator";
 
 declare global {
 	interface Window {
@@ -35,9 +28,17 @@ declare global {
 	}
 }
 
+// Update the shloka type definition
+type Shloka = {
+	_id: any;
+	chaptno: string;
+	slokano: string;
+	spart: string;
+};
+
 export default function AnalysisPage() {
 	const { book, part1, part2, chaptno, id } = useParams(); // Get the shloka ID from the URL
-	const [shloka, setShloka] = useState<any>(null);
+	const [shloka, setShloka] = useState<Shloka | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [chapter, setChapter] = useState<any>(null);
 	const [initialLoad, setInitialLoad] = useState(true);
@@ -63,6 +64,11 @@ export default function AnalysisPage() {
 		{ id: "hindi_meaning", label: "Hindi Meaning" },
 		{ id: "bgcolor", label: "Color Code" },
 	];
+	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
+	const DEFAULT_ZOOM = 1;
+	const MIN_ZOOM = 0.5;
+	const MAX_ZOOM = 2;
+	const ZOOM_STEP = 0.1;
 
 	useEffect(() => {
 		if (!id) return;
@@ -651,6 +657,53 @@ export default function AnalysisPage() {
 		));
 	};
 
+	const renderTableContent = () => (
+		<TableBody>
+			{chapter?.map((processed: any, procIndex: number) => {
+				const currentProcessedData = updatedData[procIndex];
+				const isHovered = hoveredRowIndex === procIndex;
+				const lookupWord = extractWord(processed.morph_in_context);
+
+				return (
+					<TableRow
+						key={procIndex}
+						onMouseEnter={() => {
+							setHoveredRowIndex(procIndex);
+							if (lookupWord) fetchMeaning(lookupWord, procIndex);
+						}}
+						onMouseLeave={() => setHoveredRowIndex(null)}
+						style={{
+							backgroundColor: processed.bgcolor ? `rgba(${hexToRgb(processed.bgcolor)}, ${opacity})` : "transparent",
+						}}
+					>
+						{renderColumnsBasedOnPermissions(processed, procIndex, currentProcessedData, isHovered, lookupWord)}
+					</TableRow>
+				);
+			})}
+		</TableBody>
+	);
+
+	const handleZoomIn = (sentno: string) => {
+		setZoomLevels((prev) => ({
+			...prev,
+			[sentno]: Math.min(MAX_ZOOM, (prev[sentno] || DEFAULT_ZOOM) + ZOOM_STEP),
+		}));
+	};
+
+	const handleZoomOut = (sentno: string) => {
+		setZoomLevels((prev) => ({
+			...prev,
+			[sentno]: Math.max(MIN_ZOOM, (prev[sentno] || DEFAULT_ZOOM) - ZOOM_STEP),
+		}));
+	};
+
+	const handleResetZoom = (sentno: string) => {
+		setZoomLevels((prev) => ({
+			...prev,
+			[sentno]: DEFAULT_ZOOM,
+		}));
+	};
+
 	if (initialLoad) {
 		return (
 			<div className="max-w-screen-2xl mx-auto w-full p-8">
@@ -708,171 +761,202 @@ export default function AnalysisPage() {
 
 	// Render the UI with the Shloka
 	return (
-		<div className="p-8">
-			<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-				<CardHeader className="border-b border-primary-100">
-					<CardTitle>
-						Chapter {shloka.chaptno} - Shloka {shloka.slokano}
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="p-10">
-					{/* Original Shloka */}
-					<div>
-						<h3 className="text-lg font-bold mb-4">Original Shloka:</h3>
-						<div className="text-sm flex flex-col gap-2">
-							<p>{shloka.spart1}</p>
-							{shloka.spart2 && <p>{shloka.spart2}</p>}
-						</div>
-					</div>
+		<div className="container mx-auto p-6 space-y-8">
+			{/* Header Section */}
+			<div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-center">
+				<div className="space-y-2">
+					<h1 className="text-2xl font-bold tracking-tight">Analysis Dashboard</h1>
+					<p className="text-muted-foreground">
+						Chapter {chaptno} - Shloka {shloka?.slokano}
+					</p>
+				</div>
 
-					{/* Processed Segments Table */}
-					<div className="w-full flex justify-between">
-						<h3 className="text-lg font-bold mb-4 mt-8">Processed Segments:</h3>
-						<div className="flex gap-5">
-							<div className="pt-8">
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button variant="outline">
-											<SliderIcon />
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-80">
-										<div className="space-y-4">
-											<h4 className="font-medium leading-none">Adjust Opacity</h4>
-											<Slider defaultValue={[opacity * 100]} max={100} step={1} onValueChange={handleOpacityChange} />
-											<div className="flex justify-between items-center">
-												<span className="text-sm text-muted-foreground">Current value:</span>
-												<span className="font-medium">{Math.round(opacity * 100)}</span>
-											</div>
+				{/* Controls Section */}
+				<div className="flex flex-col sm:flex-row gap-4">
+					{/* Column Selector */}
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button variant="outline" className="w-[200px] justify-start">
+								<SliderIcon className="mr-2 h-4 w-4" />
+								Customize Columns
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-[200px] p-4">
+							<div className="space-y-4">
+								<h4 className="font-medium leading-none">Toggle Columns</h4>
+								<div className="space-y-2">
+									{columnOptions.map((column) => (
+										<div key={column.id} className="flex items-center space-x-2">
+											<Checkbox id={column.id} checked={selectedColumns.includes(column.id)} onCheckedChange={() => handleColumnSelect(column.id)} />
+											<Label htmlFor={column.id}>{column.label}</Label>
 										</div>
-									</PopoverContent>
-								</Popover>
+									))}
+								</div>
 							</div>
-							<div className="pt-8">
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button variant="outline">Select Meaning</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-80">
-										<div className="space-y-2">
-											<h4 className="font-medium leading-none">Select a Dictionary</h4>
-											{allMeanings.map((meaning, index) => (
-												<Button
-													key={index}
-													variant="ghost"
-													onClick={() => {
-														setSelectedDictIndex(index); // Update selected dictionary index
-														setSelectedMeaning((prevSelected) => ({
-															...prevSelected,
-															[index]: meaning.Meaning, // Set meaning for this dictionary index
-														}));
-													}}
-													className={selectedDictIndex === index ? "bg-blue-500 text-white" : ""} // Highlight selected dictionary
-												>
-													{index + 1}. {meaning.DICT}
-												</Button>
-											))}
-										</div>
-									</PopoverContent>
-								</Popover>
+						</PopoverContent>
+					</Popover>
+
+					{/* Opacity Control */}
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button variant="outline" className="w-[200px] justify-start">
+								<PencilIcon className="mr-2 h-4 w-4" />
+								Color Opacity
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-[200px] p-4">
+							<div className="space-y-4">
+								<h4 className="font-medium leading-none">Adjust Opacity</h4>
+								<Slider defaultValue={[50]} max={100} step={1} className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4" onValueChange={handleOpacityChange} />
 							</div>
-							<AlertDialog>
-								<AlertDialogTrigger asChild>
-									<Button variant="outline" className="mt-8">
-										Show/Hide Columns
-									</Button>
-								</AlertDialogTrigger>
-								<AlertDialogContent className="sm:max-w-[425px]">
-									<AlertDialogHeader>
-										<AlertDialogTitle>Columns</AlertDialogTitle>
-										<AlertDialogDescription>Choose the columns you want to show or hide.</AlertDialogDescription>
-									</AlertDialogHeader>
-									<div className="grid gap-4 py-4">
-										{columnOptions.map(({ id, label }) => (
-											<div key={id} className="flex items-center gap-2">
-												<Checkbox id={id} checked={selectedColumns.includes(id)} onCheckedChange={() => handleColumnSelect(id)} />
-												<Label htmlFor={id}>{label}</Label>
-											</div>
-										))}
-									</div>
-									<AlertDialogFooter>
-										<AlertDialogCancel>Cancel</AlertDialogCancel>
-										<AlertDialogAction>Save</AlertDialogAction>
-									</AlertDialogFooter>
-								</AlertDialogContent>
-							</AlertDialog>
-						</div>
-					</div>
+						</PopoverContent>
+					</Popover>
 
-					<div>
-						<Table>
-							<TableHeader>
-								<TableRow>{columnOptions.map(({ id, label }) => (selectedColumns.includes(id) ? <TableHead key={id}>{label}</TableHead> : null))}</TableRow>
-							</TableHeader>
-							<TableBody>
-								{chapter && chapter.length > 0 ? (
-									chapter.map((processed: any, procIndex: any) => {
-										const currentProcessedData = updatedData[procIndex];
-										const isHovered = hoveredRowIndex === procIndex;
-
-										const lookupWord = extractWord(processed.morph_in_context);
-
-										return (
-											<TableRow
-												key={procIndex}
-												onMouseEnter={() => {
-													setHoveredRowIndex(procIndex);
-													if (!rowMeanings[procIndex]) {
-														// Fetch meaning only if not already fetched
-														fetchMeaning(lookupWord, procIndex);
-													}
-												}}
-												onMouseLeave={() => setHoveredRowIndex(null)}
-												style={{
-													backgroundColor: `${processed.bgcolor}${Math.round((isHovered ? Math.min(opacity + 0.2, 1) : opacity) * 255)
-														.toString(16)
-														.padStart(2, "0")}`, // Convert opacity to hex
-												}}
-											>
-												{renderColumnsBasedOnPermissions(processed, procIndex, currentProcessedData, isHovered, lookupWord)}
-											</TableRow>
-										);
-									})
-								) : (
-									<TableRow>
-										<TableCell colSpan={7} className="text-center">
-											No data available
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
-					</div>
-					<Button onClick={handleGenerateGraph} className="mb-4">
+					{/* Generate Graph Button */}
+					<Button onClick={handleGenerateGraph} className="w-[200px]">
 						Generate Graph
 					</Button>
+				</div>
+			</div>
 
-					{Object.entries(graphUrls).map(([sentno, svgContent]) => (
-						<div key={sentno} className="mb-4">
-							<h3>Graph for sentno: {sentno}</h3>
-							<div
-								style={{
-									overflowX: "auto", // Enable horizontal scrolling with scrollbar always visible
-									whiteSpace: "nowrap", // Prevent content wrapping
-								}}
-							>
-								<div
-									ref={(el) => {
-										svgContainerRefs.current[sentno] = el;
-									}}
-									dangerouslySetInnerHTML={{ __html: svgContent }}
-									style={{ width: "100%", maxWidth: "600px" }}
-								/>
-							</div>
+			{/* Shloka Display Card */}
+			<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
+				<CardHeader className="border-b border-border">
+					<div className="flex items-center gap-2">
+						<CardTitle className="text-lg font-medium">
+							{decodeURIComponent(typeof book === "string" ? book : book[0])
+								.split("_")
+								.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+								.join(" ")}
+						</CardTitle>
+						<Badge variant="outline" className="text-xs">
+							{chaptno}.{shloka?.slokano}
+						</Badge>
+					</div>
+				</CardHeader>
+				<CardContent className="p-6">
+					<div className="space-y-4">
+						<div className="text-center space-y-2">
+							{shloka?.spart.split("#").map((part, index) => (
+								<p key={index} className="text-lg font-sanskrit leading-relaxed">
+									{part.trim()}
+								</p>
+							))}
 						</div>
-					))}
+						<Separator className="my-4" />
+						<div className="flex justify-center gap-4">
+							<Button variant="outline" size="sm">
+								<BookOpen className="h-4 w-4 mr-2" />
+								View Commentary
+							</Button>
+							<Button variant="outline" size="sm">
+								<Share2Icon className="h-4 w-4 mr-2" />
+								Share
+							</Button>
+						</div>
+					</div>
 				</CardContent>
 			</Card>
+
+			{/* Main Content */}
+			<div className="rounded-lg border bg-card">
+				<Table>
+					<TableHeader>
+						<TableRow className="bg-muted/50">
+							{selectedColumns.includes("index") && <TableHead className="w-[100px]">Index</TableHead>}
+							{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
+							{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
+							{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
+							{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Relation</TableHead>}
+							{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
+							{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
+							{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
+							<TableHead className="w-[100px]">Actions</TableHead>
+						</TableRow>
+					</TableHeader>
+					{renderTableContent()}
+				</Table>
+			</div>
+
+			{/* Graph Display Section */}
+			{Object.keys(graphUrls).length > 0 && (
+				<div className="space-y-6">
+					<h2 className="text-xl font-semibold">Generated Graphs</h2>
+					<div className="grid gap-6">
+						{Object.entries(graphUrls).map(([sentno, svgContent]) => (
+							<Card key={sentno} className="overflow-hidden">
+								<CardHeader className="flex flex-row items-center justify-between">
+									<CardTitle>Sentence {sentno}</CardTitle>
+									<div className="flex items-center gap-2">
+										<div className="flex items-center bg-muted rounded-md">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleZoomOut(sentno)}
+												className="h-8 w-8 p-0"
+												disabled={(zoomLevels[sentno] || DEFAULT_ZOOM) <= MIN_ZOOM}
+											>
+												<MinusIcon className="h-4 w-4" />
+											</Button>
+											<div className="w-14 text-center text-sm">{Math.round((zoomLevels[sentno] || DEFAULT_ZOOM) * 100)}%</div>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleZoomIn(sentno)}
+												className="h-8 w-8 p-0"
+												disabled={(zoomLevels[sentno] || DEFAULT_ZOOM) >= MAX_ZOOM}
+											>
+												<PlusIcon className="h-4 w-4" />
+											</Button>
+										</div>
+										<Button variant="outline" size="sm" onClick={() => handleResetZoom(sentno)} className="h-8 px-2">
+											Reset
+										</Button>
+									</div>
+								</CardHeader>
+								<CardContent className="p-0">
+									<div className="relative w-full">
+										<div
+											ref={(el: HTMLDivElement | null) => {
+												if (el) svgContainerRefs.current[sentno] = el;
+											}}
+											className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 
+												dark:scrollbar-thumb-gray-700 scrollbar-track-transparent 
+												hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-600 
+												pb-4"
+											style={{
+												maxHeight: "70vh",
+												WebkitOverflowScrolling: "touch",
+											}}
+										>
+											<div
+												style={{
+													transform: `scale(${zoomLevels[sentno] || DEFAULT_ZOOM})`,
+													transformOrigin: "top left",
+													transition: "transform 0.2s ease-in-out",
+												}}
+												dangerouslySetInnerHTML={{ __html: svgContent }}
+											/>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Loading State */}
+			{loading && (
+				<div className="flex items-center justify-center p-8">
+					<Loader2 className="h-8 w-8 animate-spin" />
+				</div>
+			)}
 		</div>
 	);
 }
+
+const hexToRgb = (hex: string) => {
+	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+	return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : "0, 0, 0";
+};

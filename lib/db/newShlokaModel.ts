@@ -3,8 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface Shloka extends Document {
   chaptno: string;
   slokano: string;
-  spart1: string;
-  spart2?: string; // Optional field
+  spart: string;
   book: string; // New field to store the book name
   part1?: string; // New optional field
   part2?: string; // New optional field
@@ -19,13 +18,9 @@ const ShlokaSchema: Schema = new Schema({
     type: String,
     required: true,
   },
-  spart1: {
+  spart: {
     type: String,
     required: true,
-  },
-  spart2: {
-    type: String,
-    required: false,
   },
   book: {
     type: String,

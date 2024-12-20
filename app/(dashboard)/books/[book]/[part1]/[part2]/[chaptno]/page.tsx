@@ -14,8 +14,7 @@ type Shloka = {
 	_id: any;
 	chaptno: string;
 	slokano: string;
-	spart1: string;
-	spart2?: string;
+	spart: string;
 };
 
 // Add this at the top of your file, outside the component
@@ -168,14 +167,14 @@ export default function Shlokas() {
 								</CardHeader>
 								<CardContent className="p-8 group-hover:bg-purple-50/80 dark:group-hover:bg-purple-950/20 transition-colors duration-300">
 									<div className="space-y-4 text-center">
-										<p className="text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed">
-											{shloka.spart1}
-										</p>
-										{shloka.spart2 && (
-											<p className="text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed">
-												{shloka.spart2}
+										{shloka.spart.split('#').map((part, index) => (
+											<p 
+												key={index} 
+												className="text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed"
+											>
+												{part.trim()}
 											</p>
-										)}
+										))}
 									</div>
 								</CardContent>
 								<CardFooter className="flex justify-end py-2 px-4 text-sm text-purple-600 dark:text-purple-400 
