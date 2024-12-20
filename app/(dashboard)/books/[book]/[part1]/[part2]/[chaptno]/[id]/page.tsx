@@ -69,6 +69,7 @@ export default function AnalysisPage() {
 	const MIN_ZOOM = 0.5;
 	const MAX_ZOOM = 2;
 	const ZOOM_STEP = 0.1;
+	const [selectedDictionary, setSelectedDictionary] = useState<string>("Apte's Skt-Hnd Dict"); // Default dictionary
 
 	useEffect(() => {
 		if (!id) return;
@@ -288,12 +289,12 @@ export default function AnalysisPage() {
 
 		// Add this toast notification and scroll to graphs
 		toast.success("Graphs generated successfully!");
-		
+
 		// Add a small delay to ensure the graphs are rendered
 		setTimeout(() => {
-			const graphsSection = document.querySelector('[data-graphs-section]');
+			const graphsSection = document.querySelector("[data-graphs-section]");
 			if (graphsSection) {
-				graphsSection.scrollIntoView({ behavior: 'smooth' });
+				graphsSection.scrollIntoView({ behavior: "smooth" });
 			}
 		}, 100);
 	};
@@ -366,11 +367,12 @@ export default function AnalysisPage() {
 			const jsonData = await response.json();
 
 			if (jsonData && jsonData.length > 0) {
-				setAllMeanings(jsonData); // Store all meanings
-				// Update selected meaning based on the selected dictionary index
+				setAllMeanings(jsonData);
+				// Find meaning from selected dictionary
+				const selectedDictMeaning = jsonData.find((dict: any) => dict.DICT === selectedDictionary)?.Meaning || "Meaning not found";
 				setSelectedMeaning((prevSelected) => ({
 					...prevSelected,
-					[procIndex]: jsonData[selectedDictIndex]?.Meaning || "Meaning not found", // Use the selected dictionary index
+					[procIndex]: selectedDictMeaning,
 				}));
 			} else {
 				setSelectedMeaning((prevSelected) => ({
@@ -819,6 +821,32 @@ export default function AnalysisPage() {
 							<div className="space-y-4">
 								<h4 className="font-medium leading-none">Adjust Opacity</h4>
 								<Slider defaultValue={[50]} max={100} step={1} className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4" onValueChange={handleOpacityChange} />
+							</div>
+						</PopoverContent>
+					</Popover>
+
+					{/* Dictionary Selector */}
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button variant="outline" className="w-[200px] justify-start">
+								<BookOpen className="mr-2 h-4 w-4" />
+								Select Dictionary
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-[200px] p-4">
+							<div className="space-y-4">
+								<h4 className="font-medium leading-none">Choose Dictionary</h4>
+								<Select value={selectedDictionary} onValueChange={setSelectedDictionary}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select Dictionary" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="Apte's Skt-Hnd Dict">Apte Sanskrit-Hindi</SelectItem>
+										<SelectItem value="Monier Williams' Skt-Eng Dict">Monier Williams Sanskrit-English</SelectItem>
+										<SelectItem value="Heritage Skt-French Dict">Heritage Sanskrit-French</SelectItem>
+										<SelectItem value="Cappeller's Skt-Ger Dict">Cappeller Sanskrit-German</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 						</PopoverContent>
 					</Popover>
