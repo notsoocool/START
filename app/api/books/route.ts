@@ -4,9 +4,9 @@ import AHShloka from "@/lib/db/newShlokaModel"; // Adjust the path as needed
 
 // Helper function to handle CORS
 const corsHeaders = {
-	'Access-Control-Allow-Origin': '*', // Be more restrictive in production
-	'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
-	'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+	"Access-Control-Allow-Origin": "*", // Be more restrictive in production
+	"Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 // Add OPTIONS handler for CORS preflight requests
@@ -57,7 +57,7 @@ export async function GET() {
 		});
 	}
 
-	return NextResponse.json(tree, { headers: corsHeaders });
+	return NextResponse.json(tree, { headers: { ...corsHeaders } });
 }
 
 export async function DELETE(request: Request) {
@@ -75,7 +75,7 @@ export async function DELETE(request: Request) {
 					success: true,
 					message: `${result.deletedCount} entries deleted for the book: ${book}`,
 				},
-				{ headers: corsHeaders }
+				{ headers: { ...corsHeaders } }
 			);
 		} else {
 			// Delete all entries if no book is specified
@@ -85,7 +85,7 @@ export async function DELETE(request: Request) {
 					success: true,
 					message: `${result.deletedCount} entries deleted for all books`,
 				},
-				{ headers: corsHeaders }
+				{ headers: { ...corsHeaders } }
 			);
 		}
 	} catch (error) {
@@ -95,7 +95,7 @@ export async function DELETE(request: Request) {
 				message: "Error deleting entries",
 				error: (error as Error).message,
 			},
-			{ status: 500, headers: corsHeaders }
+			{ status: 500, headers: { ...corsHeaders } }
 		);
 	}
 }
