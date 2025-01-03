@@ -57,9 +57,11 @@ export default function AnalysisPage() {
 	const columnOptions = [
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
+		{ id: "poem", label: "Prose Index" },
 		{ id: "morph_analysis", label: "Morph Analysis" },
 		{ id: "morph_in_context", label: "Morph In Context" },
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
+		{ id: "prose_kaaraka_sambandha", label: "Prose Kaaraka Relation" },
 		{ id: "possible_relations", label: "Possible Relations" },
 		{ id: "hindi_meaning", label: "Hindi Meaning" },
 		{ id: "bgcolor", label: "Color Code" },
@@ -121,8 +123,10 @@ export default function AnalysisPage() {
 		// Prepare the data to send in the update request
 		const updateData: any = {
 			// Always include morph_analysis in the update
+			word: currentData.word,
 			morph_analysis: currentData.morph_analysis,
 			possible_relations: currentData.possible_relations,
+			poem: currentData.poem, // Include the poem field in the update
 		};
 
 		// Check other fields for changes
@@ -409,27 +413,47 @@ export default function AnalysisPage() {
 		fetchPermissions();
 	}, []);
 
+	const handleAddToKaarakaRelations = (procIndex: number) => {
+		const currentData = updatedData[procIndex];
+		const newPoem = currentData.poem; // Get the new poem value
+		const anvayaNo = currentData.anvaya_no; // Get the current anvaya number
+		const sentno = currentData.sentno; // Get the current sent number
+
+		// Update kaaraka_sambandha in all rows with the same sentno
+		setUpdatedData((prevData) => {
+			return prevData.map((item, index) => {
+				if (index !== procIndex && item.sentno === sentno) {
+					// Check for the same sentno
+					const kaarakaRelations = item.kaaraka_sambandha.split(";").map((relation: string) => {
+						// Check if the relation contains the current anvaya number
+						if (relation.includes(anvayaNo)) {
+							// Create the new relation entry
+							const newRelation = relation.replace(anvayaNo, newPoem);
+							// Check if the new relation already exists
+							if (!relation.includes(newPoem)) {
+								// Append the new poem number to the existing relation
+								return `${relation}/${newRelation}`;
+							}
+						}
+						return relation;
+					});
+					// Join the updated relations back into a string
+					const updatedKaarakaSambandha = kaarakaRelations.join(";");
+					if (updatedKaarakaSambandha !== item.kaaraka_sambandha) {
+						item.kaaraka_sambandha = updatedKaarakaSambandha;
+						// Mark the row as changed if the value has changed
+						setChangedRows((prev) => new Set(prev.add(index)));
+					}
+				}
+				return item;
+			});
+		});
+	};
+
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
 		if (!permissions) {
 			return <TableCell></TableCell>;
 		}
-
-		const renderMorphInContext = () => (
-			<TableCell>
-				<Select value={currentProcessedData?.morph_in_context} onValueChange={(value) => handleValueChange(procIndex, "morph_in_context", value)}>
-					<SelectTrigger className="w-[180px]">
-						<SelectValue placeholder={processed.morph_analysis} />
-					</SelectTrigger>
-					<SelectContent>
-						{processed.morph_analysis.split("/").map((morph: any, index: any) => (
-							<SelectItem key={index} value={morph.trim()}>
-								{morph.trim()}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</TableCell>
-		);
 
 		const renderMorphInContextTEXT = () => {
 			// Check if the current value is different from the original
@@ -499,24 +523,32 @@ export default function AnalysisPage() {
 
 		const renderKaarakaSambandha = () => {
 			// Check if the current value is different from the original
-			const isChanged = currentProcessedData?.kaaraka_sambandha !== processed.kaaraka_sambandha;
+			const currentKaaraka = currentProcessedData?.kaaraka_sambandha || "";
+			const originalKaaraka = processed.kaaraka_sambandha || "";
+			const isChanged = currentKaaraka !== originalKaaraka && !currentKaaraka.startsWith(originalKaaraka.split("/")[0]);
 
 			const handleAddToKaarakaSambandha = () => {
-				const currentValue = currentProcessedData?.kaaraka_sambandha?.trim() || "";
+				const currentValue = currentKaaraka.trim();
 				if (!currentValue) return;
+
+				// Extract the value before the first '/'
+				const valueToAdd = currentValue.split("/")[0];
 
 				// Update both updatedData and originalData
 				setUpdatedData((prevData) => {
 					const newData = [...prevData];
 					const existingKaaraka = newData[procIndex].possible_relations || "";
 
-					// Create the updated possible_relations string
-					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
+					// Check if the valueToAdd is already in possible_relations
+					if (!existingKaaraka.includes(valueToAdd)) {
+						// Create the updated possible_relations string
+						const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${valueToAdd}` : valueToAdd;
 
-					newData[procIndex] = {
-						...newData[procIndex],
-						possible_relations: updatedKaaraka,
-					};
+						newData[procIndex] = {
+							...newData[procIndex],
+							possible_relations: updatedKaaraka,
+						};
+					}
 					return newData;
 				});
 
@@ -525,12 +557,15 @@ export default function AnalysisPage() {
 					const newData = [...prevData];
 					const existingKaaraka = newData[procIndex].possible_relations || "";
 
-					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
+					// Check if the valueToAdd is already in possible_relations
+					if (!existingKaaraka.includes(valueToAdd)) {
+						const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${valueToAdd}` : valueToAdd;
 
-					newData[procIndex] = {
-						...newData[procIndex],
-						possible_relations: updatedKaaraka,
-					};
+						newData[procIndex] = {
+							...newData[procIndex],
+							possible_relations: updatedKaaraka,
+						};
+					}
 					return newData;
 				});
 
@@ -543,7 +578,7 @@ export default function AnalysisPage() {
 					<div className="flex items-center gap-2">
 						<Input
 							type="text"
-							value={currentProcessedData?.kaaraka_sambandha || ""}
+							value={currentKaaraka.split("/")[0]}
 							onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
 							className="w-[180px]"
 							placeholder="Enter Kaaraka Sambandha"
@@ -569,6 +604,30 @@ export default function AnalysisPage() {
 				/>
 			</TableCell>
 		);
+
+		const renderPoem = () => {
+			// Check if the current value is different from the original
+			const isChanged = currentProcessedData?.poem !== processed.poem; // Check if the poem value has changed
+
+			return (
+				<TableCell>
+					<div className="flex items-center gap-2">
+						<Input
+							type="text"
+							value={currentProcessedData?.poem || ""}
+							onChange={(e) => handleValueChange(procIndex, "poem", e.target.value)}
+							className="w-[100px]"
+							placeholder="Enter Prose Index"
+						/>
+						{isChanged && ( // Show button only if the value has changed
+							<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={() => handleAddToKaarakaRelations(procIndex)}>
+								<PlusCircleIcon className="size-4 text-white" />
+							</Button>
+						)}
+					</div>
+				</TableCell>
+			);
+		};
 
 		const renderBgColor = () => (
 			<TableCell>
@@ -622,9 +681,11 @@ export default function AnalysisPage() {
 							</Tooltip>
 						</TooltipProvider>
 					)}
+					{selectedColumns.includes("poem") && <TableCell>{processed.poem}</TableCell>}
 					{selectedColumns.includes("morph_analysis") && <TableCell>{processed.morph_analysis}</TableCell>}
 					{selectedColumns.includes("morph_in_context") && <TableCell>{processed.morph_in_context}</TableCell>}
-					{selectedColumns.includes("kaaraka_sambandha") && <TableCell>{processed.kaaraka_sambandha}</TableCell>}
+					{selectedColumns.includes("kaaraka_sambandha") && <TableCell>{processed.kaaraka_sambandha.split("/")[0] || ""}</TableCell>}
+					{selectedColumns.includes("prose_kaaraka_sambandha") && <TableCell>{currentProcessedData?.kaaraka_sambandha.split("/")[1] || ""}</TableCell>}
 					{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
 					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
 					{selectedColumns.includes("bgcolor") && <TableCell>{processed.bgcolor}</TableCell>}
@@ -644,9 +705,11 @@ export default function AnalysisPage() {
 							</Tooltip>
 						</TooltipProvider>
 					)}
+					{selectedColumns.includes("poem") && renderPoem()}
 					{selectedColumns.includes("morph_analysis") && <TableCell>{currentProcessedData?.morph_analysis || processed.morph_analysis}</TableCell>}
 					{selectedColumns.includes("morph_in_context") && renderMorphInContextTEXT()}
 					{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
+					{selectedColumns.includes("prose_kaaraka_sambandha") && <TableCell>{currentProcessedData?.kaaraka_sambandha.split("/")[1] || ""}</TableCell>}
 					{selectedColumns.includes("possible_relations") && <TableCell>{currentProcessedData?.possible_relations || processed.possible_relations}</TableCell>}
 					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
 					{selectedColumns.includes("bgcolor") && renderBgColor()}
@@ -904,9 +967,11 @@ export default function AnalysisPage() {
 						<TableRow className="bg-muted/50">
 							{selectedColumns.includes("index") && <TableHead className="w-[100px]">Index</TableHead>}
 							{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
+							{selectedColumns.includes("poem") && <TableHead>Prose Index</TableHead>}
 							{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
 							{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
 							{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Relation</TableHead>}
+							{selectedColumns.includes("prose_kaaraka_sambandha") && <TableHead>Prose Kaaraka Relation</TableHead>}
 							{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
 							{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
 							{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
