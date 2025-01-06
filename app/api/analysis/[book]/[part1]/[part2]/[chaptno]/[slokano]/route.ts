@@ -107,3 +107,44 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
 	}
 }
+
+// DELETE API handler to remove a specific row by slokano, anvaya_no, and sentno
+export async function DELETE(req: Request, { params }: { params: Params }) {
+	const { book, part1, part2, chaptno, slokano } = params;
+
+	// Extract anvaya_no and sentno from the request body
+	const { anvaya_no, sentno } = await req.json();
+
+	console.log("Delete request received for:", { book, part1, part2, chaptno, slokano, anvaya_no, sentno }); // Log incoming request parameters
+
+	await dbConnect(); // Connect to the database
+
+	try {
+		// Construct query to find the row by all relevant fields
+		const query = {
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+			anvaya_no,
+			sentno,
+		};
+
+		console.log("Query for deletion:", query); // Log the query being executed
+
+		// Delete the matching row
+		const deletedRow = await Analysis.findOneAndDelete(query);
+
+		if (!deletedRow) {
+			console.warn("Row not found for deletion:", query); // Log if no row was found
+			return NextResponse.json({ message: "Row not found" }, { status: 404, headers: corsHeaders() });
+		}
+
+		console.log("Row deleted successfully:", deletedRow); // Log the deleted row
+		return NextResponse.json({ message: "Row deleted successfully" }, { headers: corsHeaders() });
+	} catch (error) {
+		console.error("Error deleting row:", error); // Log any errors
+		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
+	}
+}
