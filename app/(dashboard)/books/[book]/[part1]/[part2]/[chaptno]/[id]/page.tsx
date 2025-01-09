@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, PencilIcon, PlusCircleIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { Loader2, PencilIcon, PlusCircleIcon, MinusIcon, PlusIcon, Trash, Save } from "lucide-react";
 import { ExclamationTriangleIcon, SliderIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,6 +70,44 @@ export default function AnalysisPage() {
 	const MAX_ZOOM = 2;
 	const ZOOM_STEP = 0.1;
 	const [selectedDictionary, setSelectedDictionary] = useState<string>("Apte's Skt-Hnd Dict"); // Default dictionary
+	const [chapters, setChapters] = useState<string[]>([]);
+	const [shlokas, setShlokas] = useState<string[]>([]);
+
+	useEffect(() => {
+		const fetchChapters = async () => {
+			try {
+				console.log('Fetching chapters for:', { book, part1, part2 }); // Debug log
+				const response = await fetch(`/api/chapters/${book}/${part1}/${part2}`);
+				const data = await response.json();
+				console.log('Received chapters:', data.chapters); // Debug log
+				setChapters(data.chapters);
+			} catch (error) {
+				console.error("Error fetching chapters:", error);
+				// Fallback: Generate chapters 1-20 if API fails
+				setChapters(Array.from({ length: 20 }, (_, i) => (i + 1).toString()));
+			}
+		};
+		fetchChapters();
+	}, [book, part1, part2]);
+
+	useEffect(() => {
+		const fetchShlokas = async () => {
+			try {
+				console.log('Fetching shlokas for chapter:', chaptno); // Debug log
+				const response = await fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`);
+				const data = await response.json();
+				console.log('Received shlokas:', data.shlokas); // Debug log
+				setShlokas(data.shlokas);
+			} catch (error) {
+				console.error("Error fetching shlokas:", error);
+				// Fallback: Generate shlokas 1-50 if API fails
+				setShlokas(Array.from({ length: 50 }, (_, i) => (i + 1).toString()));
+			}
+		};
+		if (chaptno) {
+			fetchShlokas();
+		}
+	}, [book, part1, part2, chaptno]);
 
 	useEffect(() => {
 		if (!id) return;
@@ -118,74 +156,44 @@ export default function AnalysisPage() {
 		const currentData = updatedData[procIndex];
 		const originalRowData = originalData[procIndex];
 
-		// Prepare the data to send in the update request
-		const updateData: any = {
-			morph_analysis: currentData.morph_analysis,
-			possible_relations: currentData.possible_relations,
-		};
-
-		// Check other fields for changes
-		if (currentData.kaaraka_sambandha !== originalRowData?.kaaraka_sambandha) {
-			updateData.kaaraka_sambandha = currentData.kaaraka_sambandha;
-		}
-		if (currentData.word !== originalRowData?.word) {
-			updateData.word = currentData.word;
-		}
-		if (currentData.poem !== originalRowData?.poem) {
-			updateData.poem = currentData.poem;
-		}
-		if (currentData.morph_in_context !== originalRowData?.morph_in_context) {
-			updateData.morph_in_context = currentData.morph_in_context;
-		}
-		if (currentData.bgcolor !== originalRowData?.bgcolor) {
-			updateData.bgcolor = currentData.bgcolor;
+		if (currentData.deleted) {
+			setChangedRows((prev) => {
+				const newRows = new Set(prev);
+				newRows.delete(procIndex);
+				return newRows;
+			});
+			return;
 		}
 
 		try {
+			// Use the stored original_anvaya_no for the API call
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "PUT",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					anvaya_no: currentData.anvaya_no,
+					original_anvaya_no: currentData.original_anvaya_no || originalRowData.anvaya_no,
+					new_anvaya_no: currentData.anvaya_no,
 					sentno: currentData.sentno,
-					...updateData,
+					word: currentData.word,
+					poem: currentData.poem,
+					morph_analysis: currentData.morph_analysis,
+					morph_in_context: currentData.morph_in_context,
+					kaaraka_sambandha: currentData.kaaraka_sambandha,
+					possible_relations: currentData.possible_relations,
+					bgcolor: currentData.bgcolor,
 				}),
 			});
 
 			const result = await response.json();
 
 			if (response.ok) {
-				toast.success("Update successful:", result);
-
-				// Update all relevant states
-				setUpdatedData((prevData) => {
-					const newData = [...prevData];
-					newData[procIndex] = {
-						...newData[procIndex],
-						...updateData,
-					};
-					return newData;
-				});
-
+				// Update the original data to match the current state
 				setOriginalData((prevData) => {
 					const newData = [...prevData];
-					newData[procIndex] = {
-						...newData[procIndex],
-						...updateData,
-					};
+					newData[procIndex] = { ...currentData };
 					return newData;
-				});
-
-				// Update the chapter state as well
-				setChapter((prevChapter: any[]) => {
-					const newChapter = [...prevChapter];
-					newChapter[procIndex] = {
-						...newChapter[procIndex],
-						...updateData,
-					};
-					return newChapter;
 				});
 
 				// Clear the changed state for this row
@@ -194,11 +202,27 @@ export default function AnalysisPage() {
 					newRows.delete(procIndex);
 					return newRows;
 				});
+
+				toast.success(`Row ${currentData.anvaya_no} updated successfully`);
 			} else {
-				toast.error("Error updating data:", result);
+				console.error("Error saving row:", result);
+				// Revert the UI changes on error
+				setUpdatedData((prevData) => {
+					const newData = [...prevData];
+					newData[procIndex] = originalRowData;
+					return newData;
+				});
+				toast.error(`Error updating row: ${result.message}`);
 			}
 		} catch (error) {
-			toast.error("Error updating data: " + (error as Error).message);
+			console.error("Error saving row:", error);
+			// Revert the UI changes on error
+			setUpdatedData((prevData) => {
+				const newData = [...prevData];
+				newData[procIndex] = originalRowData;
+				return newData;
+			});
+			toast.error(`Error saving row: ${(error as Error).message}`);
 		}
 	};
 
@@ -417,13 +441,17 @@ export default function AnalysisPage() {
 
 	const handleDelete = async (procIndex: number) => {
 		const currentData = updatedData[procIndex];
-		console.log("Attempting to delete row:", currentData); // Log the current row data
+		const currentAnvayaNo = currentData.anvaya_no;
+		const currentSentno = currentData.sentno;
 
-		setUpdatedData((prevData) => {
-			const newData = [...prevData];
-			newData[procIndex].deleted = true; // Mark the row as deleted
-			return newData;
+		console.log("Starting deletion for:", {
+			procIndex,
+			currentAnvayaNo,
+			currentSentno,
+			currentData,
 		});
+
+		const isSubItem = currentAnvayaNo.includes(".");
 
 		try {
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
@@ -433,24 +461,94 @@ export default function AnalysisPage() {
 				},
 				body: JSON.stringify({
 					anvaya_no: currentData.anvaya_no,
-					sentno: currentData.sentno, // Ensure sentno is included
+					sentno: currentData.sentno,
 				}),
 			});
 
-			console.log("Response from delete API:", response); // Log the response from the API
-
 			if (response.ok) {
-				toast.success("Row marked for deletion!");
-				// Optionally, you can reset changedRows here if needed
+				// Create a new state update function to handle all updates
+				const updateStateData = (prevData: any[]) => {
+					const [currentMainIndex, currentSubIndex] = currentAnvayaNo.split(".");
+					const mainIndexNum = parseInt(currentMainIndex);
+
+					// First, mark deleted rows
+					const markedData = prevData.map((item, index) => {
+						if ((!isSubItem && item.anvaya_no.startsWith(currentMainIndex)) || (isSubItem && item.anvaya_no === currentAnvayaNo)) {
+							return {
+								...item,
+								deleted: true,
+								word: "-",
+								poem: "-",
+								morph_analysis: "-",
+								morph_in_context: "-",
+								kaaraka_sambandha: "-",
+								possible_relations: "-",
+								bgcolor: "-",
+							};
+						}
+						return item;
+					});
+
+					// Then update the indices
+					return markedData.map((item, index) => {
+						if (item.sentno !== currentSentno || item.deleted) {
+							return item;
+						}
+
+						const [itemMainIndex, itemSubIndex] = item.anvaya_no.split(".");
+						const itemMainNum = parseInt(itemMainIndex);
+
+						if (itemMainNum > mainIndexNum) {
+							const newMainIndex = (itemMainNum - 1).toString();
+							const newAnvayaNo = itemSubIndex ? `${newMainIndex}.${itemSubIndex}` : newMainIndex;
+
+							// Mark this row as changed
+							setChangedRows((prev) => new Set(prev.add(index)));
+
+							return {
+								...item,
+								anvaya_no: newAnvayaNo,
+								kaaraka_sambandha: item.kaaraka_sambandha !== "-" ? updateKaarakaSambandha(item.kaaraka_sambandha, mainIndexNum) : item.kaaraka_sambandha,
+							};
+						}
+						return item;
+					});
+				};
+
+				// Update all relevant states
+				setUpdatedData(updateStateData);
+				setOriginalData(updateStateData);
+				setChapter(updateStateData);
+
+				toast.success("Row marked as deleted and indices updated!");
 			} else {
 				const result = await response.json();
-				console.error("Error deleting row:", result.message); // Log error message
 				toast.error("Error deleting row: " + result.message);
 			}
 		} catch (error) {
-			console.error("Error deleting row:", (error as Error).message); // Log error message
+			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
 		}
+	};
+
+	// Helper function to update kaaraka_sambandha references
+	const updateKaarakaSambandha = (kaaraka: string, deletedIndex: number) => {
+		if (!kaaraka || kaaraka === "-") return kaaraka;
+
+		return kaaraka
+			.split(";")
+			.map((relation) => {
+				const [rel, ref] = relation.split(",");
+				if (ref) {
+					const [refMain, refSub] = ref.trim().split(".");
+					const refMainNum = parseInt(refMain);
+					if (refMainNum > deletedIndex) {
+						return `${rel},${refMainNum - 1}${refSub ? "." + refSub : ""}`;
+					}
+				}
+				return relation;
+			})
+			.join(";");
 	};
 
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
@@ -745,15 +843,15 @@ export default function AnalysisPage() {
 						<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>{processed.hindi_meaning}</TableCell>
 					)}
 					{selectedColumns.includes("bgcolor") && renderBgColor()}
-					<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
+					<TableCell className=" flex flex-col gap-3 items-center" style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
+						<Button size="icon" onClick={() => handleDelete(procIndex)} className=" bg-red-400 size-8 text-white">
+							<Trash className=" size-4" />
+						</Button>
 						{changedRows.has(procIndex) && (
-							<Button onClick={() => handleSave(procIndex)} className="w-full">
-								Save
+							<Button size="icon" onClick={() => handleSave(procIndex)} className="size-8">
+								<Save className="size-4" />
 							</Button>
 						)}
-						<Button onClick={() => handleDelete(procIndex)} className="w-full bg-red-500 text-white">
-							Delete
-						</Button>
 					</TableCell>
 				</>
 			);
@@ -1111,7 +1209,6 @@ export default function AnalysisPage() {
 		</div>
 	);
 }
-
 const hexToRgb = (hex: string) => {
 	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
 	return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : "0, 0, 0";

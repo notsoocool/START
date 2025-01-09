@@ -76,35 +76,59 @@ export async function GET(req: Request, { params }: { params: Params }) {
 // PUT API handler to update specific row by anvaya_no and sentno
 export async function PUT(req: Request, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
-	const { anvaya_no, sentno, ...updateData } = await req.json();
+	const {
+		original_anvaya_no, // Original anvaya_no to find the record
+		new_anvaya_no, // New anvaya_no to update to
+		sentno,
+		...updateData
+	} = await req.json();
 
-	await dbConnect(); // Connect to the database
+	await dbConnect();
 
 	try {
-		// Construct query to find the row by slokano, anvaya_no, and sentno
+		console.log("Updating row:", {
+			original_anvaya_no,
+			new_anvaya_no,
+			sentno,
+			updateData,
+		});
+
+		// Construct query to find the row using original anvaya_no
 		const query = {
 			book,
 			part1: part1 !== "null" ? part1 : null,
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			anvaya_no,
+			anvaya_no: original_anvaya_no,
 			sentno,
 		};
 
-		// Update the matching row
-		const updatedRow = await Analysis.findOneAndUpdate(query, updateData, {
-			new: true, // Return the updated document
-		});
+		// Update the matching row with new anvaya_no and other data
+		const updatedRow = await Analysis.findOneAndUpdate(
+			query,
+			{
+				$set: {
+					...updateData,
+					anvaya_no: new_anvaya_no, // Update to new anvaya_no
+				},
+			},
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
 
 		if (!updatedRow) {
-			return NextResponse.json({ message: "Row not found" }, { status: 404, headers: corsHeaders() });
+			console.error("Row not found:", query);
+			return NextResponse.json({ message: `Row with anvaya_no ${original_anvaya_no} not found` }, { status: 404, headers: corsHeaders() });
 		}
 
+		console.log("Row updated successfully:", updatedRow);
 		return NextResponse.json({ message: "Update successful", updatedRow }, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error updating row:", error);
-		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
 	}
 }
 
