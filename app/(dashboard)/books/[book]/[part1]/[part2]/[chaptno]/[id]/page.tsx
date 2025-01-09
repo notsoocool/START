@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, PencilIcon, PlusCircleIcon, MinusIcon, PlusIcon, Trash, Save } from "lucide-react";
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen } from "lucide-react";
 import { Share2Icon } from "@radix-ui/react-icons";
 import { Separator } from "@/components/ui/separator";
+import { ChevronDownIcon } from "lucide-react";
 
 declare global {
 	interface Window {
@@ -72,14 +73,16 @@ export default function AnalysisPage() {
 	const [selectedDictionary, setSelectedDictionary] = useState<string>("Apte's Skt-Hnd Dict"); // Default dictionary
 	const [chapters, setChapters] = useState<string[]>([]);
 	const [shlokas, setShlokas] = useState<string[]>([]);
+	const [availableShlokas, setAvailableShlokas] = useState<Shloka[]>([]);
+	const router = useRouter();
 
 	useEffect(() => {
 		const fetchChapters = async () => {
 			try {
-				console.log('Fetching chapters for:', { book, part1, part2 }); // Debug log
+				console.log("Fetching chapters for:", { book, part1, part2 }); // Debug log
 				const response = await fetch(`/api/chapters/${book}/${part1}/${part2}`);
 				const data = await response.json();
-				console.log('Received chapters:', data.chapters); // Debug log
+				console.log("Received chapters:", data.chapters); // Debug log
 				setChapters(data.chapters);
 			} catch (error) {
 				console.error("Error fetching chapters:", error);
@@ -93,10 +96,10 @@ export default function AnalysisPage() {
 	useEffect(() => {
 		const fetchShlokas = async () => {
 			try {
-				console.log('Fetching shlokas for chapter:', chaptno); // Debug log
+				console.log("Fetching shlokas for chapter:", chaptno); // Debug log
 				const response = await fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`);
 				const data = await response.json();
-				console.log('Received shlokas:', data.shlokas); // Debug log
+				console.log("Received shlokas:", data.shlokas); // Debug log
 				setShlokas(data.shlokas);
 			} catch (error) {
 				console.error("Error fetching shlokas:", error);
@@ -132,6 +135,24 @@ export default function AnalysisPage() {
 		};
 		fetchShlokaData();
 	}, [id]);
+
+	useEffect(() => {
+		const fetchAvailableShlokas = async () => {
+			try {
+				const response = await fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`);
+				const data = await response.json();
+				setAvailableShlokas(data.shlokas);
+			} catch (error) {
+				console.error("Error fetching shlokas:", error);
+			}
+		};
+
+		fetchAvailableShlokas();
+	}, [book, part1, part2, chaptno]);
+
+	const handleShlokaChange = (shlokaId: string) => {
+		router.push(`/books/${book}/${part1}/${part2}/${chaptno}/${shlokaId}`);
+	};
 
 	const handleOpacityChange = (value: number[]) => {
 		setOpacity(value[0] / 100); // Convert slider value to opacity
@@ -984,9 +1005,23 @@ export default function AnalysisPage() {
 			<div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-center w-full">
 				<div className="space-y-2">
 					<h1 className="text-2xl font-bold tracking-tight">Analysis Dashboard</h1>
-					<p className="text-muted-foreground">
-						Chapter {chaptno} - Shloka {shloka?.slokano}
-					</p>
+					<div className="flex items-center gap-4">
+						<p className="text-muted-foreground">Chapter {chaptno}</p>
+
+						{/* Shloka Navigation Dropdown */}
+						<Select value={id as string} onValueChange={handleShlokaChange}>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue>{shloka ? `Shloka ${shloka.slokano}` : "Select Shloka"}</SelectValue>
+							</SelectTrigger>
+							<SelectContent>
+								{availableShlokas.map((s) => (
+									<SelectItem key={s._id} value={s._id}>
+										Shloka {s.slokano}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
 				</div>
 
 				{/* Controls Section */}
