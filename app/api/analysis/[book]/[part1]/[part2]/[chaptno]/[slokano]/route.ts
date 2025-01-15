@@ -76,41 +76,17 @@ export async function GET(req: Request, { params }: { params: Params }) {
 // PUT API handler to update specific row by anvaya_no and sentno
 export async function PUT(req: Request, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
-	const {
-		original_anvaya_no, // Original anvaya_no to find the record
-		new_anvaya_no, // New anvaya_no to update to
-		sentno,
-		...updateData
-	} = await req.json();
+	const data = await req.json();
 
 	await dbConnect();
 
 	try {
-		console.log("Updating row:", {
-			original_anvaya_no,
-			new_anvaya_no,
-			sentno,
-			updateData,
-		});
-
-		// Construct query to find the row using original anvaya_no
-		const query = {
-			book,
-			part1: part1 !== "null" ? part1 : null,
-			part2: part2 !== "null" ? part2 : null,
-			chaptno,
-			slokano,
-			anvaya_no: original_anvaya_no,
-			sentno,
-		};
-
-		// Update the matching row with new anvaya_no and other data
-		const updatedRow = await Analysis.findOneAndUpdate(
-			query,
+		// Find and update by _id instead of anvaya_no
+		const updatedRow = await Analysis.findByIdAndUpdate(
+			data._id, // Use _id to find the document
 			{
 				$set: {
-					...updateData,
-					anvaya_no: new_anvaya_no, // Update to new anvaya_no
+					...data, // Update all fields from the request
 				},
 			},
 			{
@@ -120,8 +96,8 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 		);
 
 		if (!updatedRow) {
-			console.error("Row not found:", query);
-			return NextResponse.json({ message: `Row with anvaya_no ${original_anvaya_no} not found` }, { status: 404, headers: corsHeaders() });
+			console.error("Row not found:", data._id);
+			return NextResponse.json({ message: `Row with id ${data._id} not found` }, { status: 404, headers: corsHeaders() });
 		}
 
 		console.log("Row updated successfully:", updatedRow);

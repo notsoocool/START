@@ -173,77 +173,56 @@ export default function AnalysisPage() {
 		setChangedRows((prev) => new Set(prev.add(procIndex)));
 	};
 
-	const handleSave = async (procIndex: number) => {
-		const currentData = updatedData[procIndex];
-		const originalRowData = originalData[procIndex];
-
-		if (currentData.deleted) {
-			setChangedRows((prev) => {
-				const newRows = new Set(prev);
-				newRows.delete(procIndex);
-				return newRows;
-			});
-			return;
-		}
+	const handleSave = async (index: number) => {
+		const currentData = updatedData[index];
 
 		try {
-			// Use the stored original_anvaya_no for the API call
+			// Remove unnecessary fields and prepare data for update
+			const dataToUpdate = {
+				_id: currentData._id,
+				anvaya_no: currentData.anvaya_no,
+				word: currentData.word,
+				poem: currentData.poem,
+				sandhied_word: currentData.sandhied_word,
+				morph_analysis: currentData.morph_analysis,
+				morph_in_context: currentData.morph_in_context,
+				kaaraka_sambandha: currentData.kaaraka_sambandha,
+				possible_relations: currentData.possible_relations,
+				hindi_meaning: currentData.hindi_meaning,
+				english_meaning: currentData.english_meaning,
+				samAsa: currentData.samAsa,
+				prayoga: currentData.prayoga,
+				sarvanAma: currentData.sarvanAma,
+				name_classification: currentData.name_classification,
+				bgcolor: currentData.bgcolor,
+				sentno: currentData.sentno,
+				chaptno: currentData.chaptno,
+				slokano: currentData.slokano,
+				book: currentData.book,
+				part1: currentData.part1,
+				part2: currentData.part2,
+			};
+
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					original_anvaya_no: currentData.original_anvaya_no || originalRowData.anvaya_no,
-					new_anvaya_no: currentData.anvaya_no,
-					sentno: currentData.sentno,
-					word: currentData.word,
-					poem: currentData.poem,
-					morph_analysis: currentData.morph_analysis,
-					morph_in_context: currentData.morph_in_context,
-					kaaraka_sambandha: currentData.kaaraka_sambandha,
-					possible_relations: currentData.possible_relations,
-					bgcolor: currentData.bgcolor,
-				}),
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(dataToUpdate),
 			});
-
-			const result = await response.json();
 
 			if (response.ok) {
-				// Update the original data to match the current state
-				setOriginalData((prevData) => {
-					const newData = [...prevData];
-					newData[procIndex] = { ...currentData };
-					return newData;
-				});
-
-				// Clear the changed state for this row
 				setChangedRows((prev) => {
-					const newRows = new Set(prev);
-					newRows.delete(procIndex);
-					return newRows;
+					const newSet = new Set(prev);
+					newSet.delete(index);
+					return newSet;
 				});
-
-				toast.success(`Row ${currentData.anvaya_no} updated successfully`);
+				toast.success("Row updated successfully!");
 			} else {
-				console.error("Error saving row:", result);
-				// Revert the UI changes on error
-				setUpdatedData((prevData) => {
-					const newData = [...prevData];
-					newData[procIndex] = originalRowData;
-					return newData;
-				});
-				toast.error(`Error updating row: ${result.message}`);
+				const result = await response.json();
+				toast.error("Error updating row: " + result.message);
 			}
 		} catch (error) {
-			console.error("Error saving row:", error);
-			// Revert the UI changes on error
-			setUpdatedData((prevData) => {
-				const newData = [...prevData];
-				newData[procIndex] = originalRowData;
-				return newData;
-			});
-			toast.error(`Error saving row: ${(error as Error).message}`);
+			console.error("Save error:", error);
+			toast.error("Error saving changes: " + (error as Error).message);
 		}
 	};
 
@@ -463,38 +442,35 @@ export default function AnalysisPage() {
 	const handleDelete = async (procIndex: number) => {
 		const currentData = updatedData[procIndex];
 		const currentAnvayaNo = currentData.anvaya_no;
-		const currentSentno = currentData.sentno;
-
-		console.log("Starting deletion for:", {
-			procIndex,
-			currentAnvayaNo,
-			currentSentno,
-			currentData,
-		});
-
-		const isSubItem = currentAnvayaNo.includes(".");
+		const [currentMain, currentSub] = currentAnvayaNo.split(".");
+		const currentMainNum = parseInt(currentMain);
+		const currentSubNum = parseInt(currentSub);
 
 		try {
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					anvaya_no: currentData.anvaya_no,
+					anvaya_no: currentAnvayaNo,
 					sentno: currentData.sentno,
 				}),
 			});
 
 			if (response.ok) {
-				// Create a new state update function to handle all updates
 				const updateStateData = (prevData: any[]) => {
-					const [currentMainIndex, currentSubIndex] = currentAnvayaNo.split(".");
-					const mainIndexNum = parseInt(currentMainIndex);
+					// First, check if the deleted item is the only one in its main group
+					const isOnlyItemInGroup = !prevData.some((item) => {
+						const [itemMain] = item.anvaya_no.split(".");
+						return parseInt(itemMain) === currentMainNum && item.anvaya_no !== currentAnvayaNo;
+					});
 
-					// First, mark deleted rows
-					const markedData = prevData.map((item, index) => {
-						if ((!isSubItem && item.anvaya_no.startsWith(currentMainIndex)) || (isSubItem && item.anvaya_no === currentAnvayaNo)) {
+					return prevData.map((item, index) => {
+						const [itemMain, itemSub] = item.anvaya_no.split(".");
+						const itemMainNum = parseInt(itemMain);
+						const itemSubNum = parseInt(itemSub);
+
+						// Mark the deleted item
+						if (item.anvaya_no === currentAnvayaNo) {
 							return {
 								...item,
 								deleted: true,
@@ -507,71 +483,41 @@ export default function AnalysisPage() {
 								bgcolor: "-",
 							};
 						}
-						return item;
-					});
 
-					// Then update the indices
-					return markedData.map((item, index) => {
-						if (item.sentno !== currentSentno || item.deleted) {
-							return item;
-						}
-
-						const [itemMainIndex, itemSubIndex] = item.anvaya_no.split(".");
-						const itemMainNum = parseInt(itemMainIndex);
-
-						if (itemMainNum > mainIndexNum) {
-							const newMainIndex = (itemMainNum - 1).toString();
-							const newAnvayaNo = itemSubIndex ? `${newMainIndex}.${itemSubIndex}` : newMainIndex;
-
-							// Mark this row as changed
+						// Case 1: Update items in the same main group
+						if (itemMainNum === currentMainNum && itemSubNum > currentSubNum) {
 							setChangedRows((prev) => new Set(prev.add(index)));
-
 							return {
 								...item,
-								anvaya_no: newAnvayaNo,
-								kaaraka_sambandha: item.kaaraka_sambandha !== "-" ? updateKaarakaSambandha(item.kaaraka_sambandha, mainIndexNum) : item.kaaraka_sambandha,
+								anvaya_no: `${itemMain}.${itemSubNum - 1}`,
 							};
 						}
+
+						// Case 2: If the deleted item was the only one in its group,
+						// update all subsequent groups
+						if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
+							setChangedRows((prev) => new Set(prev.add(index)));
+							return {
+								...item,
+								anvaya_no: `${itemMainNum - 1}.${itemSub}`,
+							};
+						}
+
 						return item;
 					});
 				};
 
-				// Update all relevant states
 				setUpdatedData(updateStateData);
 				setOriginalData(updateStateData);
 				setChapter(updateStateData);
 
-				toast.success("Row marked as deleted and indices updated!");
-			} else {
-				const result = await response.json();
-				toast.error("Error deleting row: " + result.message);
+				toast.success("Row deleted successfully!");
 			}
 		} catch (error) {
 			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
 		}
 	};
-
-	// Helper function to update kaaraka_sambandha references
-	const updateKaarakaSambandha = (kaaraka: string, deletedIndex: number) => {
-		if (!kaaraka || kaaraka === "-") return kaaraka;
-
-		return kaaraka
-			.split(";")
-			.map((relation) => {
-				const [rel, ref] = relation.split(",");
-				if (ref) {
-					const [refMain, refSub] = ref.trim().split(".");
-					const refMainNum = parseInt(refMain);
-					if (refMainNum > deletedIndex) {
-						return `${rel},${refMainNum - 1}${refSub ? "." + refSub : ""}`;
-					}
-				}
-				return relation;
-			})
-			.join(";");
-	};
-
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
 		if (!permissions) {
 			return <TableCell></TableCell>;
