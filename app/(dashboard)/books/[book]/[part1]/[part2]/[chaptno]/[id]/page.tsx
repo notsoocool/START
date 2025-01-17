@@ -4,24 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, PencilIcon, PlusCircleIcon, MinusIcon, PlusIcon, Trash, Save } from "lucide-react";
-import { ExclamationTriangleIcon, SliderIcon } from "@radix-ui/react-icons";
+import { Loader2, PlusCircleIcon, Trash, Save } from "lucide-react";
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Input } from "@/components/ui/input";
 import { colors } from "@/lib/constants";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
-import { BookOpen } from "lucide-react";
-import { Share2Icon } from "@radix-ui/react-icons";
-import { Separator } from "@/components/ui/separator";
-import { ChevronDownIcon } from "lucide-react";
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Header } from "@/components/global/analysisHeader";
 import { ShlokaCard } from "@/components/global/ShlokaCard";
@@ -83,78 +77,64 @@ export default function AnalysisPage() {
 	const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
 
 	useEffect(() => {
-		const fetchChapters = async () => {
+		const fetchChaptersAndShlokas = async () => {
 			try {
-				console.log("Fetching chapters for:", { book, part1, part2 }); // Debug log
-				const response = await fetch(`/api/chapters/${book}/${part1}/${part2}`);
-				const data = await response.json();
-				console.log("Received chapters:", data.chapters); // Debug log
-				setChapters(data.chapters);
-			} catch (error) {
-				console.error("Error fetching chapters:", error);
-				// Fallback: Generate chapters 1-20 if API fails
-				setChapters(Array.from({ length: 20 }, (_, i) => (i + 1).toString()));
-			}
-		};
-		fetchChapters();
-	}, [book, part1, part2]);
+				const [chapterResponse, shlokaResponse] = await Promise.all([
+					fetch(`/api/chapters/${book}/${part1}/${part2}`),
+					chaptno ? fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`) : null
+				]);
 
-	useEffect(() => {
-		const fetchShlokas = async () => {
-			try {
-				console.log("Fetching shlokas for chapter:", chaptno); // Debug log
-				const response = await fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`);
-				const data = await response.json();
-				console.log("Received shlokas:", data.shlokas); // Debug log
-				setShlokas(data.shlokas);
+				const chapterData = await chapterResponse.json();
+				setChapters(chapterData.chapters);
+
+				if (shlokaResponse) {
+					const shlokaData = await shlokaResponse.json();
+					setShlokas(shlokaData.shlokas);
+				}
 			} catch (error) {
-				console.error("Error fetching shlokas:", error);
-				// Fallback: Generate shlokas 1-50 if API fails
+				console.error("Error fetching chapters or shlokas:", error);
+				// Fallback values
+				setChapters(Array.from({ length: 20 }, (_, i) => (i + 1).toString()));
 				setShlokas(Array.from({ length: 50 }, (_, i) => (i + 1).toString()));
 			}
 		};
-		if (chaptno) {
-			fetchShlokas();
-		}
+		fetchChaptersAndShlokas();
 	}, [book, part1, part2, chaptno]);
 
 	useEffect(() => {
 		if (!id) return;
 
-		const fetchShlokaData = async () => {
+		const fetchAllData = async () => {
 			try {
 				setLoading(true);
-				const response = await fetch(`/api/ahShloka/${id}`);
-				const shlokaData = await response.json();
+				const [shlokaResponse, availableShlokaResponse] = await Promise.all([
+					fetch(`/api/ahShloka/${id}`),
+					fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`)
+				]);
+
+				const shlokaData = await shlokaResponse.json();
+				const availableShlokaData = await availableShlokaResponse.json();
+
 				setShloka(shlokaData);
+				setAvailableShlokas(availableShlokaData.shlokas);
 
 				const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
 				const chapterData = await chapterResponse.json();
+				
 				setChapter(chapterData);
-				setUpdatedData(chapterData.map((item: any) => ({ ...item })));
-				setOriginalData(chapterData.map((item: any) => ({ ...item }))); // Save the original data
+				const mappedData = chapterData.map((item: any) => ({ ...item }));
+				setUpdatedData(mappedData);
+				setOriginalData(mappedData);
 			} catch (error) {
-				console.error("Error fetching shloka or chapter:", error);
+				console.error("Error fetching data:", error);
 			} finally {
 				setInitialLoad(false);
-			}
-		};
-		fetchShlokaData();
-	}, [id]);
-
-	useEffect(() => {
-		const fetchAvailableShlokas = async () => {
-			try {
-				const response = await fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`);
-				const data = await response.json();
-				setAvailableShlokas(data.shlokas);
-			} catch (error) {
-				console.error("Error fetching shlokas:", error);
+				setLoading(false);
 			}
 		};
 
-		fetchAvailableShlokas();
-	}, [book, part1, part2, chaptno]);
+		fetchAllData();
+	}, [id, book, part1, part2, chaptno]);
 
 	const handleShlokaChange = (shlokaId: string) => {
 		router.push(`/books/${book}/${part1}/${part2}/${chaptno}/${shlokaId}`);
@@ -399,28 +379,34 @@ export default function AnalysisPage() {
 
 	const fetchMeaning = async (word: string, procIndex: number) => {
 		try {
+			// Make API request to get dictionary meanings
 			const response = await fetch(`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`);
-			const jsonData = await response.json();
+			const dictionaries = await response.json();
 
-			if (jsonData && jsonData.length > 0) {
-				setAllMeanings(jsonData);
-				// Find meaning from selected dictionary
-				const selectedDictMeaning = jsonData.find((dict: any) => dict.DICT === selectedDictionary)?.Meaning || "Meaning not found";
-				setSelectedMeaning((prevSelected) => ({
-					...prevSelected,
-					[procIndex]: selectedDictMeaning,
-				}));
-			} else {
-				setSelectedMeaning((prevSelected) => ({
-					...prevSelected,
-					[procIndex]: "Meaning not found",
-				}));
+			// Update all available meanings
+			setAllMeanings(dictionaries);
+
+			// Handle response data
+			if (!dictionaries?.length) {
+				throw new Error("No meanings found");
 			}
+
+			// Find meaning from currently selected dictionary
+			const meaning = dictionaries.find((dict: any) => dict.DICT === selectedDictionary)?.Meaning;
+
+			// Update meaning for this word
+			setSelectedMeaning(prev => ({
+				...prev,
+				[procIndex]: meaning || "Meaning not found"
+			}));
+
 		} catch (error) {
 			console.error("Error fetching meaning:", error);
-			setSelectedMeaning((prevSelected) => ({
-				...prevSelected,
-				[procIndex]: "Error fetching meaning",
+			
+			// Set error state for this word
+			setSelectedMeaning(prev => ({
+				...prev,
+				[procIndex]: "Error fetching meaning"
 			}));
 		}
 	};
@@ -442,8 +428,11 @@ export default function AnalysisPage() {
 			}
 		};
 
-		fetchPermissions();
-	}, []);
+		// Only fetch permissions once on initial mount
+		if (permissions === null) {
+			fetchPermissions();
+		}
+	}, []); // Empty dependency array ensures it only runs once
 
 	const initiateDelete = (procIndex: number) => {
 		setPendingDeleteIndex(procIndex);
@@ -592,70 +581,57 @@ export default function AnalysisPage() {
 	};
 
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
-		if (!permissions) {
-			return <TableCell></TableCell>;
-		}
+		if (!permissions) return <TableCell></TableCell>;
+
 		const isDeleted = currentProcessedData?.deleted;
+		const deletedStyle = { backgroundColor: isDeleted ? "#f8d8da" : "transparent" };
+		const deletedContent = <span className="text-gray-500">-</span>;
 
-		const renderMorphInContextTEXT = () => {
-			// Check if the current value is different from the original
-			const isChanged = currentProcessedData?.morph_in_context !== processed.morph_in_context;
+		const renderInput = (field: string, value: string, width: string = "w-[180px]", placeholder: string) => (
+			<Input
+				type="text"
+				value={value || ""}
+				onChange={(e) => handleValueChange(procIndex, field, e.target.value)} 
+				className={width}
+				placeholder={placeholder}
+			/>
+		);
 
-			const handleAddToMorphAnalysis = () => {
-				const currentValue = currentProcessedData?.morph_in_context?.trim() || "";
-				if (!currentValue) return;
+		const renderAddButton = (onClick: () => void) => (
+			<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={onClick}>
+				<PlusCircleIcon className="size-4 text-white" />
+			</Button>
+		);
 
-				// Update both updatedData and originalData
-				setUpdatedData((prevData) => {
-					const newData = [...prevData];
-					const existingAnalysis = newData[procIndex].morph_analysis || "";
+		const handleAddToField = (sourceField: string, targetField: string, separator: string) => {
+			const currentValue = currentProcessedData?.[sourceField]?.trim() || "";
+			if (!currentValue) return;
 
-					// Create the updated morph_analysis string
-					const updatedMorphAnalysis = existingAnalysis ? `${existingAnalysis}/${currentValue}` : currentValue;
+			const updateFields = (prevData: any[]) => {
+				const newData = [...prevData];
+				const existingValue = newData[procIndex][targetField] || "";
+				const updatedValue = existingValue ? `${existingValue}${separator}${currentValue}` : currentValue;
 
-					newData[procIndex] = {
-						...newData[procIndex],
-						morph_analysis: updatedMorphAnalysis,
-					};
-					return newData;
-				});
-
-				// Also update originalData to reflect the change
-				setOriginalData((prevData) => {
-					const newData = [...prevData];
-					const existingAnalysis = newData[procIndex].morph_analysis || "";
-
-					const updatedMorphAnalysis = existingAnalysis ? `${existingAnalysis}/${currentValue}` : currentValue;
-
-					newData[procIndex] = {
-						...newData[procIndex],
-						morph_analysis: updatedMorphAnalysis,
-					};
-					return newData;
-				});
-
-				// Mark the row as changed
-				setChangedRows((prev) => new Set(prev.add(procIndex)));
+				newData[procIndex] = {
+					...newData[procIndex],
+					[targetField]: updatedValue,
+				};
+				return newData;
 			};
 
+			setUpdatedData(updateFields);
+			setOriginalData(updateFields);
+			setChangedRows((prev) => new Set(prev.add(procIndex)));
+		};
+
+		const renderMorphInContextTEXT = () => {
+			const isChanged = currentProcessedData?.morph_in_context !== processed.morph_in_context;
 			return (
-				<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-					{isDeleted ? (
-						<span className="text-gray-500">-</span> // Indicate that the row is deleted
-					) : (
+				<TableCell style={deletedStyle}>
+					{isDeleted ? deletedContent : (
 						<div className="flex items-center gap-2">
-							<Input
-								type="text"
-								value={currentProcessedData?.morph_in_context || ""}
-								onChange={(e) => handleValueChange(procIndex, "morph_in_context", e.target.value)}
-								className="w-[180px]"
-								placeholder="Enter Morph in Context"
-							/>
-							{isChanged && (
-								<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={handleAddToMorphAnalysis}>
-									<PlusCircleIcon className="size-4 text-white" />
-								</Button>
-							)}
+							{renderInput("morph_in_context", currentProcessedData?.morph_in_context, "w-[180px]", "Enter Morph in Context")}
+							{isChanged && renderAddButton(() => handleAddToField("morph_in_context", "morph_analysis", "/"))}
 						</div>
 					)}
 				</TableCell>
@@ -663,64 +639,13 @@ export default function AnalysisPage() {
 		};
 
 		const renderKaarakaSambandha = () => {
-			// Check if the current value is different from the original
 			const isChanged = currentProcessedData?.kaaraka_sambandha !== processed.kaaraka_sambandha;
-
-			const handleAddToKaarakaSambandha = () => {
-				const currentValue = currentProcessedData?.kaaraka_sambandha?.trim() || "";
-				if (!currentValue) return;
-
-				// Update both updatedData and originalData
-				setUpdatedData((prevData) => {
-					const newData = [...prevData];
-					const existingKaaraka = newData[procIndex].possible_relations || "";
-
-					// Create the updated possible_relations string
-					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
-
-					newData[procIndex] = {
-						...newData[procIndex],
-						possible_relations: updatedKaaraka,
-					};
-					return newData;
-				});
-
-				// Also update originalData to reflect the change
-				setOriginalData((prevData) => {
-					const newData = [...prevData];
-					const existingKaaraka = newData[procIndex].possible_relations || "";
-
-					const updatedKaaraka = existingKaaraka ? `${existingKaaraka}#${currentValue}` : currentValue;
-
-					newData[procIndex] = {
-						...newData[procIndex],
-						possible_relations: updatedKaaraka,
-					};
-					return newData;
-				});
-
-				// Mark the row as changed
-				setChangedRows((prev) => new Set(prev.add(procIndex)));
-			};
-
 			return (
-				<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-					{isDeleted ? (
-						<span className="text-gray-500">-</span> // Indicate that the row is deleted
-					) : (
+				<TableCell style={deletedStyle}>
+					{isDeleted ? deletedContent : (
 						<div className="flex items-center gap-2">
-							<Input
-								type="text"
-								value={currentProcessedData?.kaaraka_sambandha || ""}
-								onChange={(e) => handleValueChange(procIndex, "kaaraka_sambandha", e.target.value)}
-								className="w-[180px]"
-								placeholder="Enter Kaaraka Sambandha"
-							/>
-							{isChanged && (
-								<Button variant="outline" className="bg-green-500 hover:bg-green-600" onClick={handleAddToKaarakaSambandha}>
-									<PlusCircleIcon className="size-4 text-white" />
-								</Button>
-							)}
+							{renderInput("kaaraka_sambandha", currentProcessedData?.kaaraka_sambandha, "w-[180px]", "Enter Kaaraka Sambandha")}
+							{isChanged && renderAddButton(() => handleAddToField("kaaraka_sambandha", "possible_relations", "#"))}
 						</div>
 					)}
 				</TableCell>
@@ -729,42 +654,27 @@ export default function AnalysisPage() {
 
 		const renderWord = () => (
 			<TableCell>
-				{isDeleted ? (
-					<span className="text-gray-500">-</span> // Indicate that the row is deleted
-				) : (
-					<Input
-						type="text"
-						value={currentProcessedData?.word || ""}
-						onChange={(e) => handleValueChange(procIndex, "word", e.target.value)}
-						className="w-[100px]"
-						placeholder="Enter Word"
-					/>
-				)}
+				{isDeleted ? deletedContent : 
+					renderInput("word", currentProcessedData?.word, "w-[100px]", "Enter Word")
+				}
 			</TableCell>
 		);
 
 		const renderPoem = () => (
-			<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-				{isDeleted ? (
-					<span className="text-gray-500">-</span> // Indicate that the row is deleted
-				) : (
-					<Input
-						type="text"
-						value={currentProcessedData?.poem || ""}
-						onChange={(e) => handleValueChange(procIndex, "poem", e.target.value)}
-						className="w-[100px]"
-						placeholder="Enter Prose Index"
-					/>
-				)}
+			<TableCell style={deletedStyle}>
+				{isDeleted ? deletedContent :
+					renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index")
+				}
 			</TableCell>
 		);
 
 		const renderBgColor = () => (
-			<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-				{isDeleted ? (
-					<span className="text-gray-500">-</span> // Indicate that the row is deleted
-				) : (
-					<Select value={currentProcessedData?.bgcolor || ""} onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}>
+			<TableCell style={deletedStyle}>
+				{isDeleted ? deletedContent : (
+					<Select 
+						value={currentProcessedData?.bgcolor || ""} 
+						onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}
+					>
 						<SelectTrigger className="w-[180px]">
 							<span
 								style={{
@@ -773,7 +683,7 @@ export default function AnalysisPage() {
 									width: "20px",
 									height: "20px",
 									marginRight: "8px",
-									borderRadius: "3px", // Optional: Add border radius for better appearance
+									borderRadius: "3px",
 								}}
 							></span>
 							{Object.entries(colors).find(([key, value]) => value === currentProcessedData?.bgcolor)?.[0] || "Select Color"}
@@ -799,103 +709,94 @@ export default function AnalysisPage() {
 			</TableCell>
 		);
 
-		if (permissions !== "Admin" && permissions !== "Root") {
-			return (
-				<>
-					{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
-					{selectedColumns.includes("word") && (
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<TableCell>
-										<span>{processed.word}</span>
-									</TableCell>
-								</TooltipTrigger>
-								{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
-							</Tooltip>
-						</TooltipProvider>
-					)}
-					{selectedColumns.includes("poem") && <TableCell>{currentProcessedData?.poem || processed.poem}</TableCell>}{" "}
-					{selectedColumns.includes("morph_analysis") && <TableCell>{currentProcessedData?.morph_analysis || processed.morph_analysis}</TableCell>}
-					{selectedColumns.includes("morph_in_context") && <TableCell>{currentProcessedData?.morph_in_context || processed.morph_in_context}</TableCell>}
-					{selectedColumns.includes("kaaraka_sambandha") && <TableCell>{currentProcessedData?.kaaraka_sambandha || processed.kaaraka_sambandha}</TableCell>}
-					{selectedColumns.includes("prose_kaaraka_sambandha") && (
-						<TableCell>{currentProcessedData?.prose_kaaraka_sambandha || processed.prose_kaaraka_sambandha}</TableCell>
-					)}
-					{selectedColumns.includes("possible_relations") && <TableCell>{processed.possible_relations}</TableCell>}
-					{selectedColumns.includes("hindi_meaning") && <TableCell>{processed.hindi_meaning}</TableCell>}
-					{selectedColumns.includes("bgcolor") && <TableCell>{processed.bgcolor}</TableCell>}
-				</>
-			);
-		} else {
-			return (
-				<>
-					{selectedColumns.includes("index") && (
-						<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-							{isDeleted ? (
-								<span className="text-gray-500">Deleted</span> // Indicate that the row is deleted
-							) : (
-								processed.anvaya_no
-							)}
+		const renderReadOnlyColumns = () => (
+			<>
+				{selectedColumns.includes("index") && <TableCell>{processed.anvaya_no}</TableCell>}
+				{selectedColumns.includes("word") && (
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<TableCell><span>{processed.word}</span></TableCell>
+							</TooltipTrigger>
+							{isHovered && selectedMeaning[procIndex] && 
+								<TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>
+							}
+						</Tooltip>
+					</TooltipProvider>
+				)}
+				{selectedColumns.map(col => {
+					if (["index", "word"].includes(col)) return null;
+					return (
+						<TableCell key={col}>
+							{currentProcessedData?.[col] || processed[col]}
 						</TableCell>
-					)}
-					{selectedColumns.includes("word") && (
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>{renderWord()}</TableCell>
-								</TooltipTrigger>
-								{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
-							</Tooltip>
-						</TooltipProvider>
-					)}
-					{selectedColumns.includes("poem") && renderPoem()}
-					{selectedColumns.includes("morph_analysis") && (
-						<TableCell style={{ backgroundColor: isDeleted ? "#f8d7da" : "transparent" }}>
-							{isDeleted ? (
-								<span className="text-gray-500">-</span> // Indicate that the row is deleted
-							) : (
-								currentProcessedData?.morph_analysis || processed.morph_analysis
-							)}
-						</TableCell>
-					)}{" "}
-					{selectedColumns.includes("morph_in_context") && renderMorphInContextTEXT()}
-					{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
-					{selectedColumns.includes("prose_kaaraka_sambandha") && (
-						<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-							{isDeleted ? (
-								<span className="text-gray-500">-</span> // Indicate that the row is deleted
-							) : (
-								currentProcessedData?.prose_kaaraka_sambandha || processed.prose_kaaraka_sambandha
-							)}
-						</TableCell>
-					)}
-					{selectedColumns.includes("possible_relations") && (
-						<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-							{isDeleted ? (
-								<span className="text-gray-500">-</span> // Indicate that the row is deleted
-							) : (
-								currentProcessedData?.possible_relations || processed.possible_relations
-							)}
-						</TableCell>
-					)}
-					{selectedColumns.includes("hindi_meaning") && (
-						<TableCell style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>{processed.hindi_meaning}</TableCell>
-					)}
-					{selectedColumns.includes("bgcolor") && renderBgColor()}
-					<TableCell className=" flex flex-col gap-3 items-center" style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-						<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
-							<Trash className="size-4" />
-						</Button>
-						{changedRows.has(procIndex) && (
-							<Button size="icon" onClick={() => handleSave(procIndex)} className="size-8">
-								<Save className="size-4" />
-							</Button>
-						)}
+					);
+				})}
+			</>
+		);
+
+		const renderEditableColumns = () => (
+			<>
+				{selectedColumns.includes("index") && (
+					<TableCell style={deletedStyle}>
+						{isDeleted ? <span className="text-gray-500">Deleted</span> : processed.anvaya_no}
 					</TableCell>
-				</>
-			);
-		}
+				)}
+				{selectedColumns.includes("word") && (
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<TableCell style={deletedStyle}>{renderWord()}</TableCell>
+							</TooltipTrigger>
+							{isHovered && selectedMeaning[procIndex] && 
+								<TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>
+							}
+						</Tooltip>
+					</TooltipProvider>
+				)}
+				{selectedColumns.includes("poem") && renderPoem()}
+				{selectedColumns.includes("morph_analysis") && (
+					<TableCell style={deletedStyle}>
+						{isDeleted ? deletedContent : 
+							(currentProcessedData?.morph_analysis || processed.morph_analysis)
+						}
+					</TableCell>
+				)}
+				{selectedColumns.includes("morph_in_context") && renderMorphInContextTEXT()}
+				{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
+				{selectedColumns.includes("prose_kaaraka_sambandha") && (
+					<TableCell style={deletedStyle}>
+						{isDeleted ? deletedContent :
+							(currentProcessedData?.prose_kaaraka_sambandha || processed.prose_kaaraka_sambandha)
+						}
+					</TableCell>
+				)}
+				{selectedColumns.includes("possible_relations") && (
+					<TableCell style={deletedStyle}>
+						{isDeleted ? deletedContent :
+							(currentProcessedData?.possible_relations || processed.possible_relations)
+						}
+					</TableCell>
+				)}
+				{selectedColumns.includes("hindi_meaning") && (
+					<TableCell style={deletedStyle}>{processed.hindi_meaning}</TableCell>
+				)}
+				{selectedColumns.includes("bgcolor") && renderBgColor()}
+				<TableCell className="flex flex-col gap-3 items-center" style={deletedStyle}>
+					<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
+						<Trash className="size-4" />
+					</Button>
+					{changedRows.has(procIndex) && (
+						<Button size="icon" onClick={() => handleSave(procIndex)} className="size-8">
+							<Save className="size-4" />
+						</Button>
+					)}
+				</TableCell>
+			</>
+		);
+
+		return (permissions === "Admin" || permissions === "Root") ? 
+			renderEditableColumns() : renderReadOnlyColumns();
 	};
 
 	const formatMeaning = (meaning: string) => {
@@ -1059,7 +960,7 @@ export default function AnalysisPage() {
 							{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
 							{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
 							{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
-							<TableHead className="w-[100px]">Actions</TableHead>
+							{permissions !== 'User' && <TableHead className="w-[100px]">Actions</TableHead>}
 						</TableRow>
 					</TableHeader>
 					{renderTableContent()}
