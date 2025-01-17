@@ -22,6 +22,7 @@ import { BookOpen } from "lucide-react";
 import { Share2Icon } from "@radix-ui/react-icons";
 import { Separator } from "@/components/ui/separator";
 import { ChevronDownIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 declare global {
 	interface Window {
@@ -75,6 +76,8 @@ export default function AnalysisPage() {
 	const [shlokas, setShlokas] = useState<string[]>([]);
 	const [availableShlokas, setAvailableShlokas] = useState<Shloka[]>([]);
 	const router = useRouter();
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
 
 	useEffect(() => {
 		const fetchChapters = async () => {
@@ -439,15 +442,22 @@ export default function AnalysisPage() {
 		fetchPermissions();
 	}, []);
 
-	const handleDelete = async (procIndex: number) => {
-		const currentData = updatedData[procIndex];
-		const currentAnvayaNo = currentData.anvaya_no;
-		const currentSentno = currentData.sentno;
-		const [currentMain, currentSub] = currentAnvayaNo.split(".");
-		const currentMainNum = parseInt(currentMain);
-		const currentSubNum = parseInt(currentSub);
+	const initiateDelete = (procIndex: number) => {
+		setPendingDeleteIndex(procIndex);
+		setDeleteDialogOpen(true);
+	};
+
+	const confirmDelete = async () => {
+		if (pendingDeleteIndex === null) return;
 
 		try {
+			const currentData = updatedData[pendingDeleteIndex];
+			const currentAnvayaNo = currentData.anvaya_no;
+			const currentSentno = currentData.sentno;
+			const [currentMain, currentSub] = currentAnvayaNo.split(".");
+			const currentMainNum = parseInt(currentMain);
+			const currentSubNum = parseInt(currentSub);
+
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
@@ -565,12 +575,19 @@ export default function AnalysisPage() {
 				setChapter(updateStateData);
 
 				toast.success("Row deleted and relations updated successfully!");
+				// Close the dialog and reset the pending delete index
+				setDeleteDialogOpen(false);
+				setPendingDeleteIndex(null);
 			}
 		} catch (error) {
 			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
+			// Also close dialog and reset on error
+			setDeleteDialogOpen(false);
+			setPendingDeleteIndex(null);
 		}
 	};
+
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
 		if (!permissions) {
 			return <TableCell></TableCell>;
@@ -864,8 +881,8 @@ export default function AnalysisPage() {
 					)}
 					{selectedColumns.includes("bgcolor") && renderBgColor()}
 					<TableCell className=" flex flex-col gap-3 items-center" style={{ backgroundColor: isDeleted ? "#f8d8da" : "transparent" }}>
-						<Button size="icon" onClick={() => handleDelete(procIndex)} className=" bg-red-400 size-8 text-white">
-							<Trash className=" size-4" />
+						<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
+							<Trash className="size-4" />
 						</Button>
 						{changedRows.has(procIndex) && (
 							<Button size="icon" onClick={() => handleSave(procIndex)} className="size-8">
@@ -1240,6 +1257,23 @@ export default function AnalysisPage() {
 					<Loader2 className="h-8 w-8 animate-spin" />
 				</div>
 			)}
+
+			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Confirm Deletion</DialogTitle>
+						<DialogDescription>Are you sure you want to delete this row? This action cannot be undone.</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+							Cancel
+						</Button>
+						<Button variant="destructive" onClick={confirmDelete}>
+							Delete
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
