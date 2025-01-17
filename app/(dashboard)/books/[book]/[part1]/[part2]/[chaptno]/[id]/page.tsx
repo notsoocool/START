@@ -23,6 +23,9 @@ import { Share2Icon } from "@radix-ui/react-icons";
 import { Separator } from "@/components/ui/separator";
 import { ChevronDownIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Header } from "@/components/global/analysisHeader";
+import { ShlokaCard } from "@/components/global/ShlokaCard";
+import { GraphDisplay } from "@/components/global/GraphDisplay";
 
 declare global {
 	interface Window {
@@ -1017,143 +1020,23 @@ export default function AnalysisPage() {
 	// Render the UI with the Shloka
 	return (
 		<div className="container mx-auto p-6 space-y-8 w-full">
-			{/* Header Section */}
-			<div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-center w-full">
-				<div className="space-y-2">
-					<h1 className="text-2xl font-bold tracking-tight">Analysis Dashboard</h1>
-					<div className="flex items-center gap-4">
-						<p className="text-muted-foreground">Chapter {chaptno}</p>
+			<Header
+				chaptno={chaptno as string}
+				id={id as string}
+				shloka={shloka}
+				availableShlokas={availableShlokas}
+				selectedColumns={selectedColumns}
+				columnOptions={columnOptions}
+				selectedDictionary={selectedDictionary}
+				handleShlokaChange={handleShlokaChange}
+				handleColumnSelect={handleColumnSelect}
+				handleOpacityChange={handleOpacityChange}
+				setSelectedDictionary={setSelectedDictionary}
+				handleGenerateGraph={handleGenerateGraph}
+			/>
 
-						{/* Shloka Navigation Dropdown */}
-						<Select value={id as string} onValueChange={handleShlokaChange}>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue>{shloka ? `Shloka ${shloka.slokano}` : "Select Shloka"}</SelectValue>
-							</SelectTrigger>
-							<SelectContent>
-								{availableShlokas.map((s) => (
-									<SelectItem key={s._id} value={s._id}>
-										Shloka {s.slokano}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-				</div>
+			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} />
 
-				{/* Controls Section */}
-				<div className="gap-4 xl:flex xl:flex-row md:grid md:grid-cols-2 sm:flex sm:flex-col md:w-[70%] sm:w-full sm:items-center">
-					{/* Column Selector */}
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button variant="outline" className="w-[200px] justify-center sm:w-[75%]">
-								<SliderIcon className="mr-2 h-4 w-4" />
-								Customize Columns
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className="w-[200px] p-4">
-							<div className="space-y-4">
-								<h4 className="font-medium leading-none">Toggle Columns</h4>
-								<div className="space-y-2">
-									{columnOptions.map((column) => (
-										<div key={column.id} className="flex items-center space-x-2">
-											<Checkbox id={column.id} checked={selectedColumns.includes(column.id)} onCheckedChange={() => handleColumnSelect(column.id)} />
-											<Label htmlFor={column.id}>{column.label}</Label>
-										</div>
-									))}
-								</div>
-							</div>
-						</PopoverContent>
-					</Popover>
-
-					{/* Opacity Control */}
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button variant="outline" className="w-[200px] justify-center sm:w-[75%]">
-								<PencilIcon className="mr-2 h-4 w-4" />
-								Color Opacity
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className="w-[200px] p-4">
-							<div className="space-y-4">
-								<h4 className="font-medium leading-none">Adjust Opacity</h4>
-								<Slider defaultValue={[50]} max={100} step={1} className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4" onValueChange={handleOpacityChange} />
-							</div>
-						</PopoverContent>
-					</Popover>
-
-					{/* Dictionary Selector */}
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button variant="outline" className="w-[200px] justify-center sm:w-[75%]">
-								<BookOpen className="mr-2 h-4 w-4" />
-								Select Dictionary
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className="w-[200px] p-4">
-							<div className="space-y-4">
-								<h4 className="font-medium leading-none">Choose Dictionary</h4>
-								<Select value={selectedDictionary} onValueChange={setSelectedDictionary}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select Dictionary" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="Apte's Skt-Hnd Dict">Apte Sanskrit-Hindi</SelectItem>
-										<SelectItem value="Monier Williams' Skt-Eng Dict">Monier Williams Sanskrit-English</SelectItem>
-										<SelectItem value="Heritage Skt-French Dict">Heritage Sanskrit-French</SelectItem>
-										<SelectItem value="Cappeller's Skt-Ger Dict">Cappeller Sanskrit-German</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</PopoverContent>
-					</Popover>
-
-					{/* Save All Button */}
-
-					{/* Generate Graph Button */}
-					<Button onClick={handleGenerateGraph} className="w-[200px] justify-center sm:w-[75%]">
-						Generate Graph
-					</Button>
-				</div>
-			</div>
-
-			{/* Shloka Display Card */}
-			<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-				<CardHeader className="border-b border-border">
-					<div className="flex items-center gap-2">
-						<CardTitle className="text-lg font-medium">
-							{decodeURIComponent(typeof book === "string" ? book : book[0])
-								.split("_")
-								.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-								.join(" ")}
-						</CardTitle>
-						<Badge variant="outline" className="text-xs">
-							{chaptno}.{shloka?.slokano}
-						</Badge>
-					</div>
-				</CardHeader>
-				<CardContent className="p-6">
-					<div className="space-y-4">
-						<div className="text-center space-y-2">
-							{shloka?.spart.split("#").map((part, index) => (
-								<p key={index} className="text-lg font-sanskrit leading-relaxed">
-									{part.trim()}
-								</p>
-							))}
-						</div>
-						<Separator className="my-4" />
-						<div className="flex justify-center gap-4">
-							<Button variant="outline" size="sm">
-								<BookOpen className="h-4 w-4 mr-2" />
-								View Commentary
-							</Button>
-							<Button variant="outline" size="sm">
-								<Share2Icon className="h-4 w-4 mr-2" />
-								Share
-							</Button>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
 			<div className="flex justify-end w-full">
 				{changedRows.size > 1 && (
 					<Button onClick={handleSaveAll} className="w-5rem justify-center ">
@@ -1183,73 +1066,16 @@ export default function AnalysisPage() {
 				</Table>
 			</div>
 
-			{/* Graph Display Section */}
-			{Object.keys(graphUrls).length > 0 && (
-				<div className="space-y-6" data-graphs-section>
-					<h2 className="text-xl font-semibold">Generated Graphs</h2>
-					<div className="grid gap-6">
-						{Object.entries(graphUrls).map(([sentno, svgContent]) => (
-							<Card key={sentno} className="overflow-hidden">
-								<CardHeader className="flex flex-row items-center justify-between">
-									<CardTitle>Sentence {sentno}</CardTitle>
-									<div className="flex items-center gap-2">
-										<div className="flex items-center bg-muted rounded-md">
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleZoomOut(sentno)}
-												className="h-8 w-8 p-0"
-												disabled={(zoomLevels[sentno] || DEFAULT_ZOOM) <= MIN_ZOOM}
-											>
-												<MinusIcon className="h-4 w-4" />
-											</Button>
-											<div className="w-14 text-center text-sm">{Math.round((zoomLevels[sentno] || DEFAULT_ZOOM) * 100)}%</div>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleZoomIn(sentno)}
-												className="h-8 w-8 p-0"
-												disabled={(zoomLevels[sentno] || DEFAULT_ZOOM) >= MAX_ZOOM}
-											>
-												<PlusIcon className="h-4 w-4" />
-											</Button>
-										</div>
-										<Button variant="outline" size="sm" onClick={() => handleResetZoom(sentno)} className="h-8 px-2">
-											Reset
-										</Button>
-									</div>
-								</CardHeader>
-								<CardContent className="p-0">
-									<div className="relative w-full">
-										<div
-											ref={(el: HTMLDivElement | null) => {
-												if (el) svgContainerRefs.current[sentno] = el;
-											}}
-											className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 
-												dark:scrollbar-thumb-gray-700 scrollbar-track-transparent 
-												hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-600 
-												pb-4"
-											style={{
-												maxHeight: "70vh",
-												WebkitOverflowScrolling: "touch",
-											}}
-										>
-											<div
-												style={{
-													transform: `scale(${zoomLevels[sentno] || DEFAULT_ZOOM})`,
-													transformOrigin: "top left",
-													transition: "transform 0.2s ease-in-out",
-												}}
-												dangerouslySetInnerHTML={{ __html: svgContent }}
-											/>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						))}
-					</div>
-				</div>
-			)}
+			<GraphDisplay
+				graphUrls={graphUrls}
+				zoomLevels={zoomLevels}
+				handleZoomIn={handleZoomIn}
+				handleZoomOut={handleZoomOut}
+				handleResetZoom={handleResetZoom}
+				MIN_ZOOM={MIN_ZOOM}
+				MAX_ZOOM={MAX_ZOOM}
+				DEFAULT_ZOOM={DEFAULT_ZOOM}
+			/>
 
 			{/* Loading State */}
 			{loading && (

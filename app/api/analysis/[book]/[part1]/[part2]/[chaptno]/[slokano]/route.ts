@@ -148,3 +148,65 @@ export async function DELETE(req: Request, { params }: { params: Params }) {
 		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
 	}
 }
+
+// Add this to your existing route.ts file
+export async function POST(req: Request, { params }: { params: Params }) {
+	const { book, part1, part2, chaptno, slokano } = params;
+	const data = await req.json();
+	
+	await dbConnect();
+	
+	try {
+		const { positioning_strategy, ...rowData } = data;
+		
+		// Find existing rows that might need updating
+		const existingRows = await Analysis.find({
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+			sentno: rowData.sentno
+		}).sort({ anvaya_no: 1 });
+		
+		const [newMain, newSub] = rowData.anvaya_no.split('.').map(Number);
+		
+		// Update existing rows based on positioning strategy
+		if (positioning_strategy === 'shift_within') {
+			// Shift numbers within the same group
+			for (const row of existingRows) {
+				const [main, sub] = row.anvaya_no.split('.').map(Number);
+				if (main === newMain && sub >= newSub) {
+					await Analysis.findByIdAndUpdate(row._id, {
+						$set: { anvaya_no: `${main}.${sub + 1}` }
+					});
+				}
+			}
+		} else if (positioning_strategy === 'new_group') {
+			// Shift all following groups
+			for (const row of existingRows) {
+				const [main, sub] = row.anvaya_no.split('.').map(Number);
+				if (main >= newMain) {
+					await Analysis.findByIdAndUpdate(row._id, {
+						$set: { anvaya_no: `${main + 1}.${sub}` }
+					});
+				}
+			}
+		}
+		
+		// Create the new row
+		const newRow = await Analysis.create(rowData);
+		
+		return NextResponse.json({ 
+			message: "Row added successfully", 
+			newRow 
+		}, { headers: corsHeaders() });
+		
+	} catch (error) {
+		console.error("Error adding new row:", error);
+		return NextResponse.json({ 
+			message: "Internal Server Error", 
+			error: (error as Error).message 
+		}, { status: 500, headers: corsHeaders() });
+	}
+}
