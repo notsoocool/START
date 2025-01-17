@@ -4,12 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, PlusCircleIcon, Trash, Save } from "lucide-react";
+import { Loader2, PlusCircleIcon, Trash, Save, RefreshCw } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -75,13 +75,15 @@ export default function AnalysisPage() {
 	const router = useRouter();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
+	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+	const [indexSortDirection, setIndexSortDirection] = useState<"asc" | "desc">("asc");
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
 			try {
 				const [chapterResponse, shlokaResponse] = await Promise.all([
 					fetch(`/api/chapters/${book}/${part1}/${part2}`),
-					chaptno ? fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`) : null
+					chaptno ? fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`) : null,
 				]);
 
 				const chapterData = await chapterResponse.json();
@@ -109,7 +111,7 @@ export default function AnalysisPage() {
 				setLoading(true);
 				const [shlokaResponse, availableShlokaResponse] = await Promise.all([
 					fetch(`/api/ahShloka/${id}`),
-					fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`)
+					fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`),
 				]);
 
 				const shlokaData = await shlokaResponse.json();
@@ -120,7 +122,7 @@ export default function AnalysisPage() {
 
 				const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
 				const chapterData = await chapterResponse.json();
-				
+
 				setChapter(chapterData);
 				const mappedData = chapterData.map((item: any) => ({ ...item }));
 				setUpdatedData(mappedData);
@@ -395,18 +397,17 @@ export default function AnalysisPage() {
 			const meaning = dictionaries.find((dict: any) => dict.DICT === selectedDictionary)?.Meaning;
 
 			// Update meaning for this word
-			setSelectedMeaning(prev => ({
+			setSelectedMeaning((prev) => ({
 				...prev,
-				[procIndex]: meaning || "Meaning not found"
+				[procIndex]: meaning || "Meaning not found",
 			}));
-
 		} catch (error) {
 			console.error("Error fetching meaning:", error);
-			
+
 			// Set error state for this word
-			setSelectedMeaning(prev => ({
+			setSelectedMeaning((prev) => ({
 				...prev,
-				[procIndex]: "Error fetching meaning"
+				[procIndex]: "Error fetching meaning",
 			}));
 		}
 	};
@@ -591,7 +592,7 @@ export default function AnalysisPage() {
 			<Input
 				type="text"
 				value={value || ""}
-				onChange={(e) => handleValueChange(procIndex, field, e.target.value)} 
+				onChange={(e) => handleValueChange(procIndex, field, e.target.value)}
 				className={width}
 				placeholder={placeholder}
 			/>
@@ -628,7 +629,9 @@ export default function AnalysisPage() {
 			const isChanged = currentProcessedData?.morph_in_context !== processed.morph_in_context;
 			return (
 				<TableCell style={deletedStyle}>
-					{isDeleted ? deletedContent : (
+					{isDeleted ? (
+						deletedContent
+					) : (
 						<div className="flex items-center gap-2">
 							{renderInput("morph_in_context", currentProcessedData?.morph_in_context, "w-[180px]", "Enter Morph in Context")}
 							{isChanged && renderAddButton(() => handleAddToField("morph_in_context", "morph_analysis", "/"))}
@@ -642,7 +645,9 @@ export default function AnalysisPage() {
 			const isChanged = currentProcessedData?.kaaraka_sambandha !== processed.kaaraka_sambandha;
 			return (
 				<TableCell style={deletedStyle}>
-					{isDeleted ? deletedContent : (
+					{isDeleted ? (
+						deletedContent
+					) : (
 						<div className="flex items-center gap-2">
 							{renderInput("kaaraka_sambandha", currentProcessedData?.kaaraka_sambandha, "w-[180px]", "Enter Kaaraka Sambandha")}
 							{isChanged && renderAddButton(() => handleAddToField("kaaraka_sambandha", "possible_relations", "#"))}
@@ -652,29 +657,20 @@ export default function AnalysisPage() {
 			);
 		};
 
-		const renderWord = () => (
-			<TableCell>
-				{isDeleted ? deletedContent : 
-					renderInput("word", currentProcessedData?.word, "w-[100px]", "Enter Word")
-				}
-			</TableCell>
-		);
+		const renderWord = () => <TableCell>{isDeleted ? deletedContent : renderInput("word", currentProcessedData?.word, "w-[100px]", "Enter Word")}</TableCell>;
 
 		const renderPoem = () => (
 			<TableCell style={deletedStyle}>
-				{isDeleted ? deletedContent :
-					renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index")
-				}
+				{isDeleted ? deletedContent : renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index")}
 			</TableCell>
 		);
 
 		const renderBgColor = () => (
 			<TableCell style={deletedStyle}>
-				{isDeleted ? deletedContent : (
-					<Select 
-						value={currentProcessedData?.bgcolor || ""} 
-						onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}
-					>
+				{isDeleted ? (
+					deletedContent
+				) : (
+					<Select value={currentProcessedData?.bgcolor || ""} onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}>
 						<SelectTrigger className="w-[180px]">
 							<span
 								style={{
@@ -716,21 +712,17 @@ export default function AnalysisPage() {
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<TableCell><span>{processed.word}</span></TableCell>
+								<TableCell>
+									<span>{processed.word}</span>
+								</TableCell>
 							</TooltipTrigger>
-							{isHovered && selectedMeaning[procIndex] && 
-								<TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>
-							}
+							{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
 						</Tooltip>
 					</TooltipProvider>
 				)}
-				{selectedColumns.map(col => {
+				{selectedColumns.map((col) => {
 					if (["index", "word"].includes(col)) return null;
-					return (
-						<TableCell key={col}>
-							{currentProcessedData?.[col] || processed[col]}
-						</TableCell>
-					);
+					return <TableCell key={col}>{currentProcessedData?.[col] || processed[col]}</TableCell>;
 				})}
 			</>
 		);
@@ -738,9 +730,7 @@ export default function AnalysisPage() {
 		const renderEditableColumns = () => (
 			<>
 				{selectedColumns.includes("index") && (
-					<TableCell style={deletedStyle}>
-						{isDeleted ? <span className="text-gray-500">Deleted</span> : processed.anvaya_no}
-					</TableCell>
+					<TableCell style={deletedStyle}>{isDeleted ? <span className="text-gray-500">Deleted</span> : processed.anvaya_no}</TableCell>
 				)}
 				{selectedColumns.includes("word") && (
 					<TooltipProvider>
@@ -748,39 +738,25 @@ export default function AnalysisPage() {
 							<TooltipTrigger asChild>
 								<TableCell style={deletedStyle}>{renderWord()}</TableCell>
 							</TooltipTrigger>
-							{isHovered && selectedMeaning[procIndex] && 
-								<TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>
-							}
+							{isHovered && selectedMeaning[procIndex] && <TooltipContent>{formatMeaning(selectedMeaning[procIndex])}</TooltipContent>}
 						</Tooltip>
 					</TooltipProvider>
 				)}
 				{selectedColumns.includes("poem") && renderPoem()}
 				{selectedColumns.includes("morph_analysis") && (
-					<TableCell style={deletedStyle}>
-						{isDeleted ? deletedContent : 
-							(currentProcessedData?.morph_analysis || processed.morph_analysis)
-						}
-					</TableCell>
+					<TableCell style={deletedStyle}>{isDeleted ? deletedContent : currentProcessedData?.morph_analysis || processed.morph_analysis}</TableCell>
 				)}
 				{selectedColumns.includes("morph_in_context") && renderMorphInContextTEXT()}
 				{selectedColumns.includes("kaaraka_sambandha") && renderKaarakaSambandha()}
 				{selectedColumns.includes("prose_kaaraka_sambandha") && (
 					<TableCell style={deletedStyle}>
-						{isDeleted ? deletedContent :
-							(currentProcessedData?.prose_kaaraka_sambandha || processed.prose_kaaraka_sambandha)
-						}
+						{isDeleted ? deletedContent : currentProcessedData?.prose_kaaraka_sambandha || processed.prose_kaaraka_sambandha}
 					</TableCell>
 				)}
 				{selectedColumns.includes("possible_relations") && (
-					<TableCell style={deletedStyle}>
-						{isDeleted ? deletedContent :
-							(currentProcessedData?.possible_relations || processed.possible_relations)
-						}
-					</TableCell>
+					<TableCell style={deletedStyle}>{isDeleted ? deletedContent : currentProcessedData?.possible_relations || processed.possible_relations}</TableCell>
 				)}
-				{selectedColumns.includes("hindi_meaning") && (
-					<TableCell style={deletedStyle}>{processed.hindi_meaning}</TableCell>
-				)}
+				{selectedColumns.includes("hindi_meaning") && <TableCell style={deletedStyle}>{processed.hindi_meaning}</TableCell>}
 				{selectedColumns.includes("bgcolor") && renderBgColor()}
 				<TableCell className="flex flex-col gap-3 items-center" style={deletedStyle}>
 					<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
@@ -795,8 +771,7 @@ export default function AnalysisPage() {
 			</>
 		);
 
-		return (permissions === "Admin" || permissions === "Root") ? 
-			renderEditableColumns() : renderReadOnlyColumns();
+		return permissions === "Admin" || permissions === "Root" ? renderEditableColumns() : renderReadOnlyColumns();
 	};
 
 	const formatMeaning = (meaning: string) => {
@@ -861,6 +836,108 @@ export default function AnalysisPage() {
 			await handleSave(procIndex); // Call the existing handleSave function for each changed row
 		}
 		toast.success("All changes saved successfully!");
+	};
+
+	const handleSortByProseIndex = async () => {
+		try {
+			setLoading(true);
+			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterData = await chapterResponse.json();
+
+			// Group and sort the data by sentno and prose index
+			const groupedData = chapterData.reduce((acc: any, row: any) => {
+				const sentno = row.sentno;
+				if (!acc[sentno]) {
+					acc[sentno] = [];
+				}
+				acc[sentno].push(row);
+				return acc;
+			}, {});
+
+			// Sort within each group
+			Object.keys(groupedData).forEach((sentno) => {
+				groupedData[sentno].sort((a: any, b: any) => {
+					const aIndex = parseInt(a.poem) || 0;
+					const bIndex = parseInt(b.poem) || 0;
+					return sortDirection === "asc" ? aIndex - bIndex : bIndex - aIndex;
+				});
+			});
+
+			// Flatten the grouped data back into an array
+			const sortedData = Object.values(groupedData).flat();
+
+			setChapter(sortedData);
+			setUpdatedData(sortedData);
+			setOriginalData(sortedData);
+			setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+		} catch (error) {
+			console.error("Error fetching and sorting data:", error);
+			toast.error("Error sorting data");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleSortByIndex = async () => {
+		try {
+			setLoading(true);
+			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterData = await chapterResponse.json();
+
+			// Group and sort the data by sentno and anvaya_no
+			const groupedData = chapterData.reduce((acc: any, row: any) => {
+				const sentno = row.sentno;
+				if (!acc[sentno]) {
+					acc[sentno] = [];
+				}
+				acc[sentno].push(row);
+				return acc;
+			}, {});
+
+			// Sort within each group by anvaya_no
+			Object.keys(groupedData).forEach((sentno) => {
+				groupedData[sentno].sort((a: any, b: any) => {
+					const [aMain, aSub] = a.anvaya_no.split(".").map(Number);
+					const [bMain, bSub] = b.anvaya_no.split(".").map(Number);
+
+					if (aMain === bMain) {
+						return indexSortDirection === "asc" ? aSub - bSub : bSub - aSub;
+					}
+					return indexSortDirection === "asc" ? aMain - bMain : bMain - aMain;
+				});
+			});
+
+			// Flatten the grouped data back into an array
+			const sortedData = Object.values(groupedData).flat();
+
+			setChapter(sortedData);
+			setUpdatedData(sortedData);
+			setOriginalData(sortedData);
+			setIndexSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+		} catch (error) {
+			console.error("Error fetching and sorting data:", error);
+			toast.error("Error sorting data");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleRefresh = async () => {
+		try {
+			setLoading(true);
+			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterData = await chapterResponse.json();
+
+			setChapter(chapterData);
+			setUpdatedData(chapterData);
+			setOriginalData(chapterData);
+			toast.success("Data refreshed successfully!");
+		} catch (error) {
+			console.error("Error refreshing data:", error);
+			toast.error("Error refreshing data");
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	if (initialLoad) {
@@ -938,9 +1015,19 @@ export default function AnalysisPage() {
 
 			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} />
 
-			<div className="flex justify-end w-full">
+			<div className="flex justify-end w-full gap-2">
+				<Button onClick={handleRefresh} className="justify-center" variant="outline" disabled={loading}>
+					{loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
+					Refresh
+				</Button>
+				<Button onClick={handleSortByIndex} className="justify-center" variant="outline">
+					Sort by Index {indexSortDirection === "asc" ? "↑" : "↓"}
+				</Button>
+				<Button onClick={handleSortByProseIndex} className="justify-center" variant="outline">
+					Sort by Prose Index {sortDirection === "asc" ? "↑" : "↓"}
+				</Button>
 				{changedRows.size > 1 && (
-					<Button onClick={handleSaveAll} className="w-5rem justify-center ">
+					<Button onClick={handleSaveAll} className="w-5rem justify-center">
 						Save All
 					</Button>
 				)}
@@ -960,7 +1047,7 @@ export default function AnalysisPage() {
 							{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
 							{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
 							{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
-							{permissions !== 'User' && <TableHead className="w-[100px]">Actions</TableHead>}
+							{permissions !== "User" && <TableHead className="w-[100px]">Actions</TableHead>}
 						</TableRow>
 					</TableHeader>
 					{renderTableContent()}
