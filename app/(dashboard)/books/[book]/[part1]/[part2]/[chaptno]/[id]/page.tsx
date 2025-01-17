@@ -442,6 +442,7 @@ export default function AnalysisPage() {
 	const handleDelete = async (procIndex: number) => {
 		const currentData = updatedData[procIndex];
 		const currentAnvayaNo = currentData.anvaya_no;
+		const currentSentno = currentData.sentno;
 		const [currentMain, currentSub] = currentAnvayaNo.split(".");
 		const currentMainNum = parseInt(currentMain);
 		const currentSubNum = parseInt(currentSub);
@@ -458,13 +459,59 @@ export default function AnalysisPage() {
 
 			if (response.ok) {
 				const updateStateData = (prevData: any[]) => {
-					// First, check if the deleted item is the only one in its main group
+					// First, check if the deleted item is the only one in its group
+					// Only consider items with the same sentno
 					const isOnlyItemInGroup = !prevData.some((item) => {
 						const [itemMain] = item.anvaya_no.split(".");
-						return parseInt(itemMain) === currentMainNum && item.anvaya_no !== currentAnvayaNo;
+						return parseInt(itemMain) === currentMainNum && item.anvaya_no !== currentAnvayaNo && item.sentno === currentSentno;
 					});
 
+					// Create a mapping of old to new anvaya numbers
+					const anvayaMapping: { [key: string]: string } = {};
+
+					// First pass: build the mapping of old to new anvaya numbers
+					// Only for items with the same sentno
+					prevData.forEach((item) => {
+						if (item.sentno !== currentSentno) return;
+
+						const [itemMain, itemSub] = item.anvaya_no.split(".");
+						const itemMainNum = parseInt(itemMain);
+						const itemSubNum = parseInt(itemSub);
+
+						if (itemMainNum === currentMainNum && itemSubNum > currentSubNum) {
+							anvayaMapping[item.anvaya_no] = `${itemMain}.${itemSubNum - 1}`;
+						} else if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
+							anvayaMapping[item.anvaya_no] = `${itemMainNum - 1}.${itemSub}`;
+						}
+					});
+
+					// Updated helper function to update relations
+					const updateRelations = (relations: string, deletedAnvayaNo: string) => {
+						if (!relations) return "-";
+
+						return relations
+							.split("#")
+							.map((relation) => {
+								const [type, number] = relation.split(",");
+								// When the relation points to the deleted anvaya number,
+								// keep the type but remove the number
+								if (number?.trim() === deletedAnvayaNo) {
+									return `${type},`;
+								}
+								// Update relations that point to changed anvaya numbers
+								if (number && anvayaMapping[number.trim()]) {
+									return `${type},${anvayaMapping[number.trim()]}`;
+								}
+								return relation;
+							})
+							.filter(Boolean) // Remove null values
+							.join("#");
+					};
+
 					return prevData.map((item, index) => {
+						// Skip items with different sentno
+						if (item.sentno !== currentSentno) return item;
+
 						const [itemMain, itemSub] = item.anvaya_no.split(".");
 						const itemMainNum = parseInt(itemMain);
 						const itemSubNum = parseInt(itemSub);
@@ -484,11 +531,13 @@ export default function AnalysisPage() {
 							};
 						}
 
+						let updatedItem = { ...item };
+
 						// Case 1: Update items in the same main group
 						if (itemMainNum === currentMainNum && itemSubNum > currentSubNum) {
 							setChangedRows((prev) => new Set(prev.add(index)));
-							return {
-								...item,
+							updatedItem = {
+								...updatedItem,
 								anvaya_no: `${itemMain}.${itemSubNum - 1}`,
 							};
 						}
@@ -497,13 +546,17 @@ export default function AnalysisPage() {
 						// update all subsequent groups
 						if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
 							setChangedRows((prev) => new Set(prev.add(index)));
-							return {
-								...item,
+							updatedItem = {
+								...updatedItem,
 								anvaya_no: `${itemMainNum - 1}.${itemSub}`,
 							};
 						}
 
-						return item;
+						// Update kaaraka and possible relations
+						updatedItem.kaaraka_sambandha = updateRelations(updatedItem.kaaraka_sambandha, currentAnvayaNo);
+						updatedItem.possible_relations = updateRelations(updatedItem.possible_relations, currentAnvayaNo);
+
+						return updatedItem;
 					});
 				};
 
@@ -511,7 +564,7 @@ export default function AnalysisPage() {
 				setOriginalData(updateStateData);
 				setChapter(updateStateData);
 
-				toast.success("Row deleted successfully!");
+				toast.success("Row deleted and relations updated successfully!");
 			}
 		} catch (error) {
 			console.error("Delete operation error:", error);
