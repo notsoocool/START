@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MinusIcon, PlusIcon } from "lucide-react";
@@ -18,6 +18,40 @@ interface GraphDisplayProps {
 
 export function GraphDisplay({ graphUrls, zoomLevels, handleZoomIn, handleZoomOut, handleResetZoom, MIN_ZOOM, MAX_ZOOM, DEFAULT_ZOOM }: GraphDisplayProps) {
 	const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+	useEffect(() => {
+		window.toggleChildren = (event: MouseEvent) => {
+			const target = event.target as HTMLElement;
+			const children = target.getElementsByTagName("g");
+			for (let i = 0; i < children.length; i++) {
+				const child = children[i];
+				const currentDisplay = child.style.display;
+				child.style.display = currentDisplay === "none" ? "block" : "none";
+			}
+		};
+
+		Object.entries(graphUrls).forEach(([sentno, svgContent]) => {
+			const container = svgContainerRefs.current[sentno];
+			if (container) {
+				const scriptRegex = /<script>([\s\S]*?)<\/script>/g;
+				let match;
+				while ((match = scriptRegex.exec(svgContent)) !== null) {
+					const scriptContent = match[1];
+					try {
+						const script = document.createElement("script");
+						script.textContent = scriptContent;
+						container.appendChild(script);
+					} catch (error) {
+						console.error("Error executing script:", error);
+					}
+				}
+			}
+		});
+
+		return () => {
+			delete window.toggleChildren;
+		};
+	}, [graphUrls]);
 
 	if (Object.keys(graphUrls).length === 0) {
 		return null;
