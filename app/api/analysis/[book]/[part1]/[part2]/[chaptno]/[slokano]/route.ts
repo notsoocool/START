@@ -171,7 +171,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			sentno: data.sentno
+			sentno: data.sentno,
 		}).sort({ anvaya_no: 1 });
 
 		// Create and save new row
@@ -189,7 +189,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
 			english_meaning: data.english_meaning || "-",
 			sandhied_word: data.sandhied_word || "-",
 			graph: data.graph || "-",
-			hindi_meaning: data.hindi_meaning || "-"
+			hindi_meaning: data.hindi_meaning || "-",
 		});
 
 		const savedRow = await newRow.save();
@@ -199,7 +199,7 @@ export async function POST(req: Request, { params }: { params: Params }) {
 			if (!relations || relations === "-") return "-";
 			return relations
 				.split("#")
-				.map(relation => {
+				.map((relation) => {
 					const [type, number] = relation.split(",");
 					if (number?.trim() === oldNumber) {
 						return `${type},${newNumber}`;
@@ -231,11 +231,11 @@ export async function POST(req: Request, { params }: { params: Params }) {
 				if (rowMain === newMain) {
 					// Find the highest existing sub-number for this main number
 					const existingSubNumbers = existingRows
-						.filter(r => {
+						.filter((r) => {
 							const [rMain] = r.anvaya_no.split(".").map(Number);
 							return rMain === newMain;
 						})
-						.map(r => {
+						.map((r) => {
 							const [, rSub] = r.anvaya_no.split(".").map(Number);
 							return rSub;
 						});
@@ -267,8 +267,8 @@ export async function POST(req: Request, { params }: { params: Params }) {
 						$set: {
 							anvaya_no: newAnvayaNo,
 							kaaraka_sambandha: updateRelations(row.kaaraka_sambandha, oldAnvayaNo, newAnvayaNo),
-							possible_relations: updateRelations(row.possible_relations, oldAnvayaNo, newAnvayaNo)
-						}
+							possible_relations: updateRelations(row.possible_relations, oldAnvayaNo, newAnvayaNo),
+						},
 					},
 					{ new: true }
 				);
@@ -284,22 +284,18 @@ export async function POST(req: Request, { params }: { params: Params }) {
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			sentno: data.sentno
+			sentno: data.sentno,
 		}).sort({ anvaya_no: 1 });
 
 		return NextResponse.json(
-			{ 
+			{
 				message: "Row created successfully",
-				updatedRows: finalRows
+				updatedRows: finalRows,
 			},
 			{ headers: corsHeaders() }
 		);
-
 	} catch (error) {
 		console.error("Error creating new row:", error);
-		return NextResponse.json(
-			{ message: "Internal Server Error", error: (error as Error).message },
-			{ status: 500, headers: corsHeaders() }
-		);
+		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
 	}
 }
