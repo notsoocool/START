@@ -16,6 +16,12 @@ interface GraphDisplayProps {
 	DEFAULT_ZOOM: number;
 }
 
+declare global {
+	interface Window {
+		toggleChildren?: (event: MouseEvent) => void;
+	}
+}
+
 export function GraphDisplay({ graphUrls, zoomLevels, handleZoomIn, handleZoomOut, handleResetZoom, MIN_ZOOM, MAX_ZOOM, DEFAULT_ZOOM }: GraphDisplayProps) {
 	const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -49,7 +55,7 @@ export function GraphDisplay({ graphUrls, zoomLevels, handleZoomIn, handleZoomOu
 		});
 
 		return () => {
-			delete window.toggleChildren;
+			window.toggleChildren = undefined;
 		};
 	}, [graphUrls]);
 

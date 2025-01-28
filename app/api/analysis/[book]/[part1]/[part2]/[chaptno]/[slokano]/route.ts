@@ -10,11 +10,11 @@ interface Params {
 	slokano: string;
 }
 
-// Add CORS headers helper function
+// Update CORS headers to include POST method
 function corsHeaders() {
 	return {
 		"Access-Control-Allow-Origin": "*",
-		"Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	};
 }
@@ -149,64 +149,157 @@ export async function DELETE(req: Request, { params }: { params: Params }) {
 	}
 }
 
-// Add this to your existing route.ts file
+// Add POST handler for creating new rows
 export async function POST(req: Request, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
-	const data = await req.json();
-	
+	const { shiftType, ...data } = await req.json();
+
 	await dbConnect();
-	
+
 	try {
-		const { positioning_strategy, ...rowData } = data;
-		
-		// Find existing rows that might need updating
+		// Validate required fields
+		if (!data.anvaya_no || !data.word || !data.sentno) {
+			return NextResponse.json({ message: "Missing required fields" }, { status: 400, headers: corsHeaders() });
+		}
+
+		const [newMain, newSub] = data.anvaya_no.split(".").map(Number);
+
+		// Fetch existing rows before adding new row
 		const existingRows = await Analysis.find({
 			book,
 			part1: part1 !== "null" ? part1 : null,
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			sentno: rowData.sentno
+			sentno: data.sentno
 		}).sort({ anvaya_no: 1 });
-		
-		const [newMain, newSub] = rowData.anvaya_no.split('.').map(Number);
-		
-		// Update existing rows based on positioning strategy
-		if (positioning_strategy === 'shift_within') {
-			// Shift numbers within the same group
-			for (const row of existingRows) {
-				const [main, sub] = row.anvaya_no.split('.').map(Number);
-				if (main === newMain && sub >= newSub) {
-					await Analysis.findByIdAndUpdate(row._id, {
-						$set: { anvaya_no: `${main}.${sub + 1}` }
-					});
+
+		// Create and save new row
+		const newRow = new Analysis({
+			...data,
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+			name_classification: data.name_classification || "-",
+			sarvanAma: data.sarvanAma || "-",
+			praYoga: data.prayoga || "-",
+			samAsa: data.samAsa || "-",
+			english_meaning: data.english_meaning || "-",
+			sandhied_word: data.sandhied_word || "-",
+			graph: data.graph || "-",
+			hindi_meaning: data.hindi_meaning || "-"
+		});
+
+		const savedRow = await newRow.save();
+
+		// Function to update relations
+		const updateRelations = (relations: string, oldNumber: string, newNumber: string) => {
+			if (!relations || relations === "-") return "-";
+			return relations
+				.split("#")
+				.map(relation => {
+					const [type, number] = relation.split(",");
+					if (number?.trim() === oldNumber) {
+						return `${type},${newNumber}`;
+					}
+					return relation;
+				})
+				.join("#");
+		};
+
+		// Update existing rows based on shift type
+		const updatePromises = existingRows.map(async (row) => {
+			const [rowMain, rowSub] = row.anvaya_no.split(".").map(Number);
+			let newAnvayaNo = row.anvaya_no;
+			let shouldUpdate = false;
+
+			if (shiftType === "main") {
+				// Shift all subsequent main numbers up
+				if (rowMain >= newMain) {
+					newAnvayaNo = `${rowMain + 1}.${rowSub}`;
+					shouldUpdate = true;
+				}
+			} else if (shiftType === "sub") {
+				// Only update sub-numbers within the same main group
+				if (rowMain === newMain && rowSub >= newSub) {
+					newAnvayaNo = `${rowMain}.${rowSub + 1}`;
+					shouldUpdate = true;
+				}
+			} else if (shiftType === "convert_to_sub") {
+				if (rowMain === newMain) {
+					// Find the highest existing sub-number for this main number
+					const existingSubNumbers = existingRows
+						.filter(r => {
+							const [rMain] = r.anvaya_no.split(".").map(Number);
+							return rMain === newMain;
+						})
+						.map(r => {
+							const [, rSub] = r.anvaya_no.split(".").map(Number);
+							return rSub;
+						});
+
+					// Get the next available sub-number
+					const maxSubNumber = Math.max(0, ...existingSubNumbers);
+					const nextSubNumber = maxSubNumber + 1;
+
+					// Assign new sub-number based on order
+					if (rowSub === 1) {
+						// First row becomes sub-number 2 (after new row)
+						newAnvayaNo = `${newMain}.2`;
+					} else {
+						// Subsequent rows get incremented sub-numbers
+						newAnvayaNo = `${newMain}.${rowSub + 1}`;
+					}
+					shouldUpdate = true;
+				} else if (rowMain > newMain) {
+					newAnvayaNo = `${rowMain + 1}.${rowSub}`;
+					shouldUpdate = true;
 				}
 			}
-		} else if (positioning_strategy === 'new_group') {
-			// Shift all following groups
-			for (const row of existingRows) {
-				const [main, sub] = row.anvaya_no.split('.').map(Number);
-				if (main >= newMain) {
-					await Analysis.findByIdAndUpdate(row._id, {
-						$set: { anvaya_no: `${main + 1}.${sub}` }
-					});
-				}
+
+			if (shouldUpdate) {
+				const oldAnvayaNo = row.anvaya_no;
+				await Analysis.findByIdAndUpdate(
+					row._id,
+					{
+						$set: {
+							anvaya_no: newAnvayaNo,
+							kaaraka_sambandha: updateRelations(row.kaaraka_sambandha, oldAnvayaNo, newAnvayaNo),
+							possible_relations: updateRelations(row.possible_relations, oldAnvayaNo, newAnvayaNo)
+						}
+					},
+					{ new: true }
+				);
 			}
-		}
-		
-		// Create the new row
-		const newRow = await Analysis.create(rowData);
-		
-		return NextResponse.json({ 
-			message: "Row added successfully", 
-			newRow 
-		}, { headers: corsHeaders() });
-		
+		});
+
+		await Promise.all(updatePromises);
+
+		// Fetch final state of all rows
+		const finalRows = await Analysis.find({
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+			sentno: data.sentno
+		}).sort({ anvaya_no: 1 });
+
+		return NextResponse.json(
+			{ 
+				message: "Row created successfully",
+				updatedRows: finalRows
+			},
+			{ headers: corsHeaders() }
+		);
+
 	} catch (error) {
-		console.error("Error adding new row:", error);
-		return NextResponse.json({ 
-			message: "Internal Server Error", 
-			error: (error as Error).message 
-		}, { status: 500, headers: corsHeaders() });
+		console.error("Error creating new row:", error);
+		return NextResponse.json(
+			{ message: "Internal Server Error", error: (error as Error).message },
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }

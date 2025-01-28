@@ -4,12 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, PlusCircleIcon, Trash, Save, RefreshCw } from "lucide-react";
+import { Loader2, PlusCircleIcon, Trash, Save, RefreshCw, PlusCircle } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,27 @@ export default function AnalysisPage() {
 	const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 	const [indexSortDirection, setIndexSortDirection] = useState<"asc" | "desc">("asc");
+	const [addRowDialogOpen, setAddRowDialogOpen] = useState(false);
+	const [newRowData, setNewRowData] = useState({
+		anvaya_no: "",
+		word: "",
+		poem: "",
+		morph_analysis: "",
+		morph_in_context: "",
+		kaaraka_sambandha: "",
+		possible_relations: "",
+		bgcolor: "",
+		sentno: "",
+		name_classification: "-",
+		sarvanAma: "-",
+		prayoga: "-",
+		samAsa: "-",
+		english_meaning: "-",
+		sandhied_word: "-",
+		graph: "-",
+		hindi_meaning: "-",
+	});
+	const [shiftType, setShiftType] = useState<"main" | "sub" | "convert_to_sub">("main");
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -940,6 +961,171 @@ export default function AnalysisPage() {
 		}
 	};
 
+	// Add this function to handle adding a new row
+	const handleAddRow = async () => {
+		try {
+			if (!newRowData.anvaya_no || !newRowData.word || !newRowData.sentno) {
+				toast.error("Please fill in all required fields");
+				return;
+			}
+
+			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					...newRowData,
+					shiftType,
+				}),
+			});
+
+			if (response.ok) {
+				const { updatedRows } = await response.json();
+
+				// Update the state with the returned data
+				setUpdatedData(updatedRows);
+				setOriginalData(updatedRows);
+				setChapter(updatedRows);
+
+				toast.success("Row added successfully!");
+				setAddRowDialogOpen(false);
+				setNewRowData({
+					anvaya_no: "",
+					word: "",
+					poem: "",
+					morph_analysis: "",
+					morph_in_context: "",
+					kaaraka_sambandha: "",
+					possible_relations: "",
+					bgcolor: "",
+					sentno: "",
+					name_classification: "-",
+					sarvanAma: "-",
+					prayoga: "-",
+					samAsa: "-",
+					english_meaning: "-",
+					sandhied_word: "-",
+					graph: "-",
+					hindi_meaning: "-",
+				});
+			}
+		} catch (error) {
+			console.error("Add row error:", error);
+			toast.error("Error adding row: " + (error as Error).message);
+		}
+	};
+
+	// Add this near your other UI elements, before the Table component
+	const renderAddRowButton = () => (
+		<Button onClick={() => setAddRowDialogOpen(true)} className="flex items-center gap-2">
+			<PlusCircle className="size-4" />
+			Add Row
+		</Button>
+	);
+
+	// Add this near your other Dialog components
+	const renderAddRowDialog = () => (
+		<Dialog open={addRowDialogOpen} onOpenChange={setAddRowDialogOpen}>
+			<DialogContent className="max-w-2xl">
+				<DialogHeader>
+					<DialogTitle>Add New Row</DialogTitle>
+					<DialogDescription>Enter the details for the new row. Anvaya number, word, and sentence number are required.</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4">
+					<div className="grid grid-cols-2 gap-4">
+						<div className="space-y-2">
+							<label>Anvaya Number*</label>
+							<Input value={newRowData.anvaya_no} onChange={(e) => setNewRowData((prev) => ({ ...prev, anvaya_no: e.target.value }))} placeholder="e.g., 2.1" />
+						</div>
+						<div className="space-y-2">
+							<label>Shift Type*</label>
+							<Select value={shiftType} onValueChange={(value: "main" | "sub" | "convert_to_sub") => setShiftType(value)}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select shift type" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="main">Shift All Main Numbers</SelectItem>
+									<SelectItem value="sub">Add as Sub-Number</SelectItem>
+									<SelectItem value="convert_to_sub">Convert Existing to Sub-Number</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="space-y-2">
+							<label>Sentence Number*</label>
+							<Input value={newRowData.sentno} onChange={(e) => setNewRowData((prev) => ({ ...prev, sentno: e.target.value }))} placeholder="e.g., 1" />
+						</div>
+						<div className="space-y-2">
+							<label>Word*</label>
+							<Input value={newRowData.word} onChange={(e) => setNewRowData((prev) => ({ ...prev, word: e.target.value }))} />
+						</div>
+						<div className="space-y-2">
+							<label>Prose Index</label>
+							<Input value={newRowData.poem} onChange={(e) => setNewRowData((prev) => ({ ...prev, poem: e.target.value }))} />
+						</div>
+						<div className="space-y-2">
+							<label>Morph Analysis</label>
+							<Input value={newRowData.morph_analysis} onChange={(e) => setNewRowData((prev) => ({ ...prev, morph_analysis: e.target.value }))} />
+						</div>
+						<div className="space-y-2">
+							<label>Morph In Context</label>
+							<Input value={newRowData.morph_in_context} onChange={(e) => setNewRowData((prev) => ({ ...prev, morph_in_context: e.target.value }))} />
+						</div>
+						<div className="space-y-2">
+							<label>Kaaraka Relation</label>
+							<Input value={newRowData.kaaraka_sambandha} onChange={(e) => setNewRowData((prev) => ({ ...prev, kaaraka_sambandha: e.target.value }))} />
+						</div>
+						<div className="space-y-2">
+							<label>Possible Relations</label>
+							<Input value={newRowData.possible_relations} onChange={(e) => setNewRowData((prev) => ({ ...prev, possible_relations: e.target.value }))} />
+						</div>
+					</div>
+					<div className="bg-muted p-4 rounded-md">
+						<h4 className="font-medium mb-2">Shift Type Examples:</h4>
+						<p className="text-sm text-muted-foreground space-y-1">
+							<strong>Shift All Main Numbers:</strong>
+							<br />
+							1.1 → 1.1
+							<br />
+							2.1(new) → 2.1
+							<br />
+							3.1(old 2.1) → 3.1
+							<br />
+							4.1(old 3.1) → 4.1
+							<br />
+							<br />
+							<strong>Add as Sub-Number:</strong>
+							<br />
+							1.1 → 1.1
+							<br />
+							2.1 → 2.1
+							<br />
+							2.2(new) → 2.2
+							<br />
+							3.1 → 3.1
+							<br />
+							<br />
+							<strong>Convert Existing to Sub-Number:</strong>
+							<br />
+							1.1 → 1.1
+							<br />
+							2.1(new) → 2.1
+							<br />
+							2.2(old 2.1) → 2.2
+							<br />
+							3.1 → 3.1
+							<br />
+						</p>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setAddRowDialogOpen(false)}>
+						Cancel
+					</Button>
+					<Button onClick={() => handleAddRow()}>Add Row</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+
 	if (initialLoad) {
 		return (
 			<div className="max-w-screen-2xl mx-auto w-full p-8">
@@ -1016,6 +1202,7 @@ export default function AnalysisPage() {
 			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} />
 
 			<div className="flex justify-end w-full gap-2">
+				{renderAddRowButton()}
 				<Button onClick={handleRefresh} className="justify-center" variant="outline" disabled={loading}>
 					{loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
 					Refresh
@@ -1088,6 +1275,8 @@ export default function AnalysisPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{renderAddRowDialog()}
 		</div>
 	);
 }
