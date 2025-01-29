@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import UploadJsonPage from "@/components/global/upload-json"; // Import your JSON upload component
 import UserPerms from "@/components/global/user-perms"; // Import your permission change component
+import ReplaceBook from "@/components/global/replaceBook";
 
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,12 @@ export default function AdminPage() {
 				>
 					Change User Permissions
 				</TabsTrigger>
+				<TabsTrigger
+					value="replace"
+					onClick={() => setActiveTab("replace")}
+				>
+					Replace Book Name
+				</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="upload">
@@ -76,6 +83,19 @@ export default function AdminPage() {
 					</CardHeader>
 					<CardContent>
 						<UserPerms />
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			<TabsContent value="replace">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Replace Book Name
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ReplaceBook />
 					</CardContent>
 				</Card>
 			</TabsContent>

@@ -19,9 +19,7 @@ export default function RootLayout({
 	return (
 		<ClerkProvider>
 			<html lang="en" className={inter.className}>
-				<body className="antialiased bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
-					{children}
-				</body>
+				<body className="antialiased bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">{children}</body>
 			</html>
 		</ClerkProvider>
 	);
