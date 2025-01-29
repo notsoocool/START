@@ -97,6 +97,8 @@ export default function AnalysisPage() {
 		hindi_meaning: "-",
 	});
 	const [shiftType, setShiftType] = useState<"main" | "sub" | "convert_to_sub">("main");
+	const [morphInContextChanges, setMorphInContextChanges] = useState<Set<number>>(new Set());
+	const [kaarakaRelationChanges, setKaarakaRelationChanges] = useState<Set<number>>(new Set());
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -176,6 +178,13 @@ export default function AnalysisPage() {
 			};
 			return newData;
 		});
+
+		// Track specific field changes separately
+		if (field === "morph_in_context") {
+			setMorphInContextChanges((prev) => new Set(prev.add(procIndex)));
+		} else if (field === "kaaraka_sambandha") {
+			setKaarakaRelationChanges((prev) => new Set(prev.add(procIndex)));
+		}
 
 		// Mark the row as changed
 		setChangedRows((prev) => new Set(prev.add(procIndex)));
@@ -601,23 +610,96 @@ export default function AnalysisPage() {
 		}
 	};
 
-	const renderColumnsBasedOnPermissions = (processed: any, procIndex: any, currentProcessedData: any, isHovered: any, lookupWord: any) => {
+	const renderColumnsBasedOnPermissions = (processed: any, procIndex: number, currentProcessedData: any, isHovered: any, lookupWord: any) => {
 		if (!permissions) return <TableCell></TableCell>;
 
 		const isDeleted = currentProcessedData?.deleted;
 		const deletedStyle = { backgroundColor: isDeleted ? "#f8d8da" : "transparent" };
 		const deletedContent = <span className="text-gray-500">-</span>;
 
-		const renderInput = (field: string, value: string, width: string = "w-[180px]", placeholder: string) => (
-			<Input
-				type="text"
-				value={value || ""}
-				onChange={(e) => handleValueChange(procIndex, field, e.target.value)}
-				className={width}
-				placeholder={placeholder}
-				disabled={permissions === "User"}
-			/>
-		);
+		const handleAddToMorphAnalysis = (procIndex: number) => {
+			const currentMorphInContext = currentProcessedData?.morph_in_context || processed.morph_in_context;
+			const currentMorphAnalysis = currentProcessedData?.morph_analysis || processed.morph_analysis;
+
+			// Only proceed if we have a morph_in_context value
+			if (currentMorphInContext) {
+				// Split current morph_analysis by "/" to check existing values
+				const existingValues = currentMorphAnalysis ? currentMorphAnalysis.split("/") : [];
+
+				// Check if the value already exists
+				if (!existingValues.includes(currentMorphInContext)) {
+					// Add the new value with "/" separator if there are existing values
+					const newValue = currentMorphAnalysis ? `${currentMorphAnalysis}/${currentMorphInContext}` : currentMorphInContext;
+					handleValueChange(procIndex, "morph_analysis", newValue);
+				}
+			}
+		};
+
+		const handleAddToPossibleRelations = (procIndex: number) => {
+			const currentKaarakaSambandha = currentProcessedData?.kaaraka_sambandha || processed.kaaraka_sambandha;
+			const currentPossibleRelations = currentProcessedData?.possible_relations || processed.possible_relations;
+
+			if (currentKaarakaSambandha) {
+				// Split current possible_relations by "#" to check existing values
+				const existingValues = currentPossibleRelations ? currentPossibleRelations.split("#") : [];
+
+				// Check if the value already exists
+				if (!existingValues.includes(currentKaarakaSambandha)) {
+					// Add the new value with "#" separator if there are existing values
+					const newValue = currentPossibleRelations ? `${currentPossibleRelations}#${currentKaarakaSambandha}` : currentKaarakaSambandha;
+					handleValueChange(procIndex, "possible_relations", newValue);
+				}
+			}
+		};
+
+		const renderInput = (field: string, value: string, width: string = "w-[180px]", placeholder: string) => {
+			const showMorphAnalysisButton =
+				field === "morph_in_context" && (permissions === "Admin" || permissions === "Root") && morphInContextChanges.has(procIndex);
+
+			const showPossibleRelationsButton =
+				field === "kaaraka_sambandha" && (permissions === "Admin" || permissions === "Root") && kaarakaRelationChanges.has(procIndex);
+
+			return (
+				<div className="flex gap-2 items-center">
+					<Input
+						type="text"
+						value={value || ""}
+						onChange={(e) => handleValueChange(procIndex, field, e.target.value)}
+						className={width}
+						placeholder={placeholder}
+						disabled={permissions === "User"}
+					/>
+					{showMorphAnalysisButton && (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button variant="outline" size="icon" className="size-8" onClick={() => handleAddToMorphAnalysis(procIndex)}>
+										<PlusCircleIcon className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>
+									<p>Add to Morph Analysis</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					)}
+					{showPossibleRelationsButton && (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button variant="outline" size="icon" className="size-8" onClick={() => handleAddToPossibleRelations(procIndex)}>
+										<PlusCircleIcon className="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>
+									<p>Add to Possible Relations</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					)}
+				</div>
+			);
+		};
 
 		// Helper function to determine if a field is editable based on permissions
 		const isFieldEditable = (field: string) => {
