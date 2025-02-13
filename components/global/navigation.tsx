@@ -26,6 +26,10 @@ const routes = [
 		href: "/books",
 		label: "E-Readers",
 	},
+	{
+		href: "/addword",
+		label: "Add Word",
+	},
 ];
 
 export const Navigation = () => {
