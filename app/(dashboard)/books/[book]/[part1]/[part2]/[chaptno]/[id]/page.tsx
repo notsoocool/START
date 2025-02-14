@@ -610,12 +610,25 @@ export default function AnalysisPage() {
 		}
 	};
 
+	// Helper function to determine if a field is editable based on permissions
+	const isFieldEditable = (field: string) => {
+		if (permissions === "Root" || permissions === "Admin") return true; // Admin and Root can edit everything
+		if (permissions === "Editor") {
+			// Remove anvaya_no from the list of editable fields for Editor
+			return ["word", "poem", "morph_in_context", "kaaraka_sambandha"].includes(field);
+		}
+		return false;
+	};
+
 	const renderColumnsBasedOnPermissions = (processed: any, procIndex: number, currentProcessedData: any, isHovered: any, lookupWord: any) => {
 		if (!permissions) return <TableCell></TableCell>;
 
 		const isDeleted = currentProcessedData?.deleted;
 		const deletedStyle = { backgroundColor: isDeleted ? "#f8d8da" : "transparent" };
 		const deletedContent = <span className="text-gray-500">-</span>;
+
+		const canEdit = permissions === "Editor" || permissions === "Admin" || permissions === "Root";
+		const showAnalysisButtons = permissions === "Editor" || permissions === "Admin" || permissions === "Root";
 
 		const handleAddToMorphAnalysis = (procIndex: number) => {
 			const currentMorphInContext = currentProcessedData?.morph_in_context || processed.morph_in_context;
@@ -653,11 +666,14 @@ export default function AnalysisPage() {
 		};
 
 		const renderInput = (field: string, value: string, width: string = "w-[180px]", placeholder: string) => {
-			const showMorphAnalysisButton =
-				field === "morph_in_context" && (permissions === "Admin" || permissions === "Root") && morphInContextChanges.has(procIndex);
+			// If user permission, just return the value as text
+			if (permissions === "User") {
+				return <span className="px-2">{value || "-"}</span>;
+			}
 
-			const showPossibleRelationsButton =
-				field === "kaaraka_sambandha" && (permissions === "Admin" || permissions === "Root") && kaarakaRelationChanges.has(procIndex);
+			const showMorphAnalysisButton = field === "morph_in_context" && showAnalysisButtons && morphInContextChanges.has(procIndex);
+
+			const showPossibleRelationsButton = field === "kaaraka_sambandha" && showAnalysisButtons && kaarakaRelationChanges.has(procIndex);
 
 			return (
 				<div className="flex gap-2 items-center">
@@ -667,7 +683,7 @@ export default function AnalysisPage() {
 						onChange={(e) => handleValueChange(procIndex, field, e.target.value)}
 						className={width}
 						placeholder={placeholder}
-						disabled={permissions === "User"}
+						disabled={!isFieldEditable(field)}
 					/>
 					{showMorphAnalysisButton && (
 						<TooltipProvider>
@@ -699,15 +715,6 @@ export default function AnalysisPage() {
 					)}
 				</div>
 			);
-		};
-
-		// Helper function to determine if a field is editable based on permissions
-		const isFieldEditable = (field: string) => {
-			if (permissions === "Root") return true;
-			if (permissions === "Admin") {
-				return ["word", "poem", "morph_in_context", "kaaraka_sambandha", "bgcolor"].includes(field);
-			}
-			return false;
 		};
 
 		const renderCell = (field: string, content: React.ReactNode) => {
@@ -780,7 +787,7 @@ export default function AnalysisPage() {
 					<TableCell style={deletedStyle}>
 						{isDeleted ? (
 							<span className="text-gray-500">Deleted</span>
-						) : permissions === "Root" ? (
+						) : permissions === "Root" || permissions === "Admin" ? ( // Only Root and Admin can edit anvaya_no
 							<Input
 								type="text"
 								value={currentProcessedData?.anvaya_no || processed.anvaya_no}
@@ -789,11 +796,38 @@ export default function AnalysisPage() {
 								placeholder="Enter Index"
 							/>
 						) : (
-							processed.anvaya_no
+							processed.anvaya_no // Show as plain text for Editor and User
 						)}
 					</TableCell>
 				)}
-				{selectedColumns.includes("word") && renderCell("word", renderInput("word", currentProcessedData?.word, "w-[100px]", "Enter Word"))}
+				{selectedColumns.includes("word") && (
+					<TableCell style={deletedStyle}>
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<div
+										onMouseEnter={() => {
+											if (lookupWord) fetchMeaning(lookupWord, procIndex);
+										}}
+									>
+										{isDeleted ? deletedContent : renderInput("word", currentProcessedData?.word || processed.word, "w-[90px]", "Enter Word")}
+									</div>
+								</TooltipTrigger>
+								{selectedMeaning[procIndex] && (
+									<TooltipContent
+										className="max-h-[300px] overflow-y-auto w-[300px]"
+										style={{
+											scrollbarWidth: "thin",
+											scrollbarColor: "#888 #f1f1f1",
+										}}
+									>
+										{formatMeaning(selectedMeaning[procIndex])}
+									</TooltipContent>
+								)}
+							</Tooltip>
+						</TooltipProvider>
+					</TableCell>
+				)}
 				{selectedColumns.includes("poem") && renderCell("poem", renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index"))}
 				{selectedColumns.includes("morph_analysis") &&
 					renderCell("morph_analysis", renderInput("morph_analysis", currentProcessedData?.morph_analysis, "w-[180px]", "Enter Morph Analysis"))}
@@ -809,7 +843,7 @@ export default function AnalysisPage() {
 				{selectedColumns.includes("hindi_meaning") &&
 					renderCell("hindi_meaning", renderInput("hindi_meaning", currentProcessedData?.hindi_meaning, "w-[180px]", "Enter Hindi Meaning"))}
 				{selectedColumns.includes("bgcolor") && renderBgColor()}
-				{permissions !== "User" && (
+				{canEdit && (
 					<TableCell className="flex flex-col gap-3 items-center" style={deletedStyle}>
 						<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
 							<Trash className="size-4" />
@@ -843,10 +877,7 @@ export default function AnalysisPage() {
 				return (
 					<TableRow
 						key={procIndex}
-						onMouseEnter={() => {
-							setHoveredRowIndex(procIndex);
-							if (lookupWord) fetchMeaning(lookupWord, procIndex);
-						}}
+						onMouseEnter={() => setHoveredRowIndex(procIndex)}
 						onMouseLeave={() => setHoveredRowIndex(null)}
 						style={{
 							backgroundColor: processed.bgcolor ? `rgba(${hexToRgb(processed.bgcolor)}, ${opacity})` : "transparent",
@@ -999,12 +1030,76 @@ export default function AnalysisPage() {
 				return;
 			}
 
+			const currentResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const currentData = await currentResponse.json();
+
+			const anvayaMapping: { [key: string]: string } = {};
+			const [newMain, newSub] = newRowData.anvaya_no.split(".").map(Number);
+
+			// Find the item that needs to be converted
+			const itemToConvert = currentData.find((item: any) => item.sentno === newRowData.sentno && item.anvaya_no.startsWith(`${newMain}.`));
+
+			if (shiftType === "convert_to_sub" && itemToConvert) {
+				// Only map the single item that needs to be converted
+				anvayaMapping[itemToConvert.anvaya_no] = `${newMain}.2`;
+			} else if (shiftType === "main") {
+				currentData.forEach((item: any) => {
+					if (item.sentno === newRowData.sentno) {
+						const [itemMain, itemSub] = item.anvaya_no.split(".").map(Number);
+						if (itemMain >= newMain) {
+							anvayaMapping[`${itemMain}.${itemSub}`] = `${itemMain + 1}.${itemSub}`;
+						}
+					}
+				});
+			} else if (shiftType === "sub") {
+				currentData.forEach((item: any) => {
+					if (item.sentno === newRowData.sentno) {
+						const [itemMain, itemSub] = item.anvaya_no.split(".").map(Number);
+						if (itemMain === newMain && itemSub >= newSub) {
+							anvayaMapping[`${itemMain}.${itemSub}`] = `${itemMain}.${itemSub + 1}`;
+						}
+					}
+				});
+			}
+
+			// Update only the relations that reference the changed anvaya numbers
+			const updateRelations = (relations: string) => {
+				if (!relations || relations === "-") return relations;
+
+				return relations
+					.split(";")
+					.map((relation) => {
+						const [type, number] = relation.split(",");
+						const trimmedNumber = number?.trim();
+						return anvayaMapping[trimmedNumber] ? `${type},${anvayaMapping[trimmedNumber]}` : relation;
+					})
+					.join(";");
+			};
+
+			// Only update items that are in the mapping
+			const updatedCurrentData = currentData.map((item: any) => {
+				if (item.sentno !== newRowData.sentno) return item;
+
+				const newAnvayaNo = anvayaMapping[item.anvaya_no];
+				if (!newAnvayaNo) return item;
+
+				return {
+					...item,
+					anvaya_no: newAnvayaNo,
+					kaaraka_sambandha: updateRelations(item.kaaraka_sambandha),
+					possible_relations: updateRelations(item.possible_relations),
+				};
+			});
+
+			// Add the new row
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					...newRowData,
 					shiftType,
+					currentData: updatedCurrentData,
+					targetMain: newMain, // Add this to help API identify which number to convert
 				}),
 			});
 

@@ -229,34 +229,18 @@ export async function POST(req: Request, { params }: { params: Params }) {
 				}
 			} else if (shiftType === "convert_to_sub") {
 				if (rowMain === newMain) {
-					// Find the highest existing sub-number for this main number
-					const existingSubNumbers = existingRows
-						.filter((r) => {
-							const [rMain] = r.anvaya_no.split(".").map(Number);
-							return rMain === newMain;
-						})
-						.map((r) => {
-							const [, rSub] = r.anvaya_no.split(".").map(Number);
-							return rSub;
-						});
-
-					// Get the next available sub-number
-					const maxSubNumber = Math.max(0, ...existingSubNumbers);
-					const nextSubNumber = maxSubNumber + 1;
-
-					// Assign new sub-number based on order
+					// Only update sub-numbers within the same main group
 					if (rowSub === 1) {
 						// First row becomes sub-number 2 (after new row)
 						newAnvayaNo = `${newMain}.2`;
-					} else {
+						shouldUpdate = true;
+					} else if (rowSub > 1) {
 						// Subsequent rows get incremented sub-numbers
 						newAnvayaNo = `${newMain}.${rowSub + 1}`;
+						shouldUpdate = true;
 					}
-					shouldUpdate = true;
-				} else if (rowMain > newMain) {
-					newAnvayaNo = `${rowMain + 1}.${rowSub}`;
-					shouldUpdate = true;
 				}
+				// Don't update any rows with different main numbers
 			}
 
 			if (shouldUpdate) {
