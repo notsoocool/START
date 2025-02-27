@@ -55,6 +55,7 @@ export default function AnalysisPage() {
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
 		{ id: "poem", label: "Prose Index" },
+        { id: 'sandhied_word', label: "Sandhied Word"},
 		{ id: "morph_analysis", label: "Morph Analysis" },
 		{ id: "morph_in_context", label: "Morph In Context" },
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
@@ -829,6 +830,7 @@ export default function AnalysisPage() {
 					</TableCell>
 				)}
 				{selectedColumns.includes("poem") && renderCell("poem", renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index"))}
+				{selectedColumns.includes("sandhied_word") && renderCell("sandhied_word", renderInput("sandhied_word", currentProcessedData?.sandhied_word, "w-[100px]", "Enter Sandhied Word"))}
 				{selectedColumns.includes("morph_analysis") &&
 					renderCell("morph_analysis", renderInput("morph_analysis", currentProcessedData?.morph_analysis, "w-[180px]", "Enter Morph Analysis"))}
 				{selectedColumns.includes("morph_in_context") &&
@@ -1358,6 +1360,7 @@ export default function AnalysisPage() {
 							{selectedColumns.includes("index") && <TableHead className="w-[100px]">Index</TableHead>}
 							{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
 							{selectedColumns.includes("poem") && <TableHead>Prose Index</TableHead>}
+							{selectedColumns.includes("sandhied_word") && <TableHead>Sandhied Word</TableHead>}
 							{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
 							{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
 							{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Relation</TableHead>}
