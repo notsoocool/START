@@ -30,6 +30,10 @@ const routes = [
 		href: "/addword",
 		label: "Add Word",
 	},
+    {
+        href: "/bookmarks",
+        label: "Bookmarks"
+    }
 ];
 
 export const Navigation = () => {
