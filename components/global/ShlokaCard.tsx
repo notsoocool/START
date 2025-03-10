@@ -6,20 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BookOpen } from "lucide-react";
 import { Share2Icon } from "@radix-ui/react-icons";
+import BookmarkButton from "./BookmarkButton";
 
 interface ShlokaCardProps {
 	book: string | string[];
 	chaptno: string;
 	shloka: {
+		_id: string;
 		slokano: string;
 		spart: string;
 	};
+	analysisID: string;
 }
 
-export function ShlokaCard({ book, chaptno, shloka }: ShlokaCardProps) {
+export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProps) {
+	console.log("ShlokaCard props:", {
+		shlokaID: shloka._id,
+		analysisID,
+	});
+
 	return (
 		<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-			<CardHeader className="border-b border-border">
+			<CardHeader className="border-b border-border flex flex-row justify-between items-center h-16">
 				<div className="flex items-center gap-2">
 					<CardTitle className="text-lg font-medium">
 						{decodeURIComponent(typeof book === "string" ? book : book[0])
@@ -31,6 +39,7 @@ export function ShlokaCard({ book, chaptno, shloka }: ShlokaCardProps) {
 						{chaptno}.{shloka?.slokano}
 					</Badge>
 				</div>
+				<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
 			</CardHeader>
 			<CardContent className="p-6">
 				<div className="space-y-4">

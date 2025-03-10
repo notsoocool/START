@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Header } from "@/components/global/analysisHeader";
 import { ShlokaCard } from "@/components/global/ShlokaCard";
 import { GraphDisplay } from "@/components/global/GraphDisplay";
+import BookmarkButton from "@/components/global/BookmarkButton";
 
 declare global {
 	interface Window {
@@ -55,7 +56,7 @@ export default function AnalysisPage() {
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
 		{ id: "poem", label: "Prose Index" },
-        { id: 'sandhied_word', label: "Sandhied Word"},
+		{ id: "sandhied_word", label: "Sandhied Word" },
 		{ id: "morph_analysis", label: "Morph Analysis" },
 		{ id: "morph_in_context", label: "Morph In Context" },
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
@@ -100,6 +101,7 @@ export default function AnalysisPage() {
 	const [shiftType, setShiftType] = useState<"main" | "sub" | "convert_to_sub">("main");
 	const [morphInContextChanges, setMorphInContextChanges] = useState<Set<number>>(new Set());
 	const [kaarakaRelationChanges, setKaarakaRelationChanges] = useState<Set<number>>(new Set());
+	const [analysisId, setAnalysisId] = useState<string | null>(null);
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -150,6 +152,11 @@ export default function AnalysisPage() {
 				const mappedData = chapterData.map((item: any) => ({ ...item }));
 				setUpdatedData(mappedData);
 				setOriginalData(mappedData);
+
+				// Set the analysis ID if we have data
+				if (chapterData && chapterData.length > 0) {
+					setAnalysisId(chapterData[0]._id);
+				}
 			} catch (error) {
 				console.error("Error fetching data:", error);
 			} finally {
@@ -830,7 +837,8 @@ export default function AnalysisPage() {
 					</TableCell>
 				)}
 				{selectedColumns.includes("poem") && renderCell("poem", renderInput("poem", currentProcessedData?.poem, "w-[100px]", "Enter Prose Index"))}
-				{selectedColumns.includes("sandhied_word") && renderCell("sandhied_word", renderInput("sandhied_word", currentProcessedData?.sandhied_word, "w-[100px]", "Enter Sandhied Word"))}
+				{selectedColumns.includes("sandhied_word") &&
+					renderCell("sandhied_word", renderInput("sandhied_word", currentProcessedData?.sandhied_word, "w-[100px]", "Enter Sandhied Word"))}
 				{selectedColumns.includes("morph_analysis") &&
 					renderCell("morph_analysis", renderInput("morph_analysis", currentProcessedData?.morph_analysis, "w-[180px]", "Enter Morph Analysis"))}
 				{selectedColumns.includes("morph_in_context") &&
@@ -1317,22 +1325,24 @@ export default function AnalysisPage() {
 	// Render the UI with the Shloka
 	return (
 		<div className="container mx-auto p-6 space-y-8 w-full">
-			<Header
-				chaptno={chaptno as string}
-				id={id as string}
-				shloka={shloka}
-				availableShlokas={availableShlokas}
-				selectedColumns={selectedColumns}
-				columnOptions={columnOptions}
-				selectedDictionary={selectedDictionary}
-				handleShlokaChange={handleShlokaChange}
-				handleColumnSelect={handleColumnSelect}
-				handleOpacityChange={handleOpacityChange}
-				setSelectedDictionary={setSelectedDictionary}
-				handleGenerateGraph={handleGenerateGraph}
-			/>
+			<div className="flex justify-between items-center">
+				<Header
+					chaptno={chaptno as string}
+					id={id as string}
+					shloka={shloka}
+					availableShlokas={availableShlokas}
+					selectedColumns={selectedColumns}
+					columnOptions={columnOptions}
+					selectedDictionary={selectedDictionary}
+					handleShlokaChange={handleShlokaChange}
+					handleColumnSelect={handleColumnSelect}
+					handleOpacityChange={handleOpacityChange}
+					setSelectedDictionary={setSelectedDictionary}
+					handleGenerateGraph={handleGenerateGraph}
+				/>
+			</div>
 
-			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} />
+			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} analysisID={analysisId as string} />
 
 			<div className="flex justify-end w-full gap-2">
 				{renderAddRowButton()}

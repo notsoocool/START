@@ -20,8 +20,7 @@ Represents Sanskrit verses with their structural information:
 {
   chaptno: string;    // Chapter number
   slokano: string;    // Verse number
-  spart1: string;     // First part of the verse
-  spart2?: string;    // Second part (optional)
+  spart1: string;     // Verse sepearted by #
   book: string;       // Source book name
   part1?: string;     // Book subdivision 1 (optional)
   part2?: string;     // Book subdivision 2 (optional)
