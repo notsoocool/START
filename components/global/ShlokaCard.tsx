@@ -7,8 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { BookOpen } from "lucide-react";
 import { Share2Icon } from "@radix-ui/react-icons";
 import BookmarkButton from "./BookmarkButton";
-import { toPng } from 'html-to-image';
-import { useRef } from 'react';
+import { toPng } from "html-to-image";
+import { useRef } from "react";
 
 interface ShlokaCardProps {
 	book: string | string[];
@@ -30,26 +30,26 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 		try {
 			const dataUrl = await toPng(shlokaRef.current, {
 				quality: 1.0,
-				backgroundColor: 'white',
+				backgroundColor: "white",
 			});
 
 			// For mobile devices, use native share if available
 			if (navigator.share) {
 				const blob = await (await fetch(dataUrl)).blob();
-				const file = new File([blob], 'shloka.png', { type: 'image/png' });
+				const file = new File([blob], "shloka.png", { type: "image/png" });
 				await navigator.share({
 					files: [file],
 					title: `${book} ${chaptno}.${shloka.slokano}`,
 				});
 			} else {
 				// Fallback to download
-				const link = document.createElement('a');
+				const link = document.createElement("a");
 				link.download = `shloka-${chaptno}-${shloka.slokano}.png`;
 				link.href = dataUrl;
 				link.click();
 			}
 		} catch (error) {
-			console.error('Error sharing:', error);
+			console.error("Error sharing:", error);
 		}
 	};
 

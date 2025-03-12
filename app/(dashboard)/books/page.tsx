@@ -162,7 +162,7 @@ export default function SacredTexts() {
 		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
 			<div className="max-w-4xl mx-auto space-y-6">
 				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">
-					Sacred Texts
+					Sanskrit Texts
 				</h2>
 				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
 					{isLoading ? (

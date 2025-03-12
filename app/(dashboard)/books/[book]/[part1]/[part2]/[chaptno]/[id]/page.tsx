@@ -21,6 +21,7 @@ import { Header } from "@/components/global/analysisHeader";
 import { ShlokaCard } from "@/components/global/ShlokaCard";
 import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
+import { Discussions } from "@/components/global/Discussions";
 
 declare global {
 	interface Window {
@@ -1458,6 +1459,15 @@ export default function AnalysisPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			<Card className="mt-8">
+				<CardHeader>
+					<CardTitle>Discussions</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Discussions shlokaId={shloka._id} />
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
