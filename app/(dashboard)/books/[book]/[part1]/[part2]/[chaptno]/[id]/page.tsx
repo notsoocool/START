@@ -102,6 +102,8 @@ export default function AnalysisPage() {
 	const [morphInContextChanges, setMorphInContextChanges] = useState<Set<number>>(new Set());
 	const [kaarakaRelationChanges, setKaarakaRelationChanges] = useState<Set<number>>(new Set());
 	const [analysisId, setAnalysisId] = useState<string | null>(null);
+	const [meaningDialogOpen, setMeaningDialogOpen] = useState(false);
+	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -263,94 +265,99 @@ export default function AnalysisPage() {
 	};
 
 	const handleGenerateGraph = async () => {
-		// Select only the fields you want to pass
-		const selectedFields = [
-			"anvaya_no",
-			"word",
-			"poem",
-			"sandhied_word",
-			"morph_analysis",
-			"morph_in_context",
-			"kaaraka_sambandha",
-			"possible_relations",
-			"bgcolor",
-		];
+		// Show loading toast
+		const loadingToast = toast.loading("Generating graphs...");
 
-		// Group data by sentno
-		const groupedData: { [key: string]: any[] } = {};
+		try {
+			// Select only the fields you want to pass
+			const selectedFields = [
+				"anvaya_no",
+				"word",
+				"poem",
+				"sandhied_word",
+				"morph_analysis",
+				"morph_in_context",
+				"kaaraka_sambandha",
+				"possible_relations",
+				"bgcolor",
+			];
 
-		chapter.forEach((item: any, index: number) => {
-			const updatedItem = updatedData[index] || {};
-			const sentno = updatedItem.sentno ?? item.sentno;
+			// Group data by sentno
+			const groupedData: { [key: string]: any[] } = {};
 
-			if (!groupedData[sentno]) {
-				groupedData[sentno] = [];
-			}
+			chapter.forEach((item: any, index: number) => {
+				const updatedItem = updatedData[index] || {};
+				const sentno = updatedItem.sentno ?? item.sentno;
 
-			// Create a new object with only the selected fields
-			const filteredItem: any = {};
-			selectedFields.forEach((field) => {
-				filteredItem[field] = updatedItem[field] ?? item[field];
-			});
+				if (!groupedData[sentno]) {
+					groupedData[sentno] = [];
+				}
 
-			// ** Update the `anvaya_no` to include the sentence number **
-			if (filteredItem.anvaya_no && sentno) {
-				const parts = filteredItem.anvaya_no.split(".");
-				const modifiedAnvayaNo = `S${sentno}.${parts.join(".")}`;
-				filteredItem.anvaya_no = modifiedAnvayaNo;
-			}
-
-			// ** Update the `kaaraka_sambandha` to include the sentence number **
-			if (filteredItem.kaaraka_sambandha && sentno) {
-				const kaarakaEntries = filteredItem.kaaraka_sambandha.split(";");
-
-				const modifiedKaaraka = kaarakaEntries.map((entry: { split: (arg0: string) => [any, any] }) => {
-					const [relation, sentenceNumber] = entry.split(",");
-					// Check if there is a sentence number part (e.g., "1.2")
-					if (sentenceNumber) {
-						return `${relation},S${sentno}.${sentenceNumber}`;
-					}
-					return entry; // Return unchanged if no sentence number is found
+				// Create a new object with only the selected fields
+				const filteredItem: any = {};
+				selectedFields.forEach((field) => {
+					filteredItem[field] = updatedItem[field] ?? item[field];
 				});
 
-				filteredItem.kaaraka_sambandha = modifiedKaaraka.join(";");
+				// Update the `anvaya_no` to include the sentence number
+				if (filteredItem.anvaya_no && sentno) {
+					const parts = filteredItem.anvaya_no.split(".");
+					const modifiedAnvayaNo = `S${sentno}.${parts.join(".")}`;
+					filteredItem.anvaya_no = modifiedAnvayaNo;
+				}
+
+				// Update the `kaaraka_sambandha` to include the sentence number
+				if (filteredItem.kaaraka_sambandha && sentno) {
+					const kaarakaEntries = filteredItem.kaaraka_sambandha.split(";");
+
+					const modifiedKaaraka = kaarakaEntries.map((entry: { split: (arg0: string) => [any, any] }) => {
+						const [relation, sentenceNumber] = entry.split(",");
+						if (sentenceNumber) {
+							return `${relation},S${sentno}.${sentenceNumber}`;
+						}
+						return entry;
+					});
+
+					filteredItem.kaaraka_sambandha = modifiedKaaraka.join(";");
+				}
+
+				groupedData[sentno].push(filteredItem);
+			});
+
+			// Clear previous graph URLs and errors
+			setGraphUrls({});
+			setErrorMessage(null);
+
+			// Generate a graph for each sentno group
+			for (const [sentno, dataForSentno] of Object.entries(groupedData)) {
+				try {
+					const tsv = jsonToTsv(dataForSentno);
+					const svgContent = await handleSubmitGraph(tsv);
+					setGraphUrls((prevGraphUrls) => ({
+						...prevGraphUrls,
+						[sentno]: svgContent || "",
+					}));
+				} catch (error) {
+					setErrorMessage(`Error generating graph for sentno: ${sentno}`);
+				}
 			}
 
-			groupedData[sentno].push(filteredItem);
-		});
+			// Dismiss loading toast and show success
+			toast.dismiss(loadingToast);
+			toast.success("Graphs generated successfully!");
 
-		// Clear previous graph URLs and errors before starting
-		setGraphUrls({});
-		setErrorMessage(null);
-
-		// Generate a graph for each sentno group
-		for (const [sentno, dataForSentno] of Object.entries(groupedData)) {
-			try {
-				// Convert the filtered data to TSV format
-				const tsv = jsonToTsv(dataForSentno);
-
-				const svgContent = await handleSubmitGraph(tsv);
-
-				setGraphUrls((prevGraphUrls) => ({
-					...prevGraphUrls,
-					[sentno]: svgContent || "", // Store SVG content directly
-				}));
-			} catch (error) {
-				// If any error occurs, show the error message
-				setErrorMessage(`Error generating graph for sentno: ${sentno}`);
-			}
+			// Scroll to graphs section
+			setTimeout(() => {
+				const graphsSection = document.querySelector("[data-graphs-section]");
+				if (graphsSection) {
+					graphsSection.scrollIntoView({ behavior: "smooth" });
+				}
+			}, 100);
+		} catch (error) {
+			// Dismiss loading toast and show error
+			toast.dismiss(loadingToast);
+			toast.error("Error generating graphs: " + (error as Error).message);
 		}
-
-		// Add this toast notification and scroll to graphs
-		toast.success("Graphs generated successfully!");
-
-		// Add a small delay to ensure the graphs are rendered
-		setTimeout(() => {
-			const graphsSection = document.querySelector("[data-graphs-section]");
-			if (graphsSection) {
-				graphsSection.scrollIntoView({ behavior: "smooth" });
-			}
-		}, 100);
 	};
 
 	const handleSubmitGraph = async (tsvData: string) => {
@@ -822,14 +829,21 @@ export default function AnalysisPage() {
 									</div>
 								</TooltipTrigger>
 								{selectedMeaning[procIndex] && (
-									<TooltipContent
-										className="max-h-[300px] overflow-y-auto w-[300px]"
-										style={{
-											scrollbarWidth: "thin",
-											scrollbarColor: "#888 #f1f1f1",
-										}}
-									>
-										{formatMeaning(selectedMeaning[procIndex])}
+									<TooltipContent className="w-[200px]">
+										<div className="space-y-2">
+											<p className="text-sm">{truncateMeaning(selectedMeaning[procIndex], 100)}</p>
+											<Button
+												variant="link"
+												className="text-xs p-0 h-auto"
+												onClick={(e) => {
+													e.preventDefault();
+													setSelectedWordMeaning(selectedMeaning[procIndex]);
+													setMeaningDialogOpen(true);
+												}}
+											>
+												Show More
+											</Button>
+										</div>
 									</TooltipContent>
 								)}
 							</Tooltip>
@@ -1267,6 +1281,12 @@ export default function AnalysisPage() {
 		</Dialog>
 	);
 
+	// Add this helper function to truncate the meaning
+	const truncateMeaning = (meaning: string, maxLength: number) => {
+		if (meaning.length <= maxLength) return meaning;
+		return meaning.slice(0, maxLength) + "...";
+	};
+
 	if (initialLoad) {
 		return (
 			<div className="max-w-screen-2xl mx-auto w-full p-8">
@@ -1420,6 +1440,24 @@ export default function AnalysisPage() {
 			</Dialog>
 
 			{renderAddRowDialog()}
+
+			<Dialog open={meaningDialogOpen} onOpenChange={setMeaningDialogOpen}>
+				<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Complete Meaning</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4">
+						{selectedWordMeaning.split(/(?=\d+\.)/).map((part, index) => (
+							<p key={index} className="text-sm">
+								{part.trim()}
+							</p>
+						))}
+					</div>
+					<DialogFooter>
+						<Button onClick={() => setMeaningDialogOpen(false)}>Close</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
