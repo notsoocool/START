@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { BookOpen } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { Share2Icon } from "@radix-ui/react-icons";
 import BookmarkButton from "./BookmarkButton";
 import { toPng } from "html-to-image";
@@ -53,6 +53,13 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 		}
 	};
 
+	const handleDiscussionClick = () => {
+		const discussionSection = document.getElementById("discussions");
+		if (discussionSection) {
+			discussionSection.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+	};
+
 	console.log("ShlokaCard props:", {
 		shlokaID: shloka._id,
 		analysisID,
@@ -86,9 +93,9 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 						</div>
 						<Separator className="my-4" />
 						<div className="flex justify-center gap-4">
-							<Button variant="outline" size="sm">
-								<BookOpen className="h-4 w-4 mr-2" />
-								View Commentary
+							<Button variant="outline" size="sm" onClick={handleDiscussionClick}>
+								<MessageSquare className="h-4 w-4 mr-2" />
+								Discussions
 							</Button>
 							<Button variant="outline" size="sm" onClick={handleShare}>
 								<Share2Icon className="h-4 w-4 mr-2" />

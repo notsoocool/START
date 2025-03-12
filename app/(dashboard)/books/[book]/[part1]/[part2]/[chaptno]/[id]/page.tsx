@@ -1460,7 +1460,7 @@ export default function AnalysisPage() {
 				</DialogContent>
 			</Dialog>
 
-			<Card className="mt-8">
+			<Card className="mt-8" id="discussions">
 				<CardHeader>
 					<CardTitle>Discussions</CardTitle>
 				</CardHeader>

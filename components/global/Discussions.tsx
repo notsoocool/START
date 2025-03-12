@@ -24,6 +24,7 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 	const [currentUser, setCurrentUser] = useState<User | null>(null);
 	const [discussions, setDiscussions] = useState<any[]>([]);
 	const [newComment, setNewComment] = useState("");
+	const [replyText, setReplyText] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [replyTo, setReplyTo] = useState<string | null>(null);
 
@@ -63,7 +64,9 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 			return;
 		}
 
-		if (!newComment.trim()) {
+		const commentText = replyTo ? replyText : newComment;
+
+		if (!commentText.trim()) {
 			toast.error("Please enter a comment");
 			return;
 		}
@@ -75,7 +78,7 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					shlokaId,
-					content: newComment,
+					content: commentText,
 					parentId: replyTo,
 				}),
 			});
@@ -83,6 +86,7 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 			if (!response.ok) throw new Error("Failed to post comment");
 
 			setNewComment("");
+			setReplyText("");
 			setReplyTo(null);
 			await fetchDiscussions();
 			toast.success("Comment posted successfully!");
@@ -130,38 +134,71 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 	const renderDiscussions = (parentId: string | null = null, depth: number = 0) => {
 		const filteredDiscussions = discussions.filter((d) => d.parentId === parentId);
 
-		return filteredDiscussions.map((discussion) => (
-			<div key={discussion._id} className={`ml-${depth * 4}`}>
-				<Card className="mb-4">
-					<CardContent className="pt-4">
-						<div className="flex items-start gap-4">
-							<Avatar>
-								<AvatarFallback>{discussion.userName[0]}</AvatarFallback>
-							</Avatar>
-							<div className="flex-1">
-								<div className="flex items-center justify-between">
-									<div>
-										<p className="font-semibold">{discussion.userName}</p>
-										<p className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}</p>
+		return filteredDiscussions.map((discussion) => {
+			const parentDiscussion = discussions.find((d) => d._id === discussion.parentId);
+			const isReplying = replyTo === discussion._id;
+
+			return (
+				<div key={discussion._id} className={`${depth > 0 ? "ml-8 border-l-2 border-muted pl-4" : ""}`}>
+					<Card className="mb-4">
+						<CardContent className="pt-4">
+							<div className="flex items-start gap-4">
+								<Avatar>
+									<AvatarFallback>{discussion.userName[0]}</AvatarFallback>
+								</Avatar>
+								<div className="flex-1">
+									<div className="flex items-center justify-between">
+										<div>
+											<p className="font-semibold">{discussion.userName}</p>
+											{parentDiscussion && <p className="text-sm text-muted-foreground">Replying to {parentDiscussion.userName}</p>}
+											<p className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}</p>
+										</div>
+										{canDeleteComment(discussion) && (
+											<Button variant="ghost" size="icon" onClick={() => handleDelete(discussion._id)}>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										)}
 									</div>
-									{canDeleteComment(discussion) && (
-										<Button variant="ghost" size="icon" onClick={() => handleDelete(discussion._id)}>
-											<Trash2 className="h-4 w-4" />
-										</Button>
+									<p className="mt-2">{discussion.content}</p>
+									<Button variant="ghost" size="sm" className="mt-2" onClick={() => setReplyTo(discussion._id)}>
+										<MessageSquare className="h-4 w-4 mr-2" />
+										Reply
+									</Button>
+
+									{isReplying && (
+										<div className="mt-4 space-y-2">
+											<Textarea
+												placeholder="Write your reply..."
+												value={replyText}
+												onChange={(e) => setReplyText(e.target.value)}
+												disabled={!currentUser || loading}
+												className="min-h-[100px]"
+											/>
+											<div className="flex justify-end gap-2">
+												<Button 
+													variant="ghost" 
+													onClick={() => {
+														setReplyTo(null);
+														setReplyText("");
+													}}
+												>
+													Cancel
+												</Button>
+												<Button onClick={handleSubmit} disabled={!currentUser || loading}>
+													{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+													Reply
+												</Button>
+											</div>
+										</div>
 									)}
 								</div>
-								<p className="mt-2">{discussion.content}</p>
-								<Button variant="ghost" size="sm" className="mt-2" onClick={() => setReplyTo(discussion._id)}>
-									<MessageSquare className="h-4 w-4 mr-2" />
-									Reply
-								</Button>
 							</div>
-						</div>
-					</CardContent>
-				</Card>
-				{renderDiscussions(discussion._id, depth + 1)}
-			</div>
-		));
+						</CardContent>
+					</Card>
+					{renderDiscussions(discussion._id, depth + 1)}
+				</div>
+			);
+		});
 	};
 
 	return (
