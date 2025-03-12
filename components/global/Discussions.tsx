@@ -175,8 +175,8 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 												className="min-h-[100px]"
 											/>
 											<div className="flex justify-end gap-2">
-												<Button 
-													variant="ghost" 
+												<Button
+													variant="ghost"
 													onClick={() => {
 														setReplyTo(null);
 														setReplyText("");
