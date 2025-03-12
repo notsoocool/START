@@ -116,6 +116,17 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 		}
 	};
 
+	const canDeleteComment = (discussion: any) => {
+		if (!currentUser) return false;
+
+		// Check if user is owner
+		const isOwner = currentUser.id === discussion.userId;
+		// Check if user has Admin or Root permissions
+		const isAdminOrRoot = currentUser.perms?.includes("Admin") || currentUser.perms?.includes("Root");
+
+		return isOwner || isAdminOrRoot;
+	};
+
 	const renderDiscussions = (parentId: string | null = null, depth: number = 0) => {
 		const filteredDiscussions = discussions.filter((d) => d.parentId === parentId);
 
@@ -133,7 +144,7 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 										<p className="font-semibold">{discussion.userName}</p>
 										<p className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}</p>
 									</div>
-									{(currentUser?.id === discussion.userId || currentUser?.perms.includes("admin") || currentUser?.perms.includes("root")) && (
+									{canDeleteComment(discussion) && (
 										<Button variant="ghost" size="icon" onClick={() => handleDelete(discussion._id)}>
 											<Trash2 className="h-4 w-4" />
 										</Button>
