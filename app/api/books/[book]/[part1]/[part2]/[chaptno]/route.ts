@@ -1,7 +1,8 @@
 // /app/api/books/[book]/[part1]/[part2]/[chaptno]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 interface Params {
     book: string;
@@ -44,9 +45,13 @@ export async function GET(request: Request, { params }: { params: Params }) {
     return NextResponse.json({ shlokas }, { headers: corsHeaders() });
 }
 
-export async function DELETE(request: Request, { params }: { params: Params }) {
+export async function DELETE(request: NextRequest, { params }: { params: Params }) {
     await dbConnect();
     const { book, part1, part2, chaptno } = params;
+    const authResponse = await verifyDBAccess(request);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
     // Build the query dynamically, excluding null values
     const query = {

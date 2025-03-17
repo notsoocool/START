@@ -233,7 +233,7 @@ export default function AnalysisPage() {
 
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "PUT",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify(dataToUpdate),
 			});
 
@@ -498,7 +498,7 @@ export default function AnalysisPage() {
 
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
 				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify({
 					anvaya_no: currentAnvayaNo,
 					sentno: currentData.sentno,
@@ -1119,7 +1119,7 @@ export default function AnalysisPage() {
 			// Add the new row
 			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify({
 					...newRowData,
 					shiftType,

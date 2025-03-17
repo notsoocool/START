@@ -1,9 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
 	try {
 		await dbConnect();
 		const { oldBook, newBook } = await req.json();

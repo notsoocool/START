@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Bookmark from "@/lib/db/bookmarksModel";
 import Shloka from "@/lib/db/newShlokaModel";
 import { currentUser } from "@clerk/nextjs/server";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 export async function GET(request: Request) {
 	try {
@@ -40,7 +41,12 @@ export async function GET(request: Request) {
 	}
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    const authResponse = await verifyDBAccess(request);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
 	try {
 		const user = await currentUser();
 		if (!user) {
@@ -73,7 +79,12 @@ export async function POST(request: Request) {
 	}
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
+    const authResponse = await verifyDBAccess(request);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
 	try {
 		const user = await currentUser();
 		if (!user) {

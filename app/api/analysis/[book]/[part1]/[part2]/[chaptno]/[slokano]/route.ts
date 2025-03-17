@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 interface Params {
 	book: string;
@@ -74,9 +75,13 @@ export async function GET(req: Request, { params }: { params: Params }) {
 }
 
 // PUT API handler to update specific row by anvaya_no and sentno
-export async function PUT(req: Request, { params }: { params: Params }) {
+export async function PUT(req: NextRequest, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
 	const data = await req.json();
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
 	await dbConnect();
 
@@ -109,8 +114,12 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 }
 
 // DELETE API handler to remove a specific row by slokano, anvaya_no, and sentno
-export async function DELETE(req: Request, { params }: { params: Params }) {
+export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
 	// Extract anvaya_no and sentno from the request body
 	const { anvaya_no, sentno } = await req.json();
@@ -150,9 +159,13 @@ export async function DELETE(req: Request, { params }: { params: Params }) {
 }
 
 // Add POST handler for creating new rows
-export async function POST(req: Request, { params }: { params: Params }) {
+export async function POST(req: NextRequest, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
 	const { shiftType, ...data } = await req.json();
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
 	await dbConnect();
 

@@ -1,10 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Discussion from "@/lib/db/discussionModel";
 import { currentUser } from "@clerk/nextjs/server";
 import Perms from "@/lib/db/permissionsModel";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+	// Verify DB access key for DELETE requests
+	const authResponse = await verifyDBAccess(request);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
 	try {
 		await dbConnect();
 		const user = await currentUser();

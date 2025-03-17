@@ -1,11 +1,15 @@
-import { NextResponse } from "next/server";
 import Shloka from "@/lib/db/newShlokaModel";
 import Analysis from "@/lib/db/newAnalysisModel";
 import dbConnect from "@/lib/db/connect";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await dbConnect();
-
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
   // Parse the incoming JSON body
   const { book, part1, part2, shlokaData, analysisData } = await req.json();
   console.log({ book, part1, part2, shlokaData, analysisData });

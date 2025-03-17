@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 interface Params {
 	book: string;
@@ -9,8 +10,12 @@ interface Params {
 	chaptno: string;
 }
 
-export async function DELETE(req: Request, { params }: { params: Params }) {
+export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno } = params;
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
 	await dbConnect(); // Connect to the database
 

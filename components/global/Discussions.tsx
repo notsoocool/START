@@ -75,7 +75,10 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 		try {
 			const response = await fetch("/api/discussions", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 				body: JSON.stringify({
 					shlokaId,
 					content: commentText,
@@ -106,6 +109,10 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 		try {
 			const response = await fetch(`/api/discussions/${id}`, {
 				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 			});
 
 			if (!response.ok) {

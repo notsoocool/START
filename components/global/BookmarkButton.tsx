@@ -42,6 +42,9 @@ export default function BookmarkButton({ analysisID, shlokaID }: BookmarkButtonP
 			if (isBookmarked) {
 				const response = await fetch(`/api/bookmarks?shlokaID=${encodeURIComponent(shlokaID)}`, {
 					method: "DELETE",
+					headers: {
+						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+					},
 				});
 				if (response.ok) {
 					setIsBookmarked(false);
@@ -52,6 +55,7 @@ export default function BookmarkButton({ analysisID, shlokaID }: BookmarkButtonP
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
+						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 					},
 					body: JSON.stringify({
 						analysisID,

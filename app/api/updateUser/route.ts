@@ -1,7 +1,13 @@
 import { NextResponse, NextRequest } from "next/server";
 import Perms from "@/lib/db/permissionsModel"; // Adjust the path as needed
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 export async function POST(req: NextRequest) {
+    const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
   try {
     // Parse the incoming request JSON
     const { userId, newPermission } = await req.json();

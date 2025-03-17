@@ -47,11 +47,17 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			// Delete book entries
 			const bookResponse = await fetch(`/api/books?book=${selectedBook}`, {
 				method: "DELETE",
+				headers: {
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 			});
 
 			// Delete corresponding analysis entries
 			const analysisResponse = await fetch(`/api/analysis/${selectedBook}`, {
 				method: "DELETE",
+				headers: {
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 			});
 
 			const bookData = await bookResponse.json();
@@ -73,11 +79,17 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			// Delete chapter entries
 			const bookResponse = await fetch(`/api/books/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
 				method: "DELETE",
+				headers: {
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 			});
 
 			// Delete corresponding analysis entries
 			const analysisResponse = await fetch(`/api/analysis/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
 				method: "DELETE",
+				headers: {
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 			});
 
 			const bookData = await bookResponse.json();

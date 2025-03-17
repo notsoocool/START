@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel"; // Adjust the path as needed
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 // Helper function to handle CORS
 const corsHeaders = {
@@ -60,8 +61,12 @@ export async function GET() {
 	return NextResponse.json(tree, { headers: { ...corsHeaders } });
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
 	await dbConnect();
+    const authResponse = await verifyDBAccess(request);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
 
 	const { searchParams } = new URL(request.url); // Extract the searchParams from the request URL
 	const book = searchParams.get("book"); // Get the "book" query parameter

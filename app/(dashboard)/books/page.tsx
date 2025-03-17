@@ -108,43 +108,59 @@ export default function SacredTexts() {
 					id: book.book,
 					title: book.book,
 					type: "book",
-					children: book.part1 && book.part1.length > 0
-						? book.part1
-							.map((part1: any) => {
-								// Case 1: If part1 is null, return chapters directly
-								if (part1.part === null) {
-									return part1.part2[0].chapters.map((chapter: string) => ({
-										id: `${book.book}-chapter-${chapter}`,
-										title: `Chapter ${chapter}`,
-										type: "chapter",
-									}));
-								}    
-								// Case 2: If both part1 and part2 exist...
-								return {
-									id: `${book.book}-${part1.part}`,
-									title: part1.part,
-									type: "subpart",
-									children: part1.part2.map((part2: any) => ({
-											id: `${book.book}-${part1.part}-${part2.part}`,
-											title: part2.part,
-											type: "sub-subpart",
-											children: part2.chapters.map((chapter: string) => ({
-												id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+					children:
+						book.part1 && book.part1.length > 0
+							? book.part1
+									.map((part1: any) => {
+										// Case 1: If part1 is null, return chapters directly
+										if (part1.part === null) {
+											return part1.part2[0].chapters.map((chapter: string) => ({
+												id: `${book.book}-chapter-${chapter}`,
 												title: `Chapter ${chapter}`,
 												type: "chapter",
-											})),
-										}))
-										.flat(), // Flatten the array if part2 contains nested chapters
-								};
-							})
-							.flat() // Flatten the array if part1 contains nested parts
-						: book.chapters // This case handles books with direct chapters
+											}));
+										}
+										// Case 2: If part2 is null or empty, return chapters directly under part1
+										if (!part1.part2?.[0]?.part) {
+											return {
+												id: `${book.book}-${part1.part}`,
+												title: part1.part,
+												type: "subpart",
+												children:
+													part1.part2?.[0]?.chapters.map((chapter: string) => ({
+														id: `${book.book}-${part1.part}-chapter-${chapter}`,
+														title: `Chapter ${chapter}`,
+														type: "chapter",
+													})) || [],
+											};
+										}
+										// Case 3: If both part1 and part2 exist...
+										return {
+											id: `${book.book}-${part1.part}`,
+											title: part1.part,
+											type: "subpart",
+											children: part1.part2
+												.map((part2: any) => ({
+													id: `${book.book}-${part1.part}-${part2.part}`,
+													title: part2.part,
+													type: "sub-subpart",
+													children: part2.chapters.map((chapter: string) => ({
+														id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+														title: `Chapter ${chapter}`,
+														type: "chapter",
+													})),
+												}))
+												.flat(),
+										};
+									})
+									.flat()
+							: book.chapters
 							? book.chapters.map((chapter: string) => ({
-								id: `${book.book}-chapter-${chapter}`,
-								title: `Chapter ${chapter}`,
-								type: "chapter",
-							}))
-							: [], 
+									id: `${book.book}-chapter-${chapter}`,
+									title: `Chapter ${chapter}`,
+									type: "chapter",
+							  }))
+							: [],
 				}));
 
 				setBooks(transformedData);
@@ -161,18 +177,14 @@ export default function SacredTexts() {
 	return (
 		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
 			<div className="max-w-4xl mx-auto space-y-6">
-				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">
-					Sanskrit Texts
-				</h2>
+				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">Sanskrit Texts</h2>
 				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
 					{isLoading ? (
 						<div className="flex justify-center items-center py-12">
 							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
 						</div>
 					) : (
-						books.map((book) => (
-							<TreeNode key={book.id} item={book} />
-						))
+						books.map((book) => <TreeNode key={book.id} item={book} />)
 					)}
 				</div>
 			</div>

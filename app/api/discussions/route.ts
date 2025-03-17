@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Discussion from "@/lib/db/discussionModel";
 import { currentUser } from "@clerk/nextjs/server";
 import mongoose from "mongoose";
+import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
-export async function POST(req: Request) {
+export async function POST(req:  NextRequest) {
+    const authResponse = verifyDBAccess(req);
+    if (authResponse.status === 401) {
+        return authResponse;
+    }
 	try {
 		const user = await currentUser();
 		if (!user) {

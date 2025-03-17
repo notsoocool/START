@@ -24,6 +24,7 @@ export default function ReplaceBookPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
         },
         body: JSON.stringify({ oldBook, newBook }),
       });
