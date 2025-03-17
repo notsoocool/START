@@ -14,6 +14,7 @@ const UploadJsonPage = () => {
 	const [analysisData, setAnalysisData] = useState("");
 	const [shlokaFileName, setShlokaFileName] = useState("");
 	const [analysisFileName, setAnalysisFileName] = useState("");
+	const [isUploading, setIsUploading] = useState(false);
 
 	const handleFileUpload = async (file: File, setData: (value: string) => void, setFileName: (name: string) => void) => {
 		try {
@@ -30,6 +31,8 @@ const UploadJsonPage = () => {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		setIsUploading(true);
+		const loadingToast = toast.loading("Uploading files...");
 
 		try {
 			const response = await fetch("/api/uploadJson", {
@@ -42,19 +45,23 @@ const UploadJsonPage = () => {
 					book,
 					part1,
 					part2,
-					shlokaData: JSON.parse(shlokaData), // Convert string to JSON
-					analysisData: JSON.parse(analysisData), // Convert string to JSON
+					shlokaData: JSON.parse(shlokaData),
+					analysisData: JSON.parse(analysisData),
 				}),
 			});
 
 			const result = await response.json();
+			toast.dismiss(loadingToast);
 			if (result.success) {
 				toast.success(result.message);
 			} else {
 				toast.error(result.error);
 			}
 		} catch (error) {
+			toast.dismiss(loadingToast);
 			toast.error("An error occurred while uploading the data.");
+		} finally {
+			setIsUploading(false);
 		}
 	};
 
@@ -128,8 +135,8 @@ const UploadJsonPage = () => {
 					</div>
 				</div>
 				<div className="flex w-full justify-end pt-5">
-					<Button className="w-24" type="submit">
-						Upload
+					<Button className="w-24" type="submit" disabled={isUploading}>
+						{isUploading ? "Uploading..." : "Upload"}
 					</Button>
 				</div>
 			</form>
