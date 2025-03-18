@@ -18,10 +18,10 @@ const routes = [
 	// 	href: "/shlokas",
 	// 	label: "Shlokas",
 	// },
-	// {
-	// 	href: "/addshloka",
-	// 	label: "Add Shloka",
-	// },
+	{
+		href: "/addshloka",
+		label: "Add Shloka",
+	},
 	{
 		href: "/books",
 		label: "E-Readers",
