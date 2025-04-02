@@ -41,12 +41,16 @@ export async function POST(request: Request) {
 			recipientName = recipient.name;
 		}
 
+		// For admin contact messages (from regular users to Root)
+		// Set a special recipientID to make it private
+		const finalRecipientID = isFromUser ? "admin" : recipientID;
+
 		// Create the notification
 		const notification = new Notification({
 			senderID: id,
 			senderName: `${firstName} ${lastName}`,
-			recipientID,
-			recipientName,
+			recipientID: finalRecipientID,
+			recipientName: recipientName || (isFromUser ? "Root" : null),
 			subject,
 			message,
 			isFromUser,

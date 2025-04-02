@@ -25,16 +25,25 @@ export async function GET(request: Request) {
 		const limit = parseInt(searchParams.get("limit") || "10");
 		const isRoot = userPermissions.perms === "Root";
 
-		// Root can see all notifications
-		// Regular users can only see notifications sent to them or to all users
-		const query = isRoot
-			? {}
-			: {
-					$or: [
-						{ recipientID: id },
-						{ recipientID: null }, // Messages sent to all users
-					],
-			  };
+		// Build query based on user role
+		let query = {};
+
+		if (isRoot) {
+			// Root can see all notifications
+			query = {};
+		} else {
+			// Regular users can only see:
+			// 1. Notifications sent to them specifically
+			// 2. Notifications sent to all users (recipientID: null)
+			// 3. Their own messages to Root (recipientID: "admin")
+			query = {
+				$or: [
+					{ recipientID: id }, // Messages sent to them
+					{ recipientID: null }, // Messages sent to all users
+					{ senderID: id, recipientID: "admin" }, // Their own messages to Root
+				],
+			};
+		}
 
 		// Get total count for pagination
 		const total = await Notification.countDocuments(query);

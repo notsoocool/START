@@ -305,7 +305,7 @@ export default function NotificationsPage() {
 													<h3 className="font-medium">{notification.subject}</h3>
 													<p className="text-sm text-muted-foreground">
 														From: {notification.senderName}
-														{notification.recipientName ? ` To: ${notification.recipientName}` : " To: All Users"}
+														{notification.recipientID ? ` To: ${notification.recipientName || "Specific User"}` : " To: All Users"}
 													</p>
 													<p className="text-xs text-muted-foreground mt-1">{formatDate(notification.createdAt)}</p>
 												</div>
@@ -313,6 +313,11 @@ export default function NotificationsPage() {
 													{notification.isFromUser && (
 														<Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
 															From User
+														</Badge>
+													)}
+													{notification.recipientID && (
+														<Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
+															Private Message
 														</Badge>
 													)}
 													{!notification.isRead && (
