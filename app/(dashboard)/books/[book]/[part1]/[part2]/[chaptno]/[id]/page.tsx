@@ -48,6 +48,7 @@ export default function AnalysisPage() {
 	const [updatedData, setUpdatedData] = useState<any[]>([]);
 	const [changedRows, setChangedRows] = useState<Set<number>>(new Set()); // Track which rows have changed
 	const [, setErrorMessage] = useState<string | null>(null);
+	const [error, setError] = useState<{ type: string; message: string } | null>(null);
 	const [graphUrls, setGraphUrls] = useState<{ [sentno: string]: string }>({});
 	const [selectedMeaning, setSelectedMeaning] = useState<{ [key: number]: string }>({});
 	const [allMeanings, setAllMeanings] = useState<any[]>([]); // Holds all the meanings from API response
@@ -135,33 +136,92 @@ export default function AnalysisPage() {
 		if (!id) return;
 
 		const fetchAllData = async () => {
+			// Declare variables outside try block so they're accessible in catch
+			let shlokaData: any = null;
+			let chapterData: any = null;
+			let originalSlokano: string = "";
+
 			try {
 				setLoading(true);
-				const [shlokaResponse, availableShlokaResponse] = await Promise.all([
-					fetch(`/api/ahShloka/${id}`),
-					fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`),
-				]);
+				setError(null);
 
-				const shlokaData = await shlokaResponse.json();
-				const availableShlokaData = await availableShlokaResponse.json();
-
+				// First fetch shloka data
+				const shlokaResponse = await fetch(`/api/ahShloka/${id}`);
+				if (!shlokaResponse.ok) {
+					throw new Error("Shloka not found");
+				}
+				shlokaData = await shlokaResponse.json();
+				console.log("Debug - Shloka Data:", shlokaData); // Debug log
 				setShloka(shlokaData);
+				originalSlokano = shlokaData.slokano;
+
+				// Fetch available shlokas
+				const availableShlokaResponse = await fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`);
+				const availableShlokaData = await availableShlokaResponse.json();
 				setAvailableShlokas(availableShlokaData.shlokas);
 
-				const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
-				const chapterData = await chapterResponse.json();
+				// Try to fetch analysis data with the original slokano
+				console.log("Debug - Fetching analysis for slokano:", shlokaData.slokano); // Debug log
+				let chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
+
+				// If not found, try with padded zeros (e.g., if original is "1", try "001")
+				if (!chapterResponse.ok) {
+					const paddedSlokano = shlokaData.slokano.padStart(3, "0");
+					console.log("Debug - Trying with padded slokano:", paddedSlokano);
+					chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${paddedSlokano}`);
+
+					// If found with padded zeros, this indicates a format mismatch
+					if (chapterResponse.ok) {
+						chapterData = await chapterResponse.json();
+						console.log("Debug - Found with padded slokano:", paddedSlokano);
+
+						// Set error about format mismatch
+						setError({
+							type: "FORMAT_MISMATCH",
+							message: `Shloka number format mismatch. Found "${originalSlokano}" in shloka model but "${paddedSlokano}" in analysis model. Please contact admin to fix this inconsistency.`,
+						});
+						return;
+					}
+				}
+
+				// If we get here, either the original request succeeded or the padded request failed
+				chapterData = await chapterResponse.json();
+				console.log("Debug - Analysis Data:", chapterData); // Debug log
+
+				// Check if analysis data exists and is an array
+				if (!chapterData || !Array.isArray(chapterData) || chapterData.length === 0) {
+					console.log("Debug - No analysis data found"); // Debug log
+					throw new Error("Analysis not available");
+				}
+
+				// Check if shloka numbers match
+				if (chapterData[0].slokano !== shlokaData.slokano) {
+					throw new Error("Mismatch between shloka and analysis data");
+				}
 
 				setChapter(chapterData);
 				const mappedData = chapterData.map((item: any) => ({ ...item }));
 				setUpdatedData(mappedData);
 				setOriginalData(mappedData);
 
-				// Set the analysis ID if we have data
 				if (chapterData && chapterData.length > 0) {
 					setAnalysisId(chapterData[0]._id);
 				}
 			} catch (error) {
-				console.error("Error fetching data:", error);
+				const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+				console.error("Debug - Error caught:", errorMessage); // Debug log
+				console.error("Debug - Full error:", error); // Debug log
+
+				if (errorMessage === "Analysis not available") {
+					setError({ type: "NO_ANALYSIS", message: "Analysis is not available for this shloka." });
+				} else if (errorMessage.startsWith("Shloka number mismatch")) {
+					setError({
+						type: "MISMATCH",
+						message: `Shloka numbers don't match. Found ${shlokaData?.slokano} in shloka and ${chapterData?.[0]?.slokano} in analysis.`,
+					});
+				} else {
+					setError({ type: "GENERAL", message: "An error occurred while loading the analysis." });
+				}
 			} finally {
 				setInitialLoad(false);
 				setLoading(false);
@@ -1287,6 +1347,29 @@ export default function AnalysisPage() {
 		if (meaning.length <= maxLength) return meaning;
 		return meaning.slice(0, maxLength) + "...";
 	};
+
+	if (error) {
+		return (
+			<div className="max-w-screen-2xl mx-auto w-full p-8">
+				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+					<CardHeader className="border-b border-primary-100">
+						<CardTitle className="flex items-center gap-2">
+							<ExclamationTriangleIcon className="h-5 w-5 text-destructive" />
+							Error Loading Analysis
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="h-[300px] w-full flex flex-col items-center justify-center gap-4">
+							<p className="text-lg text-slate-700">{error.message}</p>
+							<Button onClick={() => window.history.back()} variant="outline">
+								Go Back
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	if (initialLoad) {
 		return (
