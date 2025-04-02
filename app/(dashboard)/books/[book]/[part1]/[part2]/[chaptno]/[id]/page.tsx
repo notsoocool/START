@@ -22,6 +22,7 @@ import { ShlokaCard } from "@/components/global/ShlokaCard";
 import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { Discussions } from "@/components/global/Discussions";
+import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 
 declare global {
 	interface Window {
@@ -178,7 +179,8 @@ export default function AnalysisPage() {
 						// Set error about format mismatch
 						setError({
 							type: "FORMAT_MISMATCH",
-							message: `Shloka number format mismatch. Found "${originalSlokano}" in shloka model but "${paddedSlokano}" in analysis model. Please contact admin to fix this inconsistency.`,
+							message: `Shloka number format mismatch. Found "${originalSlokano}" in shloka model but "${paddedSlokano}" in analysis model. Please contact admin to fix this inconsistency.
+                            error_location/${book}/${part1}/${part2}/${chaptno}`,
 						});
 						return;
 					}
@@ -1349,26 +1351,7 @@ export default function AnalysisPage() {
 	};
 
 	if (error) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full p-8">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<CardTitle className="flex items-center gap-2">
-							<ExclamationTriangleIcon className="h-5 w-5 text-destructive" />
-							Error Loading Analysis
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex flex-col items-center justify-center gap-4">
-							<p className="text-lg text-slate-700">{error.message}</p>
-							<Button onClick={() => window.history.back()} variant="outline">
-								Go Back
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
 
 	if (initialLoad) {

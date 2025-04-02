@@ -25,42 +25,61 @@ export async function GET(request: Request) {
 		const limit = parseInt(searchParams.get("limit") || "10");
 		const isRoot = userPermissions.perms === "Root";
 
-		// Build query based on user role
-		let query = {};
+		// Build the query based on user permissions
+		let query: any = {};
 
-		if (isRoot) {
-			// Root can see all notifications
-			query = {};
+		if (userPermissions.perms === "Root") {
+			// Root users can see all notifications except resolution notifications
+			query = {
+				$or: [{ subject: { $not: { $regex: "Error Report Resolved:", $options: "i" } } }, { subject: { $exists: false } }],
+			};
 		} else {
 			// Regular users can only see:
-			// 1. Notifications sent to them specifically
-			// 2. Notifications sent to all users (recipientID: null)
-			// 3. Their own messages to Root (recipientID: "admin")
+			// 1. Notifications sent to them (excluding error reports)
+			// 2. Notifications sent to all users (excluding error reports)
+			// 3. Resolution notifications sent to them
 			query = {
 				$or: [
-					{ recipientID: id }, // Messages sent to them
-					{ recipientID: null }, // Messages sent to all users
-					{ senderID: id, recipientID: "admin" }, // Their own messages to Root
+					{
+						$and: [
+							{
+								$or: [{ recipientID: id }, { recipientID: null }],
+							},
+							{
+								$or: [{ isErrorReport: false }, { isErrorReport: { $exists: false } }],
+							},
+						],
+					},
+					{
+						$and: [{ recipientID: id }, { subject: { $regex: "Error Report Resolved:", $options: "i" } }],
+					},
 				],
 			};
 		}
 
-		// Get total count for pagination
+		// Count total notifications for pagination
 		const total = await Notification.countDocuments(query);
+		const pages = Math.ceil(total / limit);
 
 		// Fetch paginated notifications
 		const notifications = await Notification.find(query)
-			.sort({ createdAt: -1 }) // Sort by newest first
+			.sort({ createdAt: -1 })
 			.skip((page - 1) * limit)
-			.limit(limit);
+			.limit(limit)
+			.lean();
+
+		// Add isRead field for each notification
+		const notificationsWithReadStatus = notifications.map((notification) => ({
+			...notification,
+			isRead: notification.readBy?.includes(id) || false,
+		}));
 
 		return NextResponse.json({
-			notifications,
+			notifications: notificationsWithReadStatus,
 			pagination: {
+				page,
+				pages,
 				total,
-				pages: Math.ceil(total / limit),
-				currentPage: page,
-				perPage: limit,
 			},
 		});
 	} catch (error) {

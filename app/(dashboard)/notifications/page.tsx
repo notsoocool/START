@@ -22,6 +22,10 @@ interface Notification {
 	isRead: boolean;
 	createdAt: string;
 	isFromUser: boolean;
+	isErrorReport: boolean;
+	isResolved: boolean;
+	resolutionMessage?: string;
+	resolvedAt?: string;
 }
 
 export default function UserNotificationsPage() {
@@ -104,7 +108,7 @@ export default function UserNotificationsPage() {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					recipientID: null, // Send to Root
+					recipientID: "admin", // Send to Root users only
 					subject,
 					message,
 				}),
@@ -204,6 +208,16 @@ export default function UserNotificationsPage() {
 													<p className="text-xs text-muted-foreground mt-1">{formatDate(notification.createdAt)}</p>
 												</div>
 												<div className="flex items-center space-x-2">
+													{notification.isErrorReport && (
+														<Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+															Error Report
+														</Badge>
+													)}
+													{notification.isResolved && (
+														<Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+															Resolved
+														</Badge>
+													)}
 													{!notification.isRead && (
 														<Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification._id)}>
 															<Check className="h-4 w-4" />
@@ -213,6 +227,16 @@ export default function UserNotificationsPage() {
 											</div>
 											<Separator className="my-2" />
 											<p className="whitespace-pre-wrap">{notification.message}</p>
+											{notification.isResolved && notification.resolutionMessage && (
+												<>
+													<Separator className="my-2" />
+													<div className="mt-2 p-2 bg-green-50 rounded-md">
+														<p className="text-sm font-medium text-green-800">Resolution:</p>
+														<p className="text-sm text-green-700 whitespace-pre-wrap">{notification.resolutionMessage}</p>
+														<p className="text-xs text-green-600 mt-1">Resolved on: {formatDate(notification.resolvedAt!)}</p>
+													</div>
+												</>
+											)}
 										</div>
 									))}
 								</div>

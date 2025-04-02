@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 
 interface User {
 	id: string;
@@ -20,7 +21,7 @@ const MainPage = () => {
 		const fetchAndHandleUser = async (retryCount = 0) => {
 			try {
 				const userResponse = await fetch("/api/getCurrentUser");
-				
+
 				if (userResponse.ok) {
 					const existingUser = await userResponse.json();
 					setUser(existingUser);
@@ -75,7 +76,16 @@ const MainPage = () => {
 			</div>
 		);
 	}
-	if (error) return <p>Error: {error}</p>;
+	if (error) {
+		return (
+			<ErrorDisplay
+				error={{
+					type: "LOADING_ERROR",
+					message: error,
+				}}
+			/>
+		);
+	}
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -88,7 +98,10 @@ const MainPage = () => {
 						Explore shlokas and their in-depth analysis to master Sanskrit literature effortlessly.
 					</p>
 					<Link href="/books">
-						<Button size="lg" className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+						<Button
+							size="lg"
+							className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+						>
 							Get Started
 						</Button>
 					</Link>
@@ -106,11 +119,7 @@ const MainPage = () => {
 							description="Access a vast collection of Sanskrit shlokas from various texts and traditions."
 							icon="📚"
 						/>
-						<FeatureCard
-							title="In-depth Analysis"
-							description="Gain insights with detailed explanations and interpretations of each shloka."
-							icon="🔍"
-						/>
+						<FeatureCard title="In-depth Analysis" description="Gain insights with detailed explanations and interpretations of each shloka." icon="🔍" />
 						<FeatureCard
 							title="Interactive Learning"
 							description="Engage with the content through quizzes, discussions, and personalized learning paths."

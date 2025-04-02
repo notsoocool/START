@@ -19,11 +19,28 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "Notification ID is required" }, { status: 400 });
 		}
 
-		// Update the notification to mark it as read
-		const updatedNotification = await Notification.findByIdAndUpdate(notificationId, { isRead: true }, { new: true });
+		// Update the notification to add the current user to readBy array and set read timestamp
+		const updatedNotification = await Notification.findByIdAndUpdate(
+			notificationId,
+			{
+				$addToSet: { readBy: id },
+				$set: { [`readAt.${id}`]: new Date() },
+			},
+			{ new: true }
+		);
 
 		if (!updatedNotification) {
 			return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+		}
+
+		// If this is a notification that should be deleted after reading
+		if (updatedNotification.shouldDeleteAfterRead) {
+			// Schedule deletion after the specified hours
+			const deleteAfter = new Date();
+			deleteAfter.setHours(deleteAfter.getHours() + updatedNotification.deleteAfterHours);
+
+			// Update the notification with the deletion time
+			await Notification.findByIdAndUpdate(notificationId, { $set: { [`readAt.${id}`]: deleteAfter } });
 		}
 
 		return NextResponse.json({ success: true, notification: updatedNotification });

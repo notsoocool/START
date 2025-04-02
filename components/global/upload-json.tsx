@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 
 const UploadJsonPage = () => {
 	const [book, setBook] = useState("");
@@ -15,6 +16,7 @@ const UploadJsonPage = () => {
 	const [shlokaFileName, setShlokaFileName] = useState("");
 	const [analysisFileName, setAnalysisFileName] = useState("");
 	const [isUploading, setIsUploading] = useState(false);
+	const [error, setError] = useState<{ type: string; message: string } | null>(null);
 
 	const handleFileUpload = async (file: File, setData: (value: string) => void, setFileName: (name: string) => void) => {
 		try {
@@ -25,7 +27,10 @@ const UploadJsonPage = () => {
 			setFileName(file.name);
 			toast.success(`${file.name} uploaded successfully`);
 		} catch (error) {
-			toast.error("Invalid JSON file");
+			setError({
+				type: "INVALID_JSON",
+				message: "The file you uploaded is not a valid JSON file.",
+			});
 		}
 	};
 
@@ -55,15 +60,25 @@ const UploadJsonPage = () => {
 			if (result.success) {
 				toast.success(result.message);
 			} else {
-				toast.error(result.error);
+				setError({
+					type: "UPLOAD_ERROR",
+					message: result.error || "Failed to upload data",
+				});
 			}
 		} catch (error) {
 			toast.dismiss(loadingToast);
-			toast.error("An error occurred while uploading the data.");
+			setError({
+				type: "UPLOAD_ERROR",
+				message: "An error occurred while uploading the data.",
+			});
 		} finally {
 			setIsUploading(false);
 		}
 	};
+
+	if (error) {
+		return <ErrorDisplay error={error} onBack={() => setError(null)} />;
+	}
 
 	return (
 		<div className="w-full p-8">

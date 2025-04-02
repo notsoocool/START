@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Send, Mail, Check, AlertCircle } from "lucide-react";
+import { Loader2, Send, Mail, Check, AlertCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface User {
@@ -30,6 +30,10 @@ interface Notification {
 	isRead: boolean;
 	createdAt: string;
 	isFromUser: boolean;
+	isErrorReport: boolean;
+	isResolved: boolean;
+	resolutionMessage?: string;
+	resolvedAt?: string;
 }
 
 export default function NotificationsPage() {
@@ -44,9 +48,10 @@ export default function NotificationsPage() {
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
-	const [activeTab, setActiveTab] = useState("send");
+	const [activeTab, setActiveTab] = useState("view");
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
+	const [resolutionMessages, setResolutionMessages] = useState<Record<string, string>>({});
 
 	// Fetch current user and check if they're Root
 	useEffect(() => {
@@ -189,6 +194,53 @@ export default function NotificationsPage() {
 		}
 	};
 
+	const handleResolveError = async (notificationId: string, resolutionMessage: string) => {
+		try {
+			const response = await fetch("/api/notifications/resolveError", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ notificationId, resolutionMessage }),
+			});
+
+			if (response.ok) {
+				// Update the local state to mark the error as resolved
+				setNotifications(
+					notifications.map((notification) =>
+						notification._id === notificationId
+							? {
+									...notification,
+									isResolved: true,
+									resolutionMessage,
+									resolvedAt: new Date().toISOString(),
+							  }
+							: notification
+					)
+				);
+				// Clear the resolution message
+				setResolutionMessages({ ...resolutionMessages, [notificationId]: "" });
+			}
+		} catch (error) {
+			console.error("Error resolving error report:", error);
+		}
+	};
+
+	const handleDeleteNotification = async (notificationId: string) => {
+		try {
+			const response = await fetch(`/api/notifications/delete?notificationId=${notificationId}`, {
+				method: "DELETE",
+			});
+
+			if (response.ok) {
+				// Remove the notification from the local state
+				setNotifications(notifications.filter((notification) => notification._id !== notificationId));
+			}
+		} catch (error) {
+			console.error("Error deleting notification:", error);
+		}
+	};
+
 	const formatDate = (dateString: string) => {
 		try {
 			return format(new Date(dateString), "MMM d, yyyy h:mm a");
@@ -207,13 +259,116 @@ export default function NotificationsPage() {
 
 	return (
 		<div className="container mx-auto py-8">
-			<h1 className="text-3xl font-bold mb-6">Notifications</h1>
+			<h1 className="text-3xl font-bold mb-6">Admin Notifications</h1>
 
-			<Tabs defaultValue="send" value={activeTab} onValueChange={setActiveTab}>
+			<Tabs defaultValue="view" value={activeTab} onValueChange={setActiveTab}>
 				<TabsList className="mb-6">
-					<TabsTrigger value="send">Send Notification</TabsTrigger>
 					<TabsTrigger value="view">View Notifications</TabsTrigger>
+					<TabsTrigger value="send">Send Notification</TabsTrigger>
 				</TabsList>
+
+				<TabsContent value="view">
+					<Card>
+						<CardHeader>
+							<CardTitle>All Notifications</CardTitle>
+							<CardDescription>View and manage all notifications</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{loading ? (
+								<div className="flex justify-center py-8">
+									<Loader2 className="h-8 w-8 animate-spin text-primary" />
+								</div>
+							) : notifications.length === 0 ? (
+								<div className="text-center py-8 text-muted-foreground">No notifications found</div>
+							) : (
+								<div className="space-y-4">
+									{notifications.map((notification) => (
+										<div key={notification._id} className={`p-4 rounded-lg border ${notification.isRead ? "bg-background" : "bg-muted/50"}`}>
+											<div className="flex justify-between items-start">
+												<div>
+													<h3 className="font-medium">{notification.subject}</h3>
+													<p className="text-sm text-muted-foreground">From: {notification.senderName}</p>
+													<p className="text-xs text-muted-foreground mt-1">{formatDate(notification.createdAt)}</p>
+												</div>
+												<div className="flex items-center space-x-2">
+													{notification.isErrorReport && (
+														<Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+															Error Report
+														</Badge>
+													)}
+													{notification.isResolved && (
+														<Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+															Resolved
+														</Badge>
+													)}
+													{notification.isFromUser && (
+														<Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+															From User
+														</Badge>
+													)}
+													<div className="flex items-center space-x-1">
+														{!notification.isRead && (
+															<Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification._id)}>
+																<Check className="h-4 w-4" />
+															</Button>
+														)}
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => handleDeleteNotification(notification._id)}
+															className="text-red-500 hover:text-red-700 hover:bg-red-50"
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
+													</div>
+												</div>
+											</div>
+											<Separator className="my-2" />
+											<p className="whitespace-pre-wrap">{notification.message}</p>
+											{notification.isErrorReport && !notification.isResolved && (
+												<>
+													<Separator className="my-2" />
+													<div className="mt-2">
+														<Textarea
+															placeholder="Enter resolution message..."
+															className="mb-2"
+															value={resolutionMessages[notification._id] || ""}
+															onChange={(e) => setResolutionMessages({ ...resolutionMessages, [notification._id]: e.target.value })}
+														/>
+														<Button variant="outline" size="sm" onClick={() => handleResolveError(notification._id, resolutionMessages[notification._id])}>
+															Resolve Error
+														</Button>
+													</div>
+												</>
+											)}
+											{notification.isResolved && notification.resolutionMessage && (
+												<>
+													<Separator className="my-2" />
+													<div className="mt-2 p-2 bg-green-50 rounded-md">
+														<p className="text-sm font-medium text-green-800">Resolution:</p>
+														<p className="text-sm text-green-700 whitespace-pre-wrap">{notification.resolutionMessage}</p>
+														<p className="text-xs text-green-600 mt-1">Resolved on: {formatDate(notification.resolvedAt!)}</p>
+													</div>
+												</>
+											)}
+										</div>
+									))}
+								</div>
+							)}
+						</CardContent>
+						<CardFooter className="flex justify-between">
+							<Button variant="outline" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
+								Previous
+							</Button>
+							<span className="text-sm text-muted-foreground">
+								Page {page} of {totalPages}
+							</span>
+							<Button variant="outline" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
+								Next
+							</Button>
+						</CardFooter>
+					</Card>
+				</TabsContent>
 
 				<TabsContent value="send">
 					<Card>
@@ -278,71 +433,6 @@ export default function NotificationsPage() {
 										Send Notification
 									</>
 								)}
-							</Button>
-						</CardFooter>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value="view">
-					<Card>
-						<CardHeader>
-							<CardTitle>Notifications</CardTitle>
-							<CardDescription>View all notifications sent and received</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{loading ? (
-								<div className="flex justify-center py-8">
-									<Loader2 className="h-8 w-8 animate-spin text-primary" />
-								</div>
-							) : notifications.length === 0 ? (
-								<div className="text-center py-8 text-muted-foreground">No notifications found</div>
-							) : (
-								<div className="space-y-4">
-									{notifications.map((notification) => (
-										<div key={notification._id} className={`p-4 rounded-lg border ${notification.isRead ? "bg-background" : "bg-muted/50"}`}>
-											<div className="flex justify-between items-start">
-												<div>
-													<h3 className="font-medium">{notification.subject}</h3>
-													<p className="text-sm text-muted-foreground">
-														From: {notification.senderName}
-														{notification.recipientID ? ` To: ${notification.recipientName || "Specific User"}` : " To: All Users"}
-													</p>
-													<p className="text-xs text-muted-foreground mt-1">{formatDate(notification.createdAt)}</p>
-												</div>
-												<div className="flex items-center space-x-2">
-													{notification.isFromUser && (
-														<Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
-															From User
-														</Badge>
-													)}
-													{notification.recipientID && (
-														<Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
-															Private Message
-														</Badge>
-													)}
-													{!notification.isRead && (
-														<Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification._id)}>
-															<Check className="h-4 w-4" />
-														</Button>
-													)}
-												</div>
-											</div>
-											<Separator className="my-2" />
-											<p className="whitespace-pre-wrap">{notification.message}</p>
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-						<CardFooter className="flex justify-between">
-							<Button variant="outline" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
-								Previous
-							</Button>
-							<span className="text-sm text-muted-foreground">
-								Page {page} of {totalPages}
-							</span>
-							<Button variant="outline" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
-								Next
 							</Button>
 						</CardFooter>
 					</Card>
