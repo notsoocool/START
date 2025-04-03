@@ -28,7 +28,7 @@ export default function AdminPage() {
 				const data = await response.json();
 
 				console.log(data.perms);
-				if (data.perms !== "Root") {
+				if (data.perms !== "Root" && data.perms !== "Admin") {
 					toast.error("You are not authorized to view this page.");
 					router.push("/"); // Redirect to main page
 				}

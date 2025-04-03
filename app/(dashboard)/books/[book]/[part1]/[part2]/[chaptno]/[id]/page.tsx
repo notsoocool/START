@@ -690,9 +690,9 @@ export default function AnalysisPage() {
 
 	// Helper function to determine if a field is editable based on permissions
 	const isFieldEditable = (field: string) => {
-		if (permissions === "Root" || permissions === "Admin") return true; // Admin and Root can edit everything
-		if (permissions === "Editor") {
-			// Remove anvaya_no from the list of editable fields for Editor
+		if (permissions === "Root" || permissions === "Admin" || permissions === "Editor") return true; // Admin and Root and Editor can edit everything
+		if (permissions === "Annotator") {
+			// Remove anvaya_no from the list of editable fields for Annotator
 			return ["word", "poem", "morph_in_context", "kaaraka_sambandha"].includes(field);
 		}
 		return false;
@@ -705,8 +705,8 @@ export default function AnalysisPage() {
 		const deletedStyle = { backgroundColor: isDeleted ? "#f8d8da" : "transparent" };
 		const deletedContent = <span className="text-gray-500">-</span>;
 
-		const canEdit = permissions === "Editor" || permissions === "Admin" || permissions === "Root";
-		const showAnalysisButtons = permissions === "Editor" || permissions === "Admin" || permissions === "Root";
+		const canEdit = permissions === "Editor" || permissions === "Admin" || permissions === "Root" || permissions === "Annotator";
+		const showAnalysisButtons = permissions === "Editor" || permissions === "Admin" || permissions === "Root" || permissions === "Annotator";
 
 		const handleAddToMorphAnalysis = (procIndex: number) => {
 			const currentMorphInContext = currentProcessedData?.morph_in_context || processed.morph_in_context;
@@ -865,7 +865,7 @@ export default function AnalysisPage() {
 					<TableCell style={deletedStyle}>
 						{isDeleted ? (
 							<span className="text-gray-500">Deleted</span>
-						) : permissions === "Root" || permissions === "Admin" ? ( // Only Root and Admin can edit anvaya_no
+						) : permissions === "Root" || permissions === "Admin" || permissions === "Editor"? ( // Only Root and Admin and Editor can edit anvaya_no
 							<Input
 								type="text"
 								value={currentProcessedData?.anvaya_no || processed.anvaya_no}

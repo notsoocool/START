@@ -56,7 +56,7 @@ export const Navigation = () => {
 			const data = await response.json();
 
 			// Redirect if current user is not Admin or Root
-			if (data.perms === "Root") {
+			if (data.perms === "Root" || data.perms ==="Admin") {
 				setIsAdmin(true); // Redirect to main page
 			}
 		};
