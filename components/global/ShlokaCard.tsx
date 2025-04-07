@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MessageSquare } from "lucide-react";
-import { Share2Icon } from "@radix-ui/react-icons";
+import { MessageSquare, Share2Icon, Trash } from "lucide-react";
 import BookmarkButton from "./BookmarkButton";
 import { toPng } from "html-to-image";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface ShlokaCardProps {
 	book: string | string[];
@@ -19,10 +21,15 @@ interface ShlokaCardProps {
 		spart: string;
 	};
 	analysisID: string;
+	permissions: string | null;
+	part1: string;
+	part2: string;
 }
 
-export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProps) {
+export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, part1, part2 }: ShlokaCardProps) {
 	const shlokaRef = useRef<HTMLDivElement>(null);
+	const router = useRouter();
+	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
 
 	const handleShare = async () => {
 		if (!shlokaRef.current) return;
@@ -60,6 +67,72 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 		}
 	};
 
+	const handleDeleteAnalysis = async () => {
+		try {
+			const loadingToast = toast.loading("Deleting analysis and shloka...");
+
+			// Delete shloka first
+			const deleteShlokaResponse = await fetch(`/api/ahShloka/${shloka._id}`, {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+			});
+
+			if (!deleteShlokaResponse.ok) {
+				const shlokaError = await deleteShlokaResponse.json();
+				throw new Error(`Failed to delete shloka: ${shlokaError.error}`);
+			}
+
+			// Then delete analysis
+			const deleteAnalysisResponse = await fetch(`/api/deleteShlokaAnalysis/${book}/${part1}/${part2}/${chaptno}/${shloka.slokano}`, {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+			});
+
+			if (!deleteAnalysisResponse.ok) {
+				const analysisError = await deleteAnalysisResponse.json();
+				toast.dismiss(loadingToast);
+				toast.warning("Shloka was deleted but analysis deletion failed. Please contact admin.");
+				throw new Error(`Failed to delete analysis: ${analysisError.error}`);
+			}
+
+			toast.dismiss(loadingToast);
+			toast.success("Analysis and Shloka deleted successfully");
+
+			// Navigate back to the chapter page
+			router.push(`/books/${book}/${part1}/${part2}/${chaptno}`);
+		} catch (error) {
+			console.error("Delete error:", error);
+			toast.error("Error during deletion: " + (error as Error).message);
+		} finally {
+			setDeleteAnalysisDialogOpen(false);
+		}
+	};
+
+	const renderDeleteAnalysisDialog = () => (
+		<Dialog open={deleteAnalysisDialogOpen} onOpenChange={setDeleteAnalysisDialogOpen}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete Entire Analysis</DialogTitle>
+					<DialogDescription>Are you sure you want to delete this entire analysis and its associated shloka? This action cannot be undone.</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setDeleteAnalysisDialogOpen(false)}>
+						Cancel
+					</Button>
+					<Button variant="destructive" onClick={handleDeleteAnalysis}>
+						Delete Everything
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+
 	console.log("ShlokaCard props:", {
 		shlokaID: shloka._id,
 		analysisID,
@@ -80,7 +153,14 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 							{chaptno}.{shloka?.slokano}
 						</Badge>
 					</div>
-					<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
+					<div className="flex items-center gap-2">
+						<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
+						{(permissions === "Root" || permissions === "Admin") && (
+							<Button variant="destructive" size="icon" onClick={() => setDeleteAnalysisDialogOpen(true)} className="size-8">
+								<Trash className="size-4" />
+							</Button>
+						)}
+					</div>
 				</CardHeader>
 				<CardContent className="p-6">
 					<div className="space-y-4">
@@ -105,6 +185,7 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID }: ShlokaCardProp
 					</div>
 				</CardContent>
 			</div>
+			{renderDeleteAnalysisDialog()}
 		</Card>
 	);
 }

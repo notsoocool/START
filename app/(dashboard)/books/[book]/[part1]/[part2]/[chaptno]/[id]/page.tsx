@@ -107,6 +107,7 @@ export default function AnalysisPage() {
 	const [analysisId, setAnalysisId] = useState<string | null>(null);
 	const [meaningDialogOpen, setMeaningDialogOpen] = useState(false);
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
+	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -865,7 +866,7 @@ export default function AnalysisPage() {
 					<TableCell style={deletedStyle}>
 						{isDeleted ? (
 							<span className="text-gray-500">Deleted</span>
-						) : permissions === "Root" || permissions === "Admin" || permissions === "Editor"? ( // Only Root and Admin and Editor can edit anvaya_no
+						) : permissions === "Root" || permissions === "Admin" || permissions === "Editor" ? ( // Only Root and Admin and Editor can edit anvaya_no
 							<Input
 								type="text"
 								value={currentProcessedData?.anvaya_no || processed.anvaya_no}
@@ -1350,6 +1351,77 @@ export default function AnalysisPage() {
 		return meaning.slice(0, maxLength) + "...";
 	};
 
+	// Modify the handleDeleteAnalysis function
+	const handleDeleteAnalysis = async () => {
+		try {
+			// Show loading toast
+			const loadingToast = toast.loading("Deleting analysis and shloka...");
+
+			// Delete shloka first
+			const deleteShlokaResponse = await fetch(`/api/ahShloka/${id}`, {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+			});
+
+			if (!deleteShlokaResponse.ok) {
+				const shlokaError = await deleteShlokaResponse.json();
+				throw new Error(`Failed to delete shloka: ${shlokaError.error}`);
+			}
+
+			// Then delete analysis using the new route
+			const deleteAnalysisResponse = await fetch(`/api/deleteShlokaAnalysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+			});
+
+			if (!deleteAnalysisResponse.ok) {
+				const analysisError = await deleteAnalysisResponse.json();
+				// If shloka was deleted but analysis deletion failed, warn the user
+				toast.dismiss(loadingToast);
+				toast.warning("Shloka was deleted but analysis deletion failed. Please contact admin.");
+				throw new Error(`Failed to delete analysis: ${analysisError.error}`);
+			}
+
+			// Both deletions successful
+			toast.dismiss(loadingToast);
+			toast.success("Analysis and Shloka deleted successfully");
+
+			// Navigate back to the chapter page
+			router.push(`/books/${book}/${part1}/${part2}/${chaptno}`);
+		} catch (error) {
+			console.error("Delete error:", error);
+			toast.error("Error during deletion: " + (error as Error).message);
+		} finally {
+			setDeleteAnalysisDialogOpen(false);
+		}
+	};
+
+	// Add this JSX near the end of your component, before the final closing tag
+	const renderDeleteAnalysisDialog = () => (
+		<Dialog open={deleteAnalysisDialogOpen} onOpenChange={setDeleteAnalysisDialogOpen}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete Entire Analysis</DialogTitle>
+					<DialogDescription>Are you sure you want to delete this entire analysis and its associated shloka? This action cannot be undone.</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setDeleteAnalysisDialogOpen(false)}>
+						Cancel
+					</Button>
+					<Button variant="destructive" onClick={handleDeleteAnalysis}>
+						Delete Everything
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+
 	if (error) {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
@@ -1429,7 +1501,15 @@ export default function AnalysisPage() {
 				/>
 			</div>
 
-			<ShlokaCard book={book} chaptno={chaptno as string} shloka={shloka} analysisID={analysisId as string} />
+			<ShlokaCard
+				book={book}
+				chaptno={chaptno as string}
+				shloka={shloka}
+				analysisID={analysisId as string}
+				permissions={permissions}
+				part1={part1 as string}
+				part2={part2 as string}
+			/>
 
 			<div className="flex justify-end w-full gap-2">
 				{renderAddRowButton()}
@@ -1525,6 +1605,8 @@ export default function AnalysisPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{renderDeleteAnalysisDialog()}
 
 			<Card className="mt-8" id="discussions">
 				<CardHeader>
