@@ -155,7 +155,7 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 					</div>
 					<div className="flex items-center gap-2">
 						<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
-						{(permissions === "Root" || permissions === "Admin") && (
+						{(permissions === "Root" || permissions === "Admin" || permissions === "Editor") && (
 							<Button variant="destructive" size="icon" onClick={() => setDeleteAnalysisDialogOpen(true)} className="size-8">
 								<Trash className="size-4" />
 							</Button>
