@@ -216,14 +216,11 @@ export default function AnalysisPage() {
 				console.error("Debug - Full error:", error); // Debug log
 
 				if (errorMessage === "Analysis not available") {
-					setError({ type: "NO_ANALYSIS", message: "Analysis is not available for this shloka." });
-				} else if (errorMessage.startsWith("Shloka number mismatch")) {
-					setError({
-						type: "MISMATCH",
-						message: `Shloka numbers don't match. Found ${shlokaData?.slokano} in shloka and ${chapterData?.[0]?.slokano} in analysis.`,
-					});
+					setError({ type: "NO_ANALYSIS", message: `Analysis is not available for this shloka. 
+                        error_location/${book}/${part1}/${part2}/${chaptno}` });
 				} else {
-					setError({ type: "GENERAL", message: "An error occurred while loading the analysis." });
+					setError({ type: "GENERAL", message: `An error occurred while loading the analysis.
+                        error_location/${book}/${part1}/${part2}/${chaptno}` });
 				}
 			} finally {
 				setInitialLoad(false);
