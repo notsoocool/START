@@ -435,7 +435,7 @@ export default function AnalysisPage() {
 		formData.append("tsv", tsvData);
 
 		try {
-			const response = await fetch("https://sanskrit.uohyd.ac.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
+			const response = await fetch("https://scl.samsaadhanii.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
 				method: "POST",
 				body: formData,
 			});
@@ -496,7 +496,7 @@ export default function AnalysisPage() {
 	const fetchMeaning = async (word: string, procIndex: number) => {
 		try {
 			// Make API request to get dictionary meanings
-			const response = await fetch(`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`);
+			const response = await fetch(`https://scl.samsaadhanii.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`);
 			const dictionaries = await response.json();
 
 			// Update all available meanings

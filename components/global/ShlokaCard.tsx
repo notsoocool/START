@@ -150,7 +150,7 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 								.join(" ")}
 						</CardTitle>
 						<Badge variant="outline" className="text-xs">
-							{chaptno}.{shloka?.slokano}
+							{decodeURIComponent(chaptno)}.{shloka?.slokano}
 						</Badge>
 					</div>
 					<div className="flex items-center gap-2">

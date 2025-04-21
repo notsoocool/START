@@ -295,7 +295,7 @@ export default function ShlokaPage() {
 				shlokas.map(async (shloka) => {
 					// Call sandhi splitter API
 					const response = await fetch(
-						`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/prog/sandhi_splitter/sandhi_splitter.cgi?word=${encodeURIComponent(
+						`https://scl.samsaadhanii.in/cgi-bin/scl/MT/prog/sandhi_splitter/sandhi_splitter.cgi?word=${encodeURIComponent(
 							shloka
 						)}&encoding=Unicode&outencoding=D&mode=sent&disp_mode=json`
 					);
@@ -335,7 +335,7 @@ export default function ShlokaPage() {
 					console.log("Sending split sentence for analysis:", splitSentence);
 
 					const response = await fetch(
-						`https://sanskrit.uohyd.ac.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&text=${encodeURIComponent(
+						`https://scl.samsaadhanii.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&text=${encodeURIComponent(
 							splitSentence
 						)}`
 					);
@@ -580,7 +580,7 @@ export default function ShlokaPage() {
 		formData.append("tsv", tsvData);
 
 		try {
-			const response = await fetch("https://sanskrit.uohyd.ac.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
+			const response = await fetch("https://scl.samsaadhanii.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
 				method: "POST",
 				body: formData,
 			});

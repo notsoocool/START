@@ -44,7 +44,7 @@ export function Header({
       <div className="space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Analysis Dashboard</h1>
         <div className="flex items-center gap-4">
-          <p className="text-muted-foreground">Chapter {chaptno}</p>
+          <p className="text-muted-foreground">Chapter {decodeURIComponent(chaptno)}</p>
 
           <Select value={id} onValueChange={handleShlokaChange}>
             <SelectTrigger className="w-[200px]">
