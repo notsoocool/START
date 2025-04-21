@@ -111,16 +111,13 @@ export default function BookPublishPage() {
 
 	return (
 		<div className="container mx-auto p-4 space-y-8">
-			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Manage Book Publishing</h1>
-			</div>
 
-			<Card>
-				<CardHeader>
+		
+				<div className=" pt-5">
 					<CardTitle>Book Publishing Status</CardTitle>
 					<CardDescription>Manage publishing and lock status for entire books</CardDescription>
-				</CardHeader>
-				<CardContent>
+				</div>
+				<div>
 					<div className="space-y-6">
 						<div className="space-y-2">
 							<Label>Search Books</Label>
@@ -181,8 +178,9 @@ export default function BookPublishPage() {
 							</div>
 						</ScrollArea>
 					</div>
-				</CardContent>
-			</Card>
+                    </div>
+	
+	
 		</div>
 	);
 }

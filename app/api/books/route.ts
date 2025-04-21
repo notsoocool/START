@@ -43,32 +43,37 @@ export async function GET(request: NextRequest) {
 		let matchCondition = {};
 
 		if (userPermissions.perms === "User") {
-			// Regular users can only see user-published books and their own books
+			// Regular users can only see user-published books and their own books that are not locked
 			matchCondition = {
-				$or: [{ userPublished: true }, { owner: user.id }],
+				$and: [{ $or: [{ userPublished: true }, { owner: user.id }] }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
 			};
 		} else if (userPermissions.perms === "Annotator") {
 			// Annotators can see:
-			// 1. User-published books
-			// 2. Group-published books from their groups
-			// 3. Group-published books from parent groups
-			// 4. Their own books
+			// 1. User-published books that are not locked
+			// 2. Group-published books from their groups that are not locked
+			// 3. Group-published books from parent groups that are not locked
+			// 4. Their own books that are not locked
 			matchCondition = {
-				$or: [
-					{ userPublished: true },
+				$and: [
 					{
-						$and: [
-							{ groupPublished: true },
+						$or: [
+							{ userPublished: true },
 							{
-								$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
+								$and: [
+									{ groupPublished: true },
+									{
+										$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
+									},
+								],
 							},
+							{ owner: user.id },
 						],
 					},
-					{ owner: user.id },
+					{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
 				],
 			};
 		} else if (userPermissions.perms === "Admin" || userPermissions.perms === "Root") {
-			// Admins and Root can see everything
+			// Admins and Root can see everything, including locked books
 			matchCondition = {};
 		}
 

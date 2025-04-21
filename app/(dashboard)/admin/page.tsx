@@ -7,6 +7,7 @@ import UploadJsonPage from "@/components/global/upload-json"; // Import your JSO
 import UserPerms from "@/components/global/user-perms"; // Import your permission change component
 import ReplaceBook from "@/components/global/replaceBook";
 import GroupsPage from "@/components/global/groupAdmin";
+import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
 import { TreeNode } from "@/types/treeNode";
 
@@ -78,6 +79,9 @@ export default function AdminPage() {
 				<TabsTrigger value="group" onClick={() => setActiveTab("group")}>
 					Group Administration 
 				</TabsTrigger>
+				<TabsTrigger value="publish" onClick={() => setActiveTab("publish")}>
+					Book Publishing
+				</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="upload">
@@ -128,6 +132,14 @@ export default function AdminPage() {
 				<Card className="mt-4">
 					<CardContent>
 						<GroupsPage />
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			<TabsContent value="publish">
+				<Card className="mt-4">
+					<CardContent>
+						<BookPublishPage />
 					</CardContent>
 				</Card>
 			</TabsContent>
