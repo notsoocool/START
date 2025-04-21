@@ -94,6 +94,13 @@ export async function GET(request: NextRequest) {
 						part2: "$part2",
 						chaptno: "$chaptno",
 					},
+					status: {
+						$first: {
+							locked: "$locked",
+							userPublished: "$userPublished",
+							groupPublished: "$groupPublished",
+						},
+					},
 				},
 			},
 			{
@@ -106,6 +113,7 @@ export async function GET(request: NextRequest) {
 					chapters: {
 						$push: "$_id.chaptno",
 					},
+					status: { $first: "$status" },
 				},
 			},
 			// Sort chapters array
@@ -131,6 +139,7 @@ export async function GET(request: NextRequest) {
 							chapters: "$chapters",
 						},
 					},
+					status: { $first: "$status" },
 				},
 			},
 			// Sort part2 array
@@ -153,6 +162,7 @@ export async function GET(request: NextRequest) {
 							part2: "$part2",
 						},
 					},
+					status: { $first: "$status" },
 				},
 			},
 			// Sort part1 array
@@ -171,6 +181,7 @@ export async function GET(request: NextRequest) {
 					_id: 0,
 					book: "$_id",
 					part1: 1,
+					status: 1,
 				},
 			},
 			// Add this stage to enforce field order
@@ -181,6 +192,7 @@ export async function GET(request: NextRequest) {
 							{
 								book: "$book",
 								part1: "$part1",
+								status: "$status",
 							},
 						],
 					},

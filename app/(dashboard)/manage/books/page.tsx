@@ -15,6 +15,7 @@ interface Book {
 	userPublished: boolean;
 	groupPublished: boolean;
 	shlokaCount: number;
+	locked?: boolean;
 }
 
 export default function BookPublishPage() {
@@ -67,6 +68,30 @@ export default function BookPublishPage() {
 		}
 	};
 
+	const handleLockChange = async (book: string, locked: boolean) => {
+		try {
+			const response = await fetch("/api/books/lock", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					book,
+					locked,
+				}),
+			});
+
+			if (!response.ok) throw new Error("Failed to update lock status");
+
+			const data = await response.json();
+			toast.success(`Updated lock status for ${book}`);
+
+			// Update the local state immediately
+			setBooks((prevBooks) => prevBooks.map((b) => (b.book === book ? { ...b, locked } : b)));
+		} catch (error) {
+			console.error("Error updating lock status:", error);
+			toast.error("Failed to update lock status");
+		}
+	};
+
 	const filteredBooks = books.filter((book) => book.book.toLowerCase().includes(searchTerm.toLowerCase()));
 
 	if (!isSignedIn) {
@@ -93,7 +118,7 @@ export default function BookPublishPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Book Publishing Status</CardTitle>
-					<CardDescription>Manage publishing status for entire books</CardDescription>
+					<CardDescription>Manage publishing and lock status for entire books</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-6">
@@ -136,6 +161,17 @@ export default function BookPublishPage() {
 													/>
 													<Label htmlFor={`group-${book.book}`} className="text-sm">
 														Group Published
+													</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id={`lock-${book.book}`}
+														checked={book.locked}
+														onCheckedChange={(checked) => handleLockChange(book.book, checked as boolean)}
+														className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+													/>
+													<Label htmlFor={`lock-${book.book}`} className="text-sm">
+														Locked
 													</Label>
 												</div>
 											</div>

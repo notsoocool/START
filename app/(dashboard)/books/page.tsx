@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Book, Bookmark, FileText, ScrollText, Type } from "lucide-react";
+import { Book, Bookmark, FileText, ScrollText, Type, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 
 // Define the item types based on API response structure
 type Item = {
@@ -14,6 +15,11 @@ type Item = {
 	title: string;
 	type: "book" | "subpart" | "sub-subpart" | "chapter";
 	children?: Item[];
+	status?: {
+		locked: boolean;
+		userPublished?: boolean;
+		groupPublished?: boolean;
+	};
 };
 
 // Mapping the icons and colors to types
@@ -36,7 +42,27 @@ const colorMap = {
 // Inside TreeNode component
 const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?: number; book?: string; part1?: string; part2?: string }) => {
 	const [isOpen, setIsOpen] = useState(false);
-	const router = useRouter(); // Import this from 'next/navigation'
+	const router = useRouter();
+	const { user } = useUser();
+	const [userPerms, setUserPerms] = useState<string | null>(null);
+
+	useEffect(() => {
+		const fetchUserPerms = async () => {
+			try {
+				const response = await fetch("/api/getCurrentUser");
+				if (response.ok) {
+					const data = await response.json();
+					setUserPerms(data.perms);
+				}
+			} catch (error) {
+				console.error("Error fetching user permissions:", error);
+			}
+		};
+
+		if (user) {
+			fetchUserPerms();
+		}
+	}, [user]);
 
 	const handleChapterClick = () => {
 		if (item.type === "chapter") {
@@ -54,14 +80,25 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 	return (
 		<Card className={`mb-2 ${colorMap[item.type]} transition-colors duration-200`}>
 			<CardContent className="p-2">
-				<Button
-					variant="ghost"
-					className="w-full justify-start p-2 h-auto text-left"
-					onClick={item.type === "chapter" ? handleChapterClick : () => setIsOpen(!isOpen)}
-				>
-					<Icon className="mr-2 h-5 w-5" />
-					<span className="font-medium">{item.title}</span>
-				</Button>
+				<div className="flex items-center justify-between">
+					<Button
+						variant="ghost"
+						className="w-full justify-start p-2 h-auto text-left"
+						onClick={item.type === "chapter" ? handleChapterClick : () => setIsOpen(!isOpen)}
+					>
+						<Icon className="mr-2 h-5 w-5" />
+						<span className="font-medium flex flex-row w-full justify-between"><div>{item.title}</div>
+						{item.type === "book" && item.status?.locked && (userPerms === "Admin" || userPerms === "Root") && (
+							<div className="relative group ml-2">
+								<Lock className="h-4 w-4 text-red-500" />
+								<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-gray-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity">
+									Locked - Only visible to Admin/Root
+								</span>
+							</div>
+						)}
+                        </span>
+					</Button>
+				</div>
 				<AnimatePresence>
 					{isOpen && hasChildren && (
 						<motion.div
@@ -122,7 +159,8 @@ export default function SacredTexts() {
 				const transformedData = data.map((book: any) => ({
 					id: book.book,
 					title: book.book,
-					type: "book",
+					type: "book" as const,
+					status: book.status,
 					children:
 						book.part1 && book.part1.length > 0
 							? book.part1
@@ -131,35 +169,35 @@ export default function SacredTexts() {
 											return part1.part2[0].chapters.map((chapter: string) => ({
 												id: `${book.book}-chapter-${chapter}`,
 												title: `Chapter ${chapter}`,
-												type: "chapter",
+												type: "chapter" as const,
 											}));
 										}
 										if (!part1.part2?.[0]?.part) {
 											return {
 												id: `${book.book}-${part1.part}`,
 												title: part1.part,
-												type: "subpart",
+												type: "subpart" as const,
 												children:
 													part1.part2?.[0]?.chapters.map((chapter: string) => ({
 														id: `${book.book}-${part1.part}-chapter-${chapter}`,
 														title: `Chapter ${chapter}`,
-														type: "chapter",
+														type: "chapter" as const,
 													})) || [],
 											};
 										}
 										return {
 											id: `${book.book}-${part1.part}`,
 											title: part1.part,
-											type: "subpart",
+											type: "subpart" as const,
 											children: part1.part2
 												.map((part2: any) => ({
 													id: `${book.book}-${part1.part}-${part2.part}`,
 													title: part2.part,
-													type: "sub-subpart",
+													type: "sub-subpart" as const,
 													children: part2.chapters.map((chapter: string) => ({
 														id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
 														title: `Chapter ${chapter}`,
-														type: "chapter",
+														type: "chapter" as const,
 													})),
 												}))
 												.flat(),
@@ -170,7 +208,7 @@ export default function SacredTexts() {
 							? book.chapters.map((chapter: string) => ({
 									id: `${book.book}-chapter-${chapter}`,
 									title: `Chapter ${chapter}`,
-									type: "chapter",
+									type: "chapter" as const,
 							  }))
 							: [],
 				}));
