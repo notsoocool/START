@@ -3,10 +3,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter for navigation
+import { motion, AnimatePresence } from "framer-motion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 type User = {
 	userID: string;
 	name: string;
@@ -15,6 +17,7 @@ type User = {
 
 export default function UserPerms() {
 	const [users, setUsers] = useState<User[]>([]);
+	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentUser, setCurrentUser] = useState<{
@@ -29,6 +32,7 @@ export default function UserPerms() {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [searchValue, setSearchValue] = useState(""); // Separate state for input value
 	const [usersPerPage, setUsersPerPage] = useState(10);
 
 	const fetchUsers = async (page: number, search: string = "") => {
@@ -44,6 +48,7 @@ export default function UserPerms() {
 
 			const data = await response.json();
 			setUsers(data.users);
+			setFilteredUsers(data.users);
 			setTotalPages(data.pagination.pages);
 			setCurrentPage(data.pagination.currentPage);
 		} catch (error) {
@@ -53,9 +58,24 @@ export default function UserPerms() {
 		}
 	};
 
+	// Handle search input changes
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setSearchValue(value); // Update the input value immediately
+
+		// Update the search term after a short delay
+		setTimeout(() => {
+			setSearchTerm(value);
+			fetchUsers(1, value);
+		}, 300);
+	};
+
+	// Only fetch on initial load and pagination changes
 	useEffect(() => {
-		fetchUsers(currentPage, searchTerm);
-	}, [currentPage, searchTerm, usersPerPage]);
+		if (searchTerm === "") {
+			fetchUsers(currentPage);
+		}
+	}, [currentPage, usersPerPage]);
 
 	useEffect(() => {
 		const fetchCurrentUser = async () => {
@@ -139,13 +159,12 @@ export default function UserPerms() {
 		</div>
 	);
 
-	if (loading) return <p>Loading...</p>;
 	if (error) return <p>Error: {error}</p>;
 
 	return (
 		<div className="container mx-auto py-10">
 			<div className="mb-4">
-				<Input type="search" placeholder="Search users..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm" />
+				<Input type="search" placeholder="Search users..." value={searchValue} onChange={handleSearchChange} className="max-w-sm" />
 			</div>
 			<Table>
 				<TableHeader>
@@ -156,39 +175,66 @@ export default function UserPerms() {
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{users.map((user) => (
-						<TableRow key={user.userID}>
-							<TableCell>{user.name}</TableCell>
-							<TableCell>{user.perms === "Root" ? "Root" : user.perms}</TableCell>
-							<TableCell>
-								<Select
-									value={user.perms}
-									onValueChange={(value) => handlePermissionChange(user.userID, value as User["perms"])}
-									disabled={
-										(user.perms === "Admin" && currentUser?.perms !== "Root") ||
-										(user.perms === "Root" && currentUser?.perms === "Root") ||
-										(user.perms === "Root" && currentUser?.perms === "Admin")
-									} // Disable if user is Admin and current user is not Root
+					<AnimatePresence mode="wait">
+						{loading ? (
+							<TableRow>
+								<TableCell colSpan={3} className="text-center py-4">
+									<div className="flex justify-center items-center">
+										<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+										<span className="ml-2">Loading...</span>
+									</div>
+								</TableCell>
+							</TableRow>
+						) : filteredUsers.length === 0 ? (
+							<TableRow>
+								<TableCell colSpan={3} className="text-center py-4">
+									No users found
+								</TableCell>
+							</TableRow>
+						) : (
+							filteredUsers.map((user, index) => (
+								<motion.tr
+									key={user.userID}
+									initial={{ opacity: 0, y: 20 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										duration: 0.3,
+										delay: index * 0.05,
+										ease: "easeOut",
+									}}
 								>
-									<SelectTrigger className="w-[180px]">
-										<SelectValue placeholder="Select permission" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="User">User</SelectItem>
-										<SelectItem value="Annotator">Annotator</SelectItem>
-										<SelectItem value="Editor">Editor</SelectItem>
-										<SelectItem value="Admin" disabled={currentUser?.perms !== "Root"}>
-											Admin
-										</SelectItem>
-										<SelectItem value="Root" disabled className="text-red-500">
-											Root
-										</SelectItem>{" "}
-										{/* Mark Root as danger */}
-									</SelectContent>
-								</Select>
-							</TableCell>
-						</TableRow>
-					))}
+									<TableCell>{user.name}</TableCell>
+									<TableCell>{user.perms === "Root" ? "Root" : user.perms}</TableCell>
+									<TableCell>
+										<Select
+											value={user.perms}
+											onValueChange={(value) => handlePermissionChange(user.userID, value as User["perms"])}
+											disabled={
+												(user.perms === "Admin" && currentUser?.perms !== "Root") ||
+												(user.perms === "Root" && currentUser?.perms === "Root") ||
+												(user.perms === "Root" && currentUser?.perms === "Admin")
+											}
+										>
+											<SelectTrigger className="w-[180px]">
+												<SelectValue placeholder="Select permission" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="User">User</SelectItem>
+												<SelectItem value="Annotator">Annotator</SelectItem>
+												<SelectItem value="Editor">Editor</SelectItem>
+												<SelectItem value="Admin" disabled={currentUser?.perms !== "Root"}>
+													Admin
+												</SelectItem>
+												<SelectItem value="Root" disabled className="text-red-500">
+													Root
+												</SelectItem>
+											</SelectContent>
+										</Select>
+									</TableCell>
+								</motion.tr>
+							))
+						)}
+					</AnimatePresence>
 				</TableBody>
 			</Table>
 			<Pagination />
