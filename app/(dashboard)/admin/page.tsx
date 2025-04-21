@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import UploadJsonPage from "@/components/global/upload-json"; // Import your JSON upload component
 import UserPerms from "@/components/global/user-perms"; // Import your permission change component
 import ReplaceBook from "@/components/global/replaceBook";
+import GroupsPage from "@/components/global/groupAdmin";
 import DeleteEntry from "@/components/global/deleteEntry";
 import { TreeNode } from "@/types/treeNode";
 
@@ -74,6 +75,9 @@ export default function AdminPage() {
 				<TabsTrigger value="delete" onClick={() => setActiveTab("delete")}>
 					Delete Entries
 				</TabsTrigger>
+				<TabsTrigger value="group" onClick={() => setActiveTab("group")}>
+					Group Administration 
+				</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="upload">
@@ -116,6 +120,14 @@ export default function AdminPage() {
 					</CardHeader>
 					<CardContent>
 						<DeleteEntry treeData={treeData} />
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			<TabsContent value="group">
+				<Card className="mt-4">
+					<CardContent>
+						<GroupsPage />
 					</CardContent>
 				</Card>
 			</TabsContent>

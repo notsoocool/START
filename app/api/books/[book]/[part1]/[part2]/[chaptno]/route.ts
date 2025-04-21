@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import { currentUser } from "@clerk/nextjs/server";
 
 interface Params {
 	book: string;
@@ -79,6 +80,12 @@ export async function POST(request: Request, { params }: { params: Params }) {
 	const data = await request.json();
 
 	try {
+		// Get current user from Clerk
+		const user = await currentUser();
+		if (!user) {
+			return NextResponse.json({ error: "User not authenticated" }, { status: 401, headers: corsHeaders() });
+		}
+
 		// Create new shloka
 		const shloka = await AHShloka.create({
 			book,
@@ -87,6 +94,10 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			chaptno,
 			slokano: data.slokano,
 			spart: data.spart,
+			userPublished: false, // Default to false
+			groupPublished: false, // Default to false
+			locked: false, // Default to false
+			owner: user.id, // Add the owner field
 		});
 
 		return NextResponse.json(shloka, { headers: corsHeaders() });

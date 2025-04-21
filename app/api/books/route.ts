@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel"; // Adjust the path as needed
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import Perms from "@/lib/db/permissionsModel";
+import Group from "@/lib/db/groupModel";
+import { currentUser } from "@clerk/nextjs/server";
 
 // Helper function to handle CORS
 const corsHeaders = {
@@ -15,11 +18,65 @@ export async function OPTIONS() {
 	return NextResponse.json({}, { headers: corsHeaders });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
 	await dbConnect();
 
 	try {
+		// Get current user from Clerk
+		const user = await currentUser();
+		if (!user) {
+			return NextResponse.json({ error: "User not authenticated" }, { status: 401, headers: { ...corsHeaders } });
+		}
+
+		// Get user permissions
+		const userPermissions = await Perms.findOne({ userID: user.id });
+		if (!userPermissions) {
+			return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
+		}
+
+		// Get user's groups
+		const userGroups = await Group.find({ members: user.id });
+		const userGroupIds = userGroups.map((group) => group._id.toString());
+		const parentGroupIds = userGroups.filter((group) => group.parentGroup).map((group) => group.parentGroup);
+
+		// Build the match condition based on user permissions
+		let matchCondition = {};
+
+		if (userPermissions.perms === "User") {
+			// Regular users can only see user-published books and their own books
+			matchCondition = {
+				$or: [{ userPublished: true }, { owner: user.id }],
+			};
+		} else if (userPermissions.perms === "Annotator") {
+			// Annotators can see:
+			// 1. User-published books
+			// 2. Group-published books from their groups
+			// 3. Group-published books from parent groups
+			// 4. Their own books
+			matchCondition = {
+				$or: [
+					{ userPublished: true },
+					{
+						$and: [
+							{ groupPublished: true },
+							{
+								$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
+							},
+						],
+					},
+					{ owner: user.id },
+				],
+			};
+		} else if (userPermissions.perms === "Admin" || userPermissions.perms === "Root") {
+			// Admins and Root can see everything
+			matchCondition = {};
+		}
+
 		const tree = await AHShloka.aggregate([
+			// Add match stage to filter based on permissions
+			{
+				$match: matchCondition,
+			},
 			// Initial sorting
 			{
 				$sort: {

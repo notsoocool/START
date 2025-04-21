@@ -6,6 +6,7 @@ import { Book, Bookmark, FileText, ScrollText, Type } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 // Define the item types based on API response structure
 type Item = {
@@ -96,12 +97,26 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 export default function SacredTexts() {
 	const [books, setBooks] = useState<Item[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const { isSignedIn } = useAuth();
+	const router = useRouter();
 
 	useEffect(() => {
 		const fetchBooks = async () => {
 			try {
 				setIsLoading(true);
+				setError(null);
+
+				if (!isSignedIn) {
+					setError("User not authenticated");
+					return;
+				}
+
 				const response = await fetch("/api/books");
+				if (!response.ok) {
+					throw new Error("Failed to fetch books");
+				}
+
 				const data = await response.json();
 
 				const transformedData = data.map((book: any) => ({
@@ -112,7 +127,6 @@ export default function SacredTexts() {
 						book.part1 && book.part1.length > 0
 							? book.part1
 									.map((part1: any) => {
-										// Case 1: If part1 is null, return chapters directly
 										if (part1.part === null) {
 											return part1.part2[0].chapters.map((chapter: string) => ({
 												id: `${book.book}-chapter-${chapter}`,
@@ -120,7 +134,6 @@ export default function SacredTexts() {
 												type: "chapter",
 											}));
 										}
-										// Case 2: If part2 is null or empty, return chapters directly under part1
 										if (!part1.part2?.[0]?.part) {
 											return {
 												id: `${book.book}-${part1.part}`,
@@ -134,7 +147,6 @@ export default function SacredTexts() {
 													})) || [],
 											};
 										}
-										// Case 3: If both part1 and part2 exist...
 										return {
 											id: `${book.book}-${part1.part}`,
 											title: part1.part,
@@ -166,13 +178,27 @@ export default function SacredTexts() {
 				setBooks(transformedData);
 			} catch (error) {
 				console.error("Error fetching books:", error);
+				setError("Failed to load books. Please try again.");
 			} finally {
 				setIsLoading(false);
 			}
 		};
 
 		fetchBooks();
-	}, []);
+	}, [isSignedIn]);
+
+	if (!isSignedIn) {
+		return (
+			<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+				<div className="max-w-4xl mx-auto space-y-6">
+					<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">Sanskrit Texts</h2>
+					<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
+						<p className="text-center text-gray-600">Please sign in to view the books.</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
@@ -183,6 +209,10 @@ export default function SacredTexts() {
 						<div className="flex justify-center items-center py-12">
 							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
 						</div>
+					) : error ? (
+						<div className="text-center text-red-600 py-12">{error}</div>
+					) : books.length === 0 ? (
+						<div className="text-center text-gray-600 py-12">No books available for your access level.</div>
 					) : (
 						books.map((book) => <TreeNode key={book.id} item={book} />)
 					)}

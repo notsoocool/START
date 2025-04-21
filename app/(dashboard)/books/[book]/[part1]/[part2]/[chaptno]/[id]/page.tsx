@@ -36,6 +36,9 @@ type Shloka = {
 	chaptno: string;
 	slokano: string;
 	spart: string;
+	userPublished: boolean;
+	groupPublished: boolean;
+	locked: boolean;
 };
 
 export default function AnalysisPage() {
@@ -216,11 +219,17 @@ export default function AnalysisPage() {
 				console.error("Debug - Full error:", error); // Debug log
 
 				if (errorMessage === "Analysis not available") {
-					setError({ type: "NO_ANALYSIS", message: `Analysis is not available for this shloka. 
-                        error_location/${book}/${part1}/${part2}/${chaptno}` });
+					setError({
+						type: "NO_ANALYSIS",
+						message: `Analysis is not available for this shloka. 
+                        error_location/${book}/${part1}/${part2}/${chaptno}/${chapterData[0].slokano}`,
+					});
 				} else {
-					setError({ type: "GENERAL", message: `An error occurred while loading the analysis.
-                        error_location/${book}/${part1}/${part2}/${chaptno}` });
+					setError({
+						type: "GENERAL",
+						message: `An error occurred while loading the analysis.
+                        error_location/${book}/${part1}/${part2}/${chaptno}/${chapterData[0].slokano}`,
+					});
 				}
 			} finally {
 				setInitialLoad(false);
