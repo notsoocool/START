@@ -24,57 +24,61 @@ export async function GET(request: NextRequest) {
 	try {
 		// Get current user from Clerk
 		const user = await currentUser();
-		if (!user) {
-			return NextResponse.json({ error: "User not authenticated" }, { status: 401, headers: { ...corsHeaders } });
-		}
 
-		// Get user permissions
-		const userPermissions = await Perms.findOne({ userID: user.id });
-		if (!userPermissions) {
-			return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
-		}
-
-		// Get user's groups
-		const userGroups = await Group.find({ members: user.id });
-		const userGroupIds = userGroups.map((group) => group._id.toString());
-		const parentGroupIds = userGroups.filter((group) => group.parentGroup).map((group) => group.parentGroup);
-
-		// Build the match condition based on user permissions
+		// Build the match condition based on user authentication and permissions
 		let matchCondition = {};
 
-		if (userPermissions.perms === "User") {
-			// Regular users can only see user-published books and their own books that are not locked
+		if (!user) {
+			// For unauthenticated users, show only user-published books that are not locked
 			matchCondition = {
-				$and: [{ $or: [{ userPublished: true }, { owner: user.id }] }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
+				$and: [{ userPublished: true }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
 			};
-		} else if (userPermissions.perms === "Annotator") {
-			// Annotators can see:
-			// 1. User-published books that are not locked
-			// 2. Group-published books from their groups that are not locked
-			// 3. Group-published books from parent groups that are not locked
-			// 4. Their own books that are not locked
-			matchCondition = {
-				$and: [
-					{
-						$or: [
-							{ userPublished: true },
-							{
-								$and: [
-									{ groupPublished: true },
-									{
-										$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
-									},
-								],
-							},
-							{ owner: user.id },
-						],
-					},
-					{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
-				],
-			};
-		} else if (userPermissions.perms === "Admin" || userPermissions.perms === "Root") {
-			// Admins and Root can see everything, including locked books
-			matchCondition = {};
+		} else {
+			// Get user permissions
+			const userPermissions = await Perms.findOne({ userID: user.id });
+			if (!userPermissions) {
+				return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
+			}
+
+			// Get user's groups
+			const userGroups = await Group.find({ members: user.id });
+			const userGroupIds = userGroups.map((group) => group._id.toString());
+			const parentGroupIds = userGroups.filter((group) => group.parentGroup).map((group) => group.parentGroup);
+
+			if (userPermissions.perms === "User") {
+				// Regular users can only see user-published books and their own books that are not locked
+				matchCondition = {
+					$and: [{ $or: [{ userPublished: true }, { owner: user.id }] }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
+				};
+			} else if (userPermissions.perms === "Annotator") {
+				// Annotators can see:
+				// 1. User-published books that are not locked
+				// 2. Group-published books from their groups that are not locked
+				// 3. Group-published books from parent groups that are not locked
+				// 4. Their own books that are not locked
+				matchCondition = {
+					$and: [
+						{
+							$or: [
+								{ userPublished: true },
+								{
+									$and: [
+										{ groupPublished: true },
+										{
+											$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
+										},
+									],
+								},
+								{ owner: user.id },
+							],
+						},
+						{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
+					],
+				};
+			} else if (userPermissions.perms === "Admin" || userPermissions.perms === "Root") {
+				// Admins and Root can see everything, including locked books
+				matchCondition = {};
+			}
 		}
 
 		const tree = await AHShloka.aggregate([
