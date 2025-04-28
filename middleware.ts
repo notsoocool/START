@@ -1,37 +1,32 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// List of paths that should be accessible during maintenance
-const allowedPaths = [
-	"/maintenance",
-	"/api/", // This will allow all API routes
-	"/",
-	"/sign-in",
-	"/sign-up",
-	"/_next",
-	"/favicon.ico",
-];
+// List of paths that should be accessible without authentication
+const publicPaths = ["/sign-in", "/sign-up", "/api/", "/_next", "/favicon.ico"];
 
 export default clerkMiddleware((auth, request) => {
-	// Check maintenance mode first
+	// Check maintenance mode
 	if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true") {
-		// If maintenance is enabled and not on maintenance page, redirect to maintenance
 		if (request.nextUrl.pathname !== "/maintenance") {
 			return NextResponse.redirect(new URL("/maintenance", request.url));
 		}
 	} else if (request.nextUrl.pathname === "/maintenance") {
-		// If maintenance is disabled and on maintenance page, redirect to home
 		return NextResponse.redirect(new URL("/", request.url));
 	}
 
-	// Then check if user is authenticated for any non-allowed path
-	if (!allowedPaths.some((path) => request.nextUrl.pathname.startsWith(path)) && !auth().userId) {
-		return NextResponse.redirect(new URL("/sign-up", request.url));
+	// Check if path is public
+	if (publicPaths.some((path) => request.nextUrl.pathname.startsWith(path))) {
+		return NextResponse.next();
 	}
 
-	// Check if the current path is in the allowed paths
-	if (allowedPaths.some((path) => request.nextUrl.pathname.startsWith(path))) {
+	// Allow access to home page without authentication
+	if (request.nextUrl.pathname === "/") {
 		return NextResponse.next();
+	}
+
+	// Check authentication for all other paths
+	if (!auth().userId) {
+		return NextResponse.redirect(new URL("/sign-up", request.url));
 	}
 
 	return NextResponse.next();

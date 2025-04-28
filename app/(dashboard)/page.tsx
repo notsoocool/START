@@ -4,6 +4,7 @@ import { Loader } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ErrorDisplay } from "@/components/global/ErrorDisplay";
+import { useUser } from "@clerk/nextjs";
 
 interface User {
 	id: string;
@@ -13,60 +14,15 @@ interface User {
 }
 
 const MainPage = () => {
-	const [user, setUser] = useState<User | null>(null);
+	const { user, isLoaded } = useUser();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		const fetchAndHandleUser = async (retryCount = 0) => {
-			try {
-				const userResponse = await fetch("/api/getCurrentUser");
-
-				if (userResponse.ok) {
-					const existingUser = await userResponse.json();
-					setUser(existingUser);
-				} else if (userResponse.status === 404) {
-					// Step 2: Create new user if not found
-					const newUserResponse = await fetch("/api/createUser", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({ perms: "User" }), // Default permission
-					});
-
-					if (newUserResponse.ok) {
-						const newUser = await newUserResponse.json();
-						setUser(newUser);
-					} else {
-						const errorData = await newUserResponse.json();
-						throw new Error(errorData.error || "Failed to create new user");
-					}
-				} else {
-					// Add retry logic for unexpected errors
-					if (retryCount < 3) {
-						setTimeout(() => {
-							fetchAndHandleUser(retryCount + 1);
-						}, 1000 * (retryCount + 1)); // Exponential backoff
-						return;
-					}
-					throw new Error("Unexpected error while fetching user");
-				}
-			} catch (err: any) {
-				if (retryCount < 3) {
-					setTimeout(() => {
-						fetchAndHandleUser(retryCount + 1);
-					}, 1000 * (retryCount + 1)); // Exponential backoff
-					return;
-				}
-				setError(err.message);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchAndHandleUser();
-	}, []);
+		if (isLoaded) {
+			setLoading(false);
+		}
+	}, [isLoaded]);
 
 	if (loading) {
 		return (
@@ -76,6 +32,7 @@ const MainPage = () => {
 			</div>
 		);
 	}
+
 	if (error) {
 		return (
 			<ErrorDisplay
@@ -114,7 +71,8 @@ const MainPage = () => {
 				<div className="container mx-auto text-center">
 					<h2 className="text-4xl font-bold text-gray-900 mb-8">Our Mission</h2>
 					<p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-						Our platform aims to make Sanskrit knowledge accessible to everyone. We provide a structured and interactive way to learn Sanskrit shlokas, understand their meanings, and appreciate their significance.
+						Our platform aims to make Sanskrit knowledge accessible to everyone. We provide a structured and interactive way to learn Sanskrit shlokas,
+						understand their meanings, and appreciate their significance.
 					</p>
 				</div>
 			</section>
@@ -124,7 +82,11 @@ const MainPage = () => {
 				<div className="container mx-auto">
 					<h2 className="text-4xl font-bold text-gray-900 mb-16 text-center">Key Features</h2>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
-						<FeatureCard title="Comprehensive Shloka Database" description="Access a vast collection of Sanskrit shlokas from different scriptures." icon="📚" />
+						<FeatureCard
+							title="Comprehensive Shloka Database"
+							description="Access a vast collection of Sanskrit shlokas from different scriptures."
+							icon="📚"
+						/>
 						<FeatureCard title="In-depth Analysis" description="Detailed interpretations, translations, and context for every shloka." icon="🔍" />
 						<FeatureCard title="Interactive Learning" description="Quizzes, discussions, and structured courses to enhance understanding." icon="✨" />
 						<FeatureCard title="Personalized Learning Paths" description="Adaptive learning that suits your pace and interests." icon="🎯" />
