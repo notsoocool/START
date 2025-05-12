@@ -12,6 +12,7 @@ interface LogHistoryParams {
 		chaptno: string;
 		slokano: string;
 		isCompleteDeletion?: boolean;
+		userId?: string;
 		changes?: {
 			field: string;
 			oldValue: any;
@@ -27,16 +28,19 @@ export async function logHistory(params: LogHistoryParams) {
 
 		if (!user) {
 			console.error("No user found for history logging");
-			return;
+			return null;
 		}
 
-		await History.create({
+		const historyEntry = await History.create({
 			...params,
 			userId: user.id,
 			userName: user.firstName ? `${user.firstName} ${user.lastName || ""}` : user.username || "Unknown User",
 			timestamp: new Date(),
 		});
+
+		return historyEntry;
 	} catch (error) {
 		console.error("Error logging history:", error);
+		return null;
 	}
 }

@@ -121,7 +121,7 @@ export default function HistoryPage() {
 	const renderDetailsDialog = () => {
 		if (!selectedEntry) return null;
 
-		const changes = selectedEntry.details.changes?.[0];
+		const changes = selectedEntry.details.changes;
 		const isCompleteDelete = selectedEntry.action === "complete_delete";
 
 		return (
@@ -133,12 +133,12 @@ export default function HistoryPage() {
 					<div className="space-y-4">
 						<div className="text-sm text-muted-foreground">Location: {formatLocation(selectedEntry)}</div>
 
-						{isCompleteDelete && changes?.oldValue?.deletedAnalyses ? (
+						{isCompleteDelete && changes?.[0]?.oldValue?.deletedAnalyses ? (
 							<>
 								<div className="font-medium mb-2">Deleted Shloka:</div>
 								<div className="text-sm mb-4">
-									<div>Slokano: {changes.oldValue.slokano}</div>
-									<div>Status: {JSON.stringify(changes.oldValue.status)}</div>
+									<div>Slokano: {changes[0].oldValue.slokano}</div>
+									<div>Status: {JSON.stringify(changes[0].oldValue.status)}</div>
 								</div>
 								<div className="font-medium mb-2">Deleted Analyses:</div>
 								<Table>
@@ -153,7 +153,7 @@ export default function HistoryPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{changes.oldValue.deletedAnalyses.map((analysis: DeletedAnalysis, index: number) => (
+										{changes[0].oldValue.deletedAnalyses.map((analysis: DeletedAnalysis, index: number) => (
 											<TableRow key={index}>
 												<TableCell>{analysis.anvaya_no}</TableCell>
 												<TableCell>{analysis.word}</TableCell>
@@ -166,20 +166,35 @@ export default function HistoryPage() {
 									</TableBody>
 								</Table>
 							</>
-						) : changes ? (
+						) : changes && changes.length > 0 ? (
 							<div className="space-y-4">
-								<div className="font-medium">Changes:</div>
-								<div className="text-sm space-y-2">
-									<div className="grid grid-cols-2 gap-4">
-										<div>
-											<div className="font-medium text-destructive">Old Value:</div>
-											<pre className="mt-1 p-2 bg-muted rounded-md overflow-x-auto">{JSON.stringify(changes.oldValue, null, 2)}</pre>
-										</div>
-										<div>
-											<div className="font-medium text-green-600">New Value:</div>
-											<pre className="mt-1 p-2 bg-muted rounded-md overflow-x-auto">{JSON.stringify(changes.newValue, null, 2)}</pre>
-										</div>
+								<div>
+									<div className="font-medium mb-1">Changed fields:</div>
+									<div className="flex flex-wrap gap-2 mb-2">
+										{changes.map((change, idx) => (
+											<span key={idx} className="px-2 py-1 bg-muted rounded text-sm font-mono border">
+												{change.field}
+											</span>
+										))}
 									</div>
+								</div>
+								<div className="font-medium">Details:</div>
+								<div className="text-sm space-y-2">
+									{changes.map((change, idx) => (
+										<div key={idx} className="mb-4">
+											<div className="font-semibold mb-1">{change.field}</div>
+											<div className="grid grid-cols-2 gap-4">
+												<div>
+													<div className="font-medium text-destructive">Old Value:</div>
+													<pre className="mt-1 p-2 bg-muted rounded-md overflow-x-auto">{JSON.stringify(change.oldValue, null, 2)}</pre>
+												</div>
+												<div>
+													<div className="font-medium text-green-600">New Value:</div>
+													<pre className="mt-1 p-2 bg-muted rounded-md overflow-x-auto">{JSON.stringify(change.newValue, null, 2)}</pre>
+												</div>
+											</div>
+										</div>
+									))}
 								</div>
 							</div>
 						) : (

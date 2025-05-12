@@ -258,30 +258,6 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
 		const savedRow = await newRow.save();
 
-		// Log the creation
-		await logHistory({
-			action: "create",
-			modelType: "Analysis",
-			details: {
-				book,
-				part1: part1 !== "null" ? part1 : undefined,
-				part2: part2 !== "null" ? part2 : undefined,
-				chaptno,
-				slokano,
-				changes: [
-					{
-						field: "new_analysis",
-						oldValue: null,
-						newValue: {
-							anvaya_no: savedRow.anvaya_no,
-							word: savedRow.word,
-							sentno: savedRow.sentno,
-						},
-					},
-				],
-			},
-		});
-
 		// Function to update relations
 		const updateRelations = (relations: string, oldNumber: string, newNumber: string) => {
 			if (!relations || relations === "-") return "-";
@@ -296,6 +272,70 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 				})
 				.join("#");
 		};
+
+		// Track all changes for history logging
+		const allChanges: {
+			field: string;
+			oldValue: null | {
+				anvaya_no: string;
+				word: string;
+				sentno: string;
+				poem?: string;
+				morph_analysis?: string;
+				morph_in_context?: string;
+				kaaraka_sambandha?: string;
+				possible_relations?: string;
+				bgcolor?: string;
+				name_classification?: string;
+				sarvanAma?: string;
+				prayoga?: string;
+				samAsa?: string;
+				english_meaning?: string;
+				sandhied_word?: string;
+				hindi_meaning?: string;
+			};
+			newValue: null | {
+				anvaya_no: string;
+				word: string;
+				sentno: string;
+				poem?: string;
+				morph_analysis?: string;
+				morph_in_context?: string;
+				kaaraka_sambandha?: string;
+				possible_relations?: string;
+				bgcolor?: string;
+				name_classification?: string;
+				sarvanAma?: string;
+				prayoga?: string;
+				samAsa?: string;
+				english_meaning?: string;
+				sandhied_word?: string;
+				hindi_meaning?: string;
+			};
+		}[] = [
+			{
+				field: "new_analysis",
+				oldValue: null,
+				newValue: {
+					anvaya_no: savedRow.anvaya_no,
+					word: savedRow.word,
+					sentno: savedRow.sentno,
+					poem: savedRow.poem,
+					morph_analysis: savedRow.morph_analysis,
+					morph_in_context: savedRow.morph_in_context,
+					kaaraka_sambandha: savedRow.kaaraka_sambandha,
+					possible_relations: savedRow.possible_relations,
+					bgcolor: savedRow.bgcolor,
+					name_classification: savedRow.name_classification,
+					sarvanAma: savedRow.sarvanAma,
+					prayoga: savedRow.prayoga,
+					samAsa: savedRow.samAsa,
+					english_meaning: savedRow.english_meaning,
+					sandhied_word: savedRow.sandhied_word,
+					hindi_meaning: savedRow.hindi_meaning,
+				},
+			},
+		];
 
 		// Update existing rows based on shift type
 		const updatePromises = existingRows.map(async (row) => {
@@ -328,12 +368,11 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 						shouldUpdate = true;
 					}
 				}
-				// Don't update any rows with different main numbers
 			}
 
 			if (shouldUpdate) {
 				const oldAnvayaNo = row.anvaya_no;
-				await Analysis.findByIdAndUpdate(
+				const updatedRow = await Analysis.findByIdAndUpdate(
 					row._id,
 					{
 						$set: {
@@ -344,10 +383,65 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 					},
 					{ new: true }
 				);
+
+				// Add the anvaya number change to the changes array with all row data
+				allChanges.push({
+					field: "anvaya_no_update",
+					oldValue: {
+						anvaya_no: oldAnvayaNo,
+						word: row.word,
+						sentno: row.sentno,
+						poem: row.poem,
+						morph_analysis: row.morph_analysis,
+						morph_in_context: row.morph_in_context,
+						kaaraka_sambandha: row.kaaraka_sambandha,
+						possible_relations: row.possible_relations,
+						bgcolor: row.bgcolor,
+						name_classification: row.name_classification,
+						sarvanAma: row.sarvanAma,
+						prayoga: row.prayoga,
+						samAsa: row.samAsa,
+						english_meaning: row.english_meaning,
+						sandhied_word: row.sandhied_word,
+						hindi_meaning: row.hindi_meaning,
+					},
+					newValue: {
+						anvaya_no: newAnvayaNo,
+						word: updatedRow.word,
+						sentno: updatedRow.sentno,
+						poem: updatedRow.poem,
+						morph_analysis: updatedRow.morph_analysis,
+						morph_in_context: updatedRow.morph_in_context,
+						kaaraka_sambandha: updatedRow.kaaraka_sambandha,
+						possible_relations: updatedRow.possible_relations,
+						bgcolor: updatedRow.bgcolor,
+						name_classification: updatedRow.name_classification,
+						sarvanAma: updatedRow.sarvanAma,
+						prayoga: updatedRow.prayoga,
+						samAsa: updatedRow.samAsa,
+						english_meaning: updatedRow.english_meaning,
+						sandhied_word: updatedRow.sandhied_word,
+						hindi_meaning: updatedRow.hindi_meaning,
+					},
+				});
 			}
 		});
 
 		await Promise.all(updatePromises);
+
+		// Log all changes in a single history entry
+		await logHistory({
+			action: "create",
+			modelType: "Analysis",
+			details: {
+				book,
+				part1: part1 !== "null" ? part1 : undefined,
+				part2: part2 !== "null" ? part2 : undefined,
+				chaptno,
+				slokano,
+				changes: allChanges,
+			},
+		});
 
 		// Fetch final state of all rows
 		const finalRows = await Analysis.find({

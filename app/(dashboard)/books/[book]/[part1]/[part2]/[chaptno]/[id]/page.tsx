@@ -111,6 +111,7 @@ export default function AnalysisPage() {
 	const [meaningDialogOpen, setMeaningDialogOpen] = useState(false);
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
+	const [addRowLoading, setAddRowLoading] = useState(false);
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -1116,9 +1117,10 @@ export default function AnalysisPage() {
 		}
 	};
 
-	// Add this function to handle adding a new row
+	// Modify the handleAddRow function
 	const handleAddRow = async () => {
 		try {
+			setAddRowLoading(true); // Set loading state at the start
 			if (!newRowData.anvaya_no || !newRowData.word || !newRowData.sentno) {
 				toast.error("Please fill in all required fields");
 				return;
@@ -1236,21 +1238,39 @@ export default function AnalysisPage() {
 			console.error("Add row error:", error);
 			toast.error("Error adding row: " + (error as Error).message);
 		} finally {
+			setAddRowLoading(false); // Reset loading state in finally block
 			setLoading(false);
 		}
 	};
 
-	// Add this near your other UI elements, before the Table component
+	// Modify the renderAddRowButton function
 	const renderAddRowButton = () => (
-		<Button onClick={() => setAddRowDialogOpen(true)} className="flex items-center gap-2">
-			<PlusCircle className="size-4" />
-			Add Row
+		<Button 
+			onClick={() => setAddRowDialogOpen(true)} 
+			className="flex items-center gap-2"
+			disabled={addRowLoading}
+		>
+			{addRowLoading ? (
+				<>
+					<Loader2 className="size-4 animate-spin" />
+					Adding Row...
+				</>
+			) : (
+				<>
+					<PlusCircle className="size-4" />
+					Add Row
+				</>
+			)}
 		</Button>
 	);
 
-	// Add this near your other Dialog components
+	// Modify the renderAddRowDialog function's footer
 	const renderAddRowDialog = () => (
-		<Dialog open={addRowDialogOpen} onOpenChange={setAddRowDialogOpen}>
+		<Dialog open={addRowDialogOpen} onOpenChange={(open) => {
+			if (!addRowLoading) { // Only allow closing if not loading
+				setAddRowDialogOpen(open);
+			}
+		}}>
 			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Add New Row</DialogTitle>
@@ -1342,10 +1362,26 @@ export default function AnalysisPage() {
 					</div>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setAddRowDialogOpen(false)}>
+					<Button 
+						variant="outline" 
+						onClick={() => setAddRowDialogOpen(false)}
+						disabled={addRowLoading}
+					>
 						Cancel
 					</Button>
-					<Button onClick={() => handleAddRow()}>Add Row</Button>
+					<Button 
+						onClick={() => handleAddRow()} 
+						disabled={addRowLoading}
+					>
+						{addRowLoading ? (
+							<>
+								<Loader2 className="size-4 animate-spin mr-2" />
+								Adding Row...
+							</>
+						) : (
+							'Add Row'
+						)}
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
