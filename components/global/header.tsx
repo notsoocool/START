@@ -4,6 +4,7 @@ import { ClerkLoaded, ClerkLoading, UserButton, SignInButton } from "@clerk/next
 import { Loader2, Bell, Check } from "lucide-react";
 import { Navigation } from "./navigation";
 import { HeaderLogo } from "./header-logo";
+import { Search } from "./search";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,7 +127,8 @@ export const Header = () => {
 						<HeaderLogo />
 						<Navigation />
 					</div>
-					<div className="flex flex-row-reverse gap-6 items-center">
+					<div className="flex items-center gap-6">
+						<Search />
 						<ClerkLoaded>
 							{currentUser ? (
 								<>
