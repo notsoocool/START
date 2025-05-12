@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import { logHistory } from "@/lib/utils/historyLogger";
 
 interface Params {
 	book: string;
@@ -86,12 +87,19 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 	await dbConnect();
 
 	try {
-		// Find and update by _id instead of anvaya_no
-		const updatedRow = await Analysis.findByIdAndUpdate(
-			data._id, // Use _id to find the document
+		// Get the original document for comparison
+		const originalDoc = await Analysis.findById(data._id);
+		if (!originalDoc) {
+			console.error("Row not found:", data._id);
+			return NextResponse.json({ message: `Row with id ${data._id} not found` }, { status: 404, headers: corsHeaders() });
+		}
+
+		// Update the document
+		const updatedDoc = await Analysis.findByIdAndUpdate(
+			data._id,
 			{
 				$set: {
-					...data, // Update all fields from the request
+					...data,
 				},
 			},
 			{
@@ -100,13 +108,31 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 			}
 		);
 
-		if (!updatedRow) {
-			console.error("Row not found:", data._id);
-			return NextResponse.json({ message: `Row with id ${data._id} not found` }, { status: 404, headers: corsHeaders() });
+		// Compare and log changes
+		const changes = Object.entries(data)
+			.filter(([key, value]) => key !== "_id" && JSON.stringify(originalDoc[key]) !== JSON.stringify(value))
+			.map(([field, newValue]) => ({
+				field,
+				oldValue: originalDoc[field],
+				newValue,
+			}));
+
+		if (changes.length > 0) {
+			await logHistory({
+				action: "edit",
+				modelType: "Analysis",
+				details: {
+					book,
+					part1: part1 !== "null" ? part1 : undefined,
+					part2: part2 !== "null" ? part2 : undefined,
+					chaptno,
+					slokano,
+					changes,
+				},
+			});
 		}
 
-		console.log("Row updated successfully:", updatedRow);
-		return NextResponse.json({ message: "Update successful", updatedRow }, { headers: corsHeaders() });
+		return NextResponse.json({ message: "Update successful", updatedRow: updatedDoc }, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error updating row:", error);
 		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
@@ -121,7 +147,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		return authResponse;
 	}
 
-	// Extract anvaya_no and sentno from the request body
 	const { anvaya_no, sentno } = await req.json();
 
 	console.log("Delete request received for:", { book, part1, part2, chaptno, slokano, anvaya_no, sentno }); // Log incoming request parameters
@@ -142,13 +167,39 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 
 		console.log("Query for deletion:", query); // Log the query being executed
 
-		// Delete the matching row
-		const deletedRow = await Analysis.findOneAndDelete(query);
-
-		if (!deletedRow) {
+		// Get the row before deletion for logging
+		const rowToDelete = await Analysis.findOne(query);
+		if (!rowToDelete) {
 			console.warn("Row not found for deletion:", query); // Log if no row was found
 			return NextResponse.json({ message: "Row not found" }, { status: 404, headers: corsHeaders() });
 		}
+
+		// Delete the row
+		const deletedRow = await Analysis.findOneAndDelete(query);
+
+		// Log the deletion
+		await logHistory({
+			action: "delete",
+			modelType: "Analysis",
+			details: {
+				book,
+				part1: part1 !== "null" ? part1 : undefined,
+				part2: part2 !== "null" ? part2 : undefined,
+				chaptno,
+				slokano,
+				changes: [
+					{
+						field: "deleted_analysis",
+						oldValue: {
+							anvaya_no: deletedRow.anvaya_no,
+							word: deletedRow.word,
+							sentno: deletedRow.sentno,
+						},
+						newValue: null,
+					},
+				],
+			},
+		});
 
 		console.log("Row deleted successfully:", deletedRow); // Log the deleted row
 		return NextResponse.json({ message: "Row deleted successfully" }, { headers: corsHeaders() });
@@ -206,6 +257,30 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		});
 
 		const savedRow = await newRow.save();
+
+		// Log the creation
+		await logHistory({
+			action: "create",
+			modelType: "Analysis",
+			details: {
+				book,
+				part1: part1 !== "null" ? part1 : undefined,
+				part2: part2 !== "null" ? part2 : undefined,
+				chaptno,
+				slokano,
+				changes: [
+					{
+						field: "new_analysis",
+						oldValue: null,
+						newValue: {
+							anvaya_no: savedRow.anvaya_no,
+							word: savedRow.word,
+							sentno: savedRow.sentno,
+						},
+					},
+				],
+			},
+		});
 
 		// Function to update relations
 		const updateRelations = (relations: string, oldNumber: string, newNumber: string) => {

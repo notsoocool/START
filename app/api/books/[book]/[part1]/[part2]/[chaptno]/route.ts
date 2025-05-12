@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 import { currentUser } from "@clerk/nextjs/server";
+import { logHistory } from "@/lib/utils/historyLogger";
 
 interface Params {
 	book: string;
@@ -63,8 +64,41 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 	};
 
 	try {
+		// Get the shlokas before deletion for logging
+		const shlokasToDelete = await AHShloka.find(query);
+
 		// Delete all entries matching the query
 		const result = await AHShloka.deleteMany(query);
+
+		// Log the deletion of each shloka
+		for (const shloka of shlokasToDelete) {
+			await logHistory({
+				action: "delete",
+				modelType: "Shloka",
+				details: {
+					book: shloka.book,
+					part1: shloka.part1 || undefined,
+					part2: shloka.part2 || undefined,
+					chaptno: shloka.chaptno,
+					slokano: shloka.slokano,
+					changes: [
+						{
+							field: "deleted_shloka",
+							oldValue: {
+								slokano: shloka.slokano,
+								spart: shloka.spart,
+								status: {
+									locked: shloka.locked,
+									userPublished: shloka.userPublished,
+									groupPublished: shloka.groupPublished,
+								},
+							},
+							newValue: null,
+						},
+					],
+				},
+			});
+		}
 
 		// Respond with the number of deleted entries
 		return NextResponse.json({ message: `Deleted ${result.deletedCount} entries successfully.` }, { headers: corsHeaders() });
@@ -94,10 +128,33 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			chaptno,
 			slokano: data.slokano,
 			spart: data.spart,
-			userPublished: false, // Default to false
-			groupPublished: false, // Default to false
-			locked: false, // Default to false
-			owner: user.id, // Add the owner field
+			userPublished: false,
+			groupPublished: false,
+			locked: false,
+			owner: user.id,
+		});
+
+		// Log the creation
+		await logHistory({
+			action: "create",
+			modelType: "Shloka",
+			details: {
+				book,
+				part1: part1 !== "null" ? part1 : undefined,
+				part2: part2 !== "null" ? part2 : undefined,
+				chaptno,
+				slokano: data.slokano,
+				changes: [
+					{
+						field: "new_shloka",
+						oldValue: null,
+						newValue: {
+							slokano: data.slokano,
+							spart: data.spart,
+						},
+					},
+				],
+			},
 		});
 
 		return NextResponse.json(shloka, { headers: corsHeaders() });

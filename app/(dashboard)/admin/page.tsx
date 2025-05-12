@@ -9,6 +9,7 @@ import ReplaceBook from "@/components/global/replaceBook";
 import GroupsPage from "@/components/global/groupAdmin";
 import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
+import HistoryPage from "@/components/global/history";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
@@ -77,10 +78,13 @@ export default function AdminPage() {
 					Delete Entries
 				</TabsTrigger>
 				<TabsTrigger value="group" onClick={() => setActiveTab("group")}>
-					Group Administration 
+					Group Administration
 				</TabsTrigger>
 				<TabsTrigger value="publish" onClick={() => setActiveTab("publish")}>
 					Book Publishing
+				</TabsTrigger>
+				<TabsTrigger value="history" onClick={() => setActiveTab("history")}>
+					History
 				</TabsTrigger>
 			</TabsList>
 
@@ -142,6 +146,10 @@ export default function AdminPage() {
 						<BookPublishPage />
 					</CardContent>
 				</Card>
+			</TabsContent>
+
+			<TabsContent value="history">
+				<HistoryPage />
 			</TabsContent>
 		</Tabs>
 	);

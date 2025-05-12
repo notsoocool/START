@@ -71,13 +71,14 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 		try {
 			const loadingToast = toast.loading("Deleting analysis and shloka...");
 
-			// Delete shloka first
+			// Delete shloka first with complete deletion flag
 			const deleteShlokaResponse = await fetch(`/api/ahShloka/${shloka._id}`, {
 				method: "DELETE",
 				headers: {
 					"Content-Type": "application/json",
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 				},
+				body: JSON.stringify({ isCompleteDeletion: true }),
 			});
 
 			if (!deleteShlokaResponse.ok) {
@@ -85,13 +86,14 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 				throw new Error(`Failed to delete shloka: ${shlokaError.error}`);
 			}
 
-			// Then delete analysis
+			// Then delete analysis with complete deletion flag
 			const deleteAnalysisResponse = await fetch(`/api/deleteShlokaAnalysis/${book}/${part1}/${part2}/${chaptno}/${shloka.slokano}`, {
 				method: "DELETE",
 				headers: {
 					"Content-Type": "application/json",
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 				},
+				body: JSON.stringify({ isCompleteDeletion: true }),
 			});
 
 			if (!deleteAnalysisResponse.ok) {
