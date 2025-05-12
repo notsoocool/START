@@ -1245,11 +1245,7 @@ export default function AnalysisPage() {
 
 	// Modify the renderAddRowButton function
 	const renderAddRowButton = () => (
-		<Button 
-			onClick={() => setAddRowDialogOpen(true)} 
-			className="flex items-center gap-2"
-			disabled={addRowLoading}
-		>
+		<Button onClick={() => setAddRowDialogOpen(true)} className="flex items-center gap-2" disabled={addRowLoading}>
 			{addRowLoading ? (
 				<>
 					<Loader2 className="size-4 animate-spin" />
@@ -1266,11 +1262,15 @@ export default function AnalysisPage() {
 
 	// Modify the renderAddRowDialog function's footer
 	const renderAddRowDialog = () => (
-		<Dialog open={addRowDialogOpen} onOpenChange={(open) => {
-			if (!addRowLoading) { // Only allow closing if not loading
-				setAddRowDialogOpen(open);
-			}
-		}}>
+		<Dialog
+			open={addRowDialogOpen}
+			onOpenChange={(open) => {
+				if (!addRowLoading) {
+					// Only allow closing if not loading
+					setAddRowDialogOpen(open);
+				}
+			}}
+		>
 			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Add New Row</DialogTitle>
@@ -1362,24 +1362,17 @@ export default function AnalysisPage() {
 					</div>
 				</div>
 				<DialogFooter>
-					<Button 
-						variant="outline" 
-						onClick={() => setAddRowDialogOpen(false)}
-						disabled={addRowLoading}
-					>
+					<Button variant="outline" onClick={() => setAddRowDialogOpen(false)} disabled={addRowLoading}>
 						Cancel
 					</Button>
-					<Button 
-						onClick={() => handleAddRow()} 
-						disabled={addRowLoading}
-					>
+					<Button onClick={() => handleAddRow()} disabled={addRowLoading}>
 						{addRowLoading ? (
 							<>
 								<Loader2 className="size-4 animate-spin mr-2" />
 								Adding Row...
 							</>
 						) : (
-							'Add Row'
+							"Add Row"
 						)}
 					</Button>
 				</DialogFooter>
