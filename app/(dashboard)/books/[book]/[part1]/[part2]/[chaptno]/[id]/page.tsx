@@ -42,7 +42,13 @@ type Shloka = {
 };
 
 export default function AnalysisPage() {
-	const { book, part1, part2, chaptno, id } = useParams(); // Get the shloka ID from the URL
+	const params = useParams();
+	const decodedBook = decodeURIComponent(params.book as string);
+	const decodedPart1 = decodeURIComponent(params.part1 as string);
+	const decodedPart2 = decodeURIComponent(params.part2 as string);
+	const decodedChaptno = decodeURIComponent(params.chaptno as string);
+	const decodedId = decodeURIComponent(params.id as string);
+
 	const [shloka, setShloka] = useState<Shloka | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [chapter, setChapter] = useState<any>(null);
@@ -116,30 +122,61 @@ export default function AnalysisPage() {
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
 			try {
-				const [chapterResponse, shlokaResponse] = await Promise.all([
-					fetch(`/api/chapters/${book}/${part1}/${part2}`),
-					chaptno ? fetch(`/api/shlokas/${book}/${part1}/${part2}/${chaptno}`) : null,
-				]);
+				// Fetch the book tree to get chapters
+				const bookResponse = await fetch(`/api/books`);
+				const bookData = await bookResponse.json();
+				console.log("Book data received:", bookData);
 
-				const chapterData = await chapterResponse.json();
-				setChapters(chapterData.chapters);
+				// Find the matching book, part1, part2 in the tree using decoded values
+				const currentBook = bookData.find((b: any) => {
+					console.log("Comparing:", {
+						book: b.book,
+						part1: b.part1?.[0]?.part,
+						part2: b.part1?.[0]?.part2?.[0]?.part,
+						with: { decodedBook, decodedPart1, decodedPart2 },
+					});
 
-				if (shlokaResponse) {
+					// Handle null/undefined values
+					const bookMatch = b.book === decodedBook;
+					const part1Match = (b.part1?.[0]?.part === null && decodedPart1 === "null") || b.part1?.[0]?.part === decodedPart1;
+					const part2Match = (b.part1?.[0]?.part2?.[0]?.part === null && decodedPart2 === "null") || b.part1?.[0]?.part2?.[0]?.part === decodedPart2;
+
+					return bookMatch && part1Match && part2Match;
+				});
+				console.log("Current book found:", currentBook);
+
+				if (currentBook) {
+					// Get chapters from the nested structure: part1[0].part2[0].chapters
+					const chapters = currentBook.part1?.[0]?.part2?.[0]?.chapters || [];
+					console.log("Chapters found in structure:", {
+						part1: currentBook.part1?.[0],
+						part2: currentBook.part1?.[0]?.part2?.[0],
+						chapters: chapters,
+					});
+
+					// The chapters array is already in the correct format (array of chapter numbers)
+					setChapters(chapters);
+				} else {
+					console.log("No matching book found for:", { decodedBook, decodedPart1, decodedPart2 });
+				}
+
+				// Fetch shlokas for current chapter using decoded values
+				if (decodedChaptno) {
+					const shlokaResponse = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
 					const shlokaData = await shlokaResponse.json();
-					setShlokas(shlokaData.shlokas);
+					console.log("Shloka data received:", shlokaData);
+					setAvailableShlokas(shlokaData.shlokas);
 				}
 			} catch (error) {
 				console.error("Error fetching chapters or shlokas:", error);
-				// Fallback values
-				setChapters(Array.from({ length: 20 }, (_, i) => (i + 1).toString()));
-				setShlokas(Array.from({ length: 50 }, (_, i) => (i + 1).toString()));
+				toast.error("Failed to load chapters or shlokas");
 			}
 		};
 		fetchChaptersAndShlokas();
-	}, [book, part1, part2, chaptno]);
+	}, [decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
 
 	useEffect(() => {
-		if (!id) return;
+		if (!decodedId) return;
 
 		const fetchAllData = async () => {
 			// Declare variables outside try block so they're accessible in catch
@@ -152,7 +189,7 @@ export default function AnalysisPage() {
 				setError(null);
 
 				// First fetch shloka data
-				const shlokaResponse = await fetch(`/api/ahShloka/${id}`);
+				const shlokaResponse = await fetch(`/api/ahShloka/${decodedId}`);
 				if (!shlokaResponse.ok) {
 					throw new Error("Shloka not found");
 				}
@@ -162,19 +199,19 @@ export default function AnalysisPage() {
 				originalSlokano = shlokaData.slokano;
 
 				// Fetch available shlokas
-				const availableShlokaResponse = await fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`);
+				const availableShlokaResponse = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
 				const availableShlokaData = await availableShlokaResponse.json();
 				setAvailableShlokas(availableShlokaData.shlokas);
 
 				// Try to fetch analysis data with the original slokano
 				console.log("Debug - Fetching analysis for slokano:", shlokaData.slokano); // Debug log
-				let chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shlokaData.slokano}`);
+				let chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData.slokano}`);
 
 				// If not found, try with padded zeros (e.g., if original is "1", try "001")
 				if (!chapterResponse.ok) {
 					const paddedSlokano = shlokaData.slokano.padStart(3, "0");
 					console.log("Debug - Trying with padded slokano:", paddedSlokano);
-					chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${paddedSlokano}`);
+					chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${paddedSlokano}`);
 
 					// If found with padded zeros, this indicates a format mismatch
 					if (chapterResponse.ok) {
@@ -185,7 +222,7 @@ export default function AnalysisPage() {
 						setError({
 							type: "FORMAT_MISMATCH",
 							message: `Shloka number format mismatch. Found "${originalSlokano}" in shloka model but "${paddedSlokano}" in analysis model. Please contact admin to fix this inconsistency.
-                            error_location/${book}/${part1}/${part2}/${chaptno}`,
+                            error_location/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`,
 						});
 						return;
 					}
@@ -198,12 +235,22 @@ export default function AnalysisPage() {
 				// Check if analysis data exists and is an array
 				if (!chapterData || !Array.isArray(chapterData) || chapterData.length === 0) {
 					console.log("Debug - No analysis data found"); // Debug log
-					throw new Error("Analysis not available");
+					setError({
+						type: "NO_ANALYSIS",
+						message: `Analysis is not available for this shloka. 
+                        error_location/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData?.slokano || "unknown"}`,
+					});
+					return;
 				}
 
 				// Check if shloka numbers match
-				if (chapterData[0].slokano !== shlokaData.slokano) {
-					throw new Error("Mismatch between shloka and analysis data");
+				if (chapterData[0]?.slokano !== shlokaData?.slokano) {
+					setError({
+						type: "GENERAL",
+						message: `Mismatch between shloka and analysis data.
+                        error_location/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData?.slokano || "unknown"}`,
+					});
+					return;
 				}
 
 				setChapter(chapterData);
@@ -223,13 +270,13 @@ export default function AnalysisPage() {
 					setError({
 						type: "NO_ANALYSIS",
 						message: `Analysis is not available for this shloka. 
-                        error_location/${book}/${part1}/${part2}/${chaptno}/${chapterData[0].slokano}`,
+                        error_location/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData?.slokano || "unknown"}`,
 					});
 				} else {
 					setError({
 						type: "GENERAL",
 						message: `An error occurred while loading the analysis.
-                        error_location/${book}/${part1}/${part2}/${chaptno}/${chapterData[0].slokano}`,
+                        error_location/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData?.slokano || "unknown"}`,
 					});
 				}
 			} finally {
@@ -239,10 +286,20 @@ export default function AnalysisPage() {
 		};
 
 		fetchAllData();
-	}, [id, book, part1, part2, chaptno]);
+	}, [decodedId, decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
 
-	const handleShlokaChange = (shlokaId: string) => {
-		router.push(`/books/${book}/${part1}/${part2}/${chaptno}/${shlokaId}`);
+	const handleShlokaChange = (shlokaId: string, newChapter: string, newPart1: string, newPart2: string) => {
+		console.log("Changing shloka with data:", {
+			shlokaId,
+			newChapter,
+			newPart1,
+			newPart2,
+			currentShloka: availableShlokas.find((s) => s._id === shlokaId),
+		});
+		// Construct the URL with proper encoding and the new part1/part2 values
+		const url = `/books/${encodeURIComponent(decodedBook)}/${encodeURIComponent(newPart1)}/${encodeURIComponent(newPart2)}/${newChapter}/${shlokaId}`;
+		console.log("Navigating to:", url);
+		router.push(url);
 	};
 
 	const handleOpacityChange = (value: number[]) => {
@@ -301,7 +358,7 @@ export default function AnalysisPage() {
 				part2: currentData.part2,
 			};
 
-			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
+			const response = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify(dataToUpdate),
@@ -566,7 +623,7 @@ export default function AnalysisPage() {
 			const currentMainNum = parseInt(currentMain);
 			const currentSubNum = parseInt(currentSub);
 
-			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${currentData.slokano}`, {
+			const response = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`, {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify({
@@ -1018,7 +1075,7 @@ export default function AnalysisPage() {
 	const handleSortByProseIndex = async () => {
 		try {
 			setLoading(true);
-			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
 			const chapterData = await chapterResponse.json();
 
 			// Group and sort the data by sentno and prose index
@@ -1058,7 +1115,7 @@ export default function AnalysisPage() {
 	const handleSortByIndex = async () => {
 		try {
 			setLoading(true);
-			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
 			const chapterData = await chapterResponse.json();
 
 			// Group and sort the data by sentno and anvaya_no
@@ -1102,7 +1159,7 @@ export default function AnalysisPage() {
 	const handleRefresh = async () => {
 		try {
 			setLoading(true);
-			const chapterResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
 			const chapterData = await chapterResponse.json();
 
 			setChapter(chapterData);
@@ -1126,7 +1183,7 @@ export default function AnalysisPage() {
 				return;
 			}
 
-			const currentResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+			const currentResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
 			const currentData = await currentResponse.json();
 
 			const anvayaMapping: { [key: string]: string } = {};
@@ -1188,7 +1245,7 @@ export default function AnalysisPage() {
 			});
 
 			// Add the new row
-			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
+			const response = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify({
@@ -1224,7 +1281,7 @@ export default function AnalysisPage() {
 
 				// Immediately fetch fresh data
 				setLoading(true);
-				const refreshResponse = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`);
+				const refreshResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
 				const refreshedData = await refreshResponse.json();
 
 				// Update all relevant state with fresh data
@@ -1393,7 +1450,7 @@ export default function AnalysisPage() {
 			const loadingToast = toast.loading("Deleting analysis and shloka...");
 
 			// Delete shloka first
-			const deleteShlokaResponse = await fetch(`/api/ahShloka/${id}`, {
+			const deleteShlokaResponse = await fetch(`/api/ahShloka/${decodedId}`, {
 				method: "DELETE",
 				headers: {
 					"Content-Type": "application/json",
@@ -1407,13 +1464,16 @@ export default function AnalysisPage() {
 			}
 
 			// Then delete analysis using the new route
-			const deleteAnalysisResponse = await fetch(`/api/deleteShlokaAnalysis/${book}/${part1}/${part2}/${chaptno}/${shloka?.slokano}`, {
-				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
-				},
-			});
+			const deleteAnalysisResponse = await fetch(
+				`/api/deleteShlokaAnalysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`,
+				{
+					method: "DELETE",
+					headers: {
+						"Content-Type": "application/json",
+						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+					},
+				}
+			);
 
 			if (!deleteAnalysisResponse.ok) {
 				const analysisError = await deleteAnalysisResponse.json();
@@ -1428,7 +1488,7 @@ export default function AnalysisPage() {
 			toast.success("Analysis and Shloka deleted successfully");
 
 			// Navigate back to the chapter page
-			router.push(`/books/${book}/${part1}/${part2}/${chaptno}`);
+			router.push(`/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
 		} catch (error) {
 			console.error("Delete error:", error);
 			toast.error("Error during deletion: " + (error as Error).message);
@@ -1456,6 +1516,25 @@ export default function AnalysisPage() {
 			</DialogContent>
 		</Dialog>
 	);
+
+	const handleChapterChange = async (newChapter: string) => {
+		try {
+			setLoading(true);
+			console.log("Fetching shlokas for chapter:", newChapter);
+			const response = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${newChapter}`);
+			if (!response.ok) throw new Error("Failed to fetch shlokas");
+			const data = await response.json();
+			console.log("Received shlokas data:", data);
+			setAvailableShlokas(data.shlokas);
+			return data.shlokas;
+		} catch (error) {
+			console.error("Error fetching shlokas:", error);
+			toast.error("Failed to fetch shlokas for the selected chapter");
+			return [];
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	if (error) {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
@@ -1521,8 +1600,11 @@ export default function AnalysisPage() {
 		<div className="container mx-auto p-6 space-y-8 w-full">
 			<div className="flex justify-between items-center">
 				<Header
-					chaptno={chaptno as string}
-					id={id as string}
+					book={decodedBook}
+					part1={decodedPart1}
+					part2={decodedPart2}
+					chaptno={decodedChaptno}
+					id={decodedId}
 					shloka={shloka}
 					availableShlokas={availableShlokas}
 					selectedColumns={selectedColumns}
@@ -1533,17 +1615,19 @@ export default function AnalysisPage() {
 					handleOpacityChange={handleOpacityChange}
 					setSelectedDictionary={setSelectedDictionary}
 					handleGenerateGraph={handleGenerateGraph}
+					chapters={chapters}
+					onChapterChange={handleChapterChange}
 				/>
 			</div>
 
 			<ShlokaCard
-				book={book}
-				chaptno={chaptno as string}
+				book={decodedBook}
+				chaptno={decodedChaptno}
 				shloka={shloka}
 				analysisID={analysisId as string}
 				permissions={permissions}
-				part1={part1 as string}
-				part2={part2 as string}
+				part1={decodedPart1}
+				part2={decodedPart2}
 			/>
 
 			<div className="flex justify-end w-full gap-2">
