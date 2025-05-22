@@ -212,7 +212,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 // Add POST handler for creating new rows
 export async function POST(req: NextRequest, { params }: { params: Params }) {
 	const { book, part1, part2, chaptno, slokano } = params;
-	const { shiftType, ...data } = await req.json();
+	const { shiftType, updatedRows, ...data } = await req.json();
 	const authResponse = await verifyDBAccess(req);
 	if (authResponse instanceof NextResponse && authResponse.status === 401) {
 		return authResponse;
@@ -225,18 +225,6 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		if (!data.anvaya_no || !data.word || !data.sentno) {
 			return NextResponse.json({ message: "Missing required fields" }, { status: 400, headers: corsHeaders() });
 		}
-
-		const [newMain, newSub] = data.anvaya_no.split(".").map(Number);
-
-		// Fetch existing rows before adding new row
-		const existingRows = await Analysis.find({
-			book,
-			part1: part1 !== "null" ? part1 : null,
-			part2: part2 !== "null" ? part2 : null,
-			chaptno,
-			slokano,
-			sentno: data.sentno,
-		}).sort({ anvaya_no: 1 });
 
 		// Create and save new row
 		const newRow = new Analysis({
@@ -258,61 +246,8 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
 		const savedRow = await newRow.save();
 
-		// Function to update relations
-		const updateRelations = (relations: string, oldNumber: string, newNumber: string) => {
-			if (!relations || relations === "-") return "-";
-			return relations
-				.split("#")
-				.map((relation) => {
-					const [type, number] = relation.split(",");
-					if (number?.trim() === oldNumber) {
-						return `${type},${newNumber}`;
-					}
-					return relation;
-				})
-				.join("#");
-		};
-
 		// Track all changes for history logging
-		const allChanges: {
-			field: string;
-			oldValue: null | {
-				anvaya_no: string;
-				word: string;
-				sentno: string;
-				poem?: string;
-				morph_analysis?: string;
-				morph_in_context?: string;
-				kaaraka_sambandha?: string;
-				possible_relations?: string;
-				bgcolor?: string;
-				name_classification?: string;
-				sarvanAma?: string;
-				prayoga?: string;
-				samAsa?: string;
-				english_meaning?: string;
-				sandhied_word?: string;
-				hindi_meaning?: string;
-			};
-			newValue: null | {
-				anvaya_no: string;
-				word: string;
-				sentno: string;
-				poem?: string;
-				morph_analysis?: string;
-				morph_in_context?: string;
-				kaaraka_sambandha?: string;
-				possible_relations?: string;
-				bgcolor?: string;
-				name_classification?: string;
-				sarvanAma?: string;
-				prayoga?: string;
-				samAsa?: string;
-				english_meaning?: string;
-				sandhied_word?: string;
-				hindi_meaning?: string;
-			};
-		}[] = [
+		const allChanges = [
 			{
 				field: "new_analysis",
 				oldValue: null,
@@ -337,97 +272,68 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 			},
 		];
 
-		// Update existing rows based on shift type
-		const updatePromises = existingRows.map(async (row) => {
-			const [rowMain, rowSub] = row.anvaya_no.split(".").map(Number);
-			let newAnvayaNo = row.anvaya_no;
-			let shouldUpdate = false;
+		// Update all rows that were modified
+		if (updatedRows && Array.isArray(updatedRows)) {
+			console.log(`Updating ${updatedRows.length} rows with new anvaya numbers and relations`);
 
-			if (shiftType === "main") {
-				// Shift all subsequent main numbers up
-				if (rowMain >= newMain) {
-					newAnvayaNo = `${rowMain + 1}.${rowSub}`;
-					shouldUpdate = true;
+			const updatePromises = updatedRows.map(async (row) => {
+				// Find the existing row by its original _id
+				const existingRow = await Analysis.findById(row._id);
+				if (!existingRow) {
+					console.warn(`Row not found for update: ${row._id}`);
+					return;
 				}
-			} else if (shiftType === "sub") {
-				// Only update sub-numbers within the same main group
-				if (rowMain === newMain && rowSub >= newSub) {
-					newAnvayaNo = `${rowMain}.${rowSub + 1}`;
-					shouldUpdate = true;
-				}
-			} else if (shiftType === "convert_to_sub") {
-				if (rowMain === newMain) {
-					// Only update sub-numbers within the same main group
-					if (rowSub === 1) {
-						// First row becomes sub-number 2 (after new row)
-						newAnvayaNo = `${newMain}.2`;
-						shouldUpdate = true;
-					} else if (rowSub > 1) {
-						// Subsequent rows get incremented sub-numbers
-						newAnvayaNo = `${newMain}.${rowSub + 1}`;
-						shouldUpdate = true;
-					}
-				}
-			}
 
-			if (shouldUpdate) {
-				const oldAnvayaNo = row.anvaya_no;
-				const updatedRow = await Analysis.findByIdAndUpdate(
-					row._id,
-					{
-						$set: {
-							anvaya_no: newAnvayaNo,
-							kaaraka_sambandha: updateRelations(row.kaaraka_sambandha, oldAnvayaNo, newAnvayaNo),
-							possible_relations: updateRelations(row.possible_relations, oldAnvayaNo, newAnvayaNo),
+				// Only update if there are actual changes
+				const hasChanges =
+					existingRow.anvaya_no !== row.anvaya_no ||
+					existingRow.kaaraka_sambandha !== row.kaaraka_sambandha ||
+					existingRow.possible_relations !== row.possible_relations;
+
+				if (hasChanges) {
+					console.log(`Updating row ${existingRow.anvaya_no} -> ${row.anvaya_no}`);
+
+					// Update the row
+					const updatedRow = await Analysis.findByIdAndUpdate(
+						row._id,
+						{
+							$set: {
+								anvaya_no: row.anvaya_no,
+								kaaraka_sambandha: row.kaaraka_sambandha,
+								possible_relations: row.possible_relations,
+							},
 						},
-					},
-					{ new: true }
-				);
+						{ new: true }
+					);
 
-				// Add the anvaya number change to the changes array with all row data
-				allChanges.push({
-					field: "anvaya_no_update",
-					oldValue: {
-						anvaya_no: oldAnvayaNo,
-						word: row.word,
-						sentno: row.sentno,
-						poem: row.poem,
-						morph_analysis: row.morph_analysis,
-						morph_in_context: row.morph_in_context,
-						kaaraka_sambandha: row.kaaraka_sambandha,
-						possible_relations: row.possible_relations,
-						bgcolor: row.bgcolor,
-						name_classification: row.name_classification,
-						sarvanAma: row.sarvanAma,
-						prayoga: row.prayoga,
-						samAsa: row.samAsa,
-						english_meaning: row.english_meaning,
-						sandhied_word: row.sandhied_word,
-						hindi_meaning: row.hindi_meaning,
-					},
-					newValue: {
-						anvaya_no: newAnvayaNo,
-						word: updatedRow.word,
-						sentno: updatedRow.sentno,
-						poem: updatedRow.poem,
-						morph_analysis: updatedRow.morph_analysis,
-						morph_in_context: updatedRow.morph_in_context,
-						kaaraka_sambandha: updatedRow.kaaraka_sambandha,
-						possible_relations: updatedRow.possible_relations,
-						bgcolor: updatedRow.bgcolor,
-						name_classification: updatedRow.name_classification,
-						sarvanAma: updatedRow.sarvanAma,
-						prayoga: updatedRow.prayoga,
-						samAsa: updatedRow.samAsa,
-						english_meaning: updatedRow.english_meaning,
-						sandhied_word: updatedRow.sandhied_word,
-						hindi_meaning: updatedRow.hindi_meaning,
-					},
-				});
-			}
-		});
+					// Add to changes array
+					allChanges.push({
+						field: "update_analysis",
+						oldValue: null,
+						newValue: {
+							anvaya_no: updatedRow.anvaya_no,
+							word: updatedRow.word,
+							sentno: updatedRow.sentno,
+							poem: updatedRow.poem,
+							morph_analysis: updatedRow.morph_analysis,
+							morph_in_context: updatedRow.morph_in_context,
+							kaaraka_sambandha: updatedRow.kaaraka_sambandha,
+							possible_relations: updatedRow.possible_relations,
+							bgcolor: updatedRow.bgcolor,
+							name_classification: updatedRow.name_classification,
+							sarvanAma: updatedRow.sarvanAma,
+							prayoga: updatedRow.prayoga,
+							samAsa: updatedRow.samAsa,
+							english_meaning: updatedRow.english_meaning,
+							sandhied_word: updatedRow.sandhied_word,
+							hindi_meaning: updatedRow.hindi_meaning,
+						},
+					});
+				}
+			});
 
-		await Promise.all(updatePromises);
+			await Promise.all(updatePromises);
+		}
 
 		// Log all changes in a single history entry
 		await logHistory({
@@ -450,12 +356,11 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			sentno: data.sentno,
-		}).sort({ anvaya_no: 1 });
+		}).sort({ sentno: 1, anvaya_no: 1 });
 
 		return NextResponse.json(
 			{
-				message: "Row created successfully",
+				message: "Row created and relations updated successfully",
 				updatedRows: finalRows,
 			},
 			{ headers: corsHeaders() }

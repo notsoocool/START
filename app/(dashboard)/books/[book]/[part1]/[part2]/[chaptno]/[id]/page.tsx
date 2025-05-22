@@ -110,7 +110,7 @@ export default function AnalysisPage() {
 		graph: "-",
 		hindi_meaning: "-",
 	});
-	const [shiftType, setShiftType] = useState<"main" | "sub" | "convert_to_sub">("main");
+	const [shiftType, setShiftType] = useState<"main" | "sub" | "none">("main");
 	const [morphInContextChanges, setMorphInContextChanges] = useState<Set<number>>(new Set());
 	const [kaarakaRelationChanges, setKaarakaRelationChanges] = useState<Set<number>>(new Set());
 	const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -125,17 +125,9 @@ export default function AnalysisPage() {
 				// Fetch the book tree to get chapters
 				const bookResponse = await fetch(`/api/books`);
 				const bookData = await bookResponse.json();
-				console.log("Book data received:", bookData);
 
 				// Find the matching book, part1, part2 in the tree using decoded values
 				const currentBook = bookData.find((b: any) => {
-					console.log("Comparing:", {
-						book: b.book,
-						part1: b.part1?.[0]?.part,
-						part2: b.part1?.[0]?.part2?.[0]?.part,
-						with: { decodedBook, decodedPart1, decodedPart2 },
-					});
-
 					// Handle null/undefined values
 					const bookMatch = b.book === decodedBook;
 					const part1Match = (b.part1?.[0]?.part === null && decodedPart1 === "null") || b.part1?.[0]?.part === decodedPart1;
@@ -143,16 +135,10 @@ export default function AnalysisPage() {
 
 					return bookMatch && part1Match && part2Match;
 				});
-				console.log("Current book found:", currentBook);
 
 				if (currentBook) {
 					// Get chapters from the nested structure: part1[0].part2[0].chapters
 					const chapters = currentBook.part1?.[0]?.part2?.[0]?.chapters || [];
-					console.log("Chapters found in structure:", {
-						part1: currentBook.part1?.[0],
-						part2: currentBook.part1?.[0]?.part2?.[0],
-						chapters: chapters,
-					});
 
 					// The chapters array is already in the correct format (array of chapter numbers)
 					setChapters(chapters);
@@ -164,7 +150,6 @@ export default function AnalysisPage() {
 				if (decodedChaptno) {
 					const shlokaResponse = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
 					const shlokaData = await shlokaResponse.json();
-					console.log("Shloka data received:", shlokaData);
 					setAvailableShlokas(shlokaData.shlokas);
 				}
 			} catch (error) {
@@ -194,7 +179,6 @@ export default function AnalysisPage() {
 					throw new Error("Shloka not found");
 				}
 				shlokaData = await shlokaResponse.json();
-				console.log("Debug - Shloka Data:", shlokaData); // Debug log
 				setShloka(shlokaData);
 				originalSlokano = shlokaData.slokano;
 
@@ -204,19 +188,16 @@ export default function AnalysisPage() {
 				setAvailableShlokas(availableShlokaData.shlokas);
 
 				// Try to fetch analysis data with the original slokano
-				console.log("Debug - Fetching analysis for slokano:", shlokaData.slokano); // Debug log
 				let chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData.slokano}`);
 
 				// If not found, try with padded zeros (e.g., if original is "1", try "001")
 				if (!chapterResponse.ok) {
 					const paddedSlokano = shlokaData.slokano.padStart(3, "0");
-					console.log("Debug - Trying with padded slokano:", paddedSlokano);
 					chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${paddedSlokano}`);
 
 					// If found with padded zeros, this indicates a format mismatch
 					if (chapterResponse.ok) {
 						chapterData = await chapterResponse.json();
-						console.log("Debug - Found with padded slokano:", paddedSlokano);
 
 						// Set error about format mismatch
 						setError({
@@ -230,11 +211,9 @@ export default function AnalysisPage() {
 
 				// If we get here, either the original request succeeded or the padded request failed
 				chapterData = await chapterResponse.json();
-				console.log("Debug - Analysis Data:", chapterData); // Debug log
 
 				// Check if analysis data exists and is an array
 				if (!chapterData || !Array.isArray(chapterData) || chapterData.length === 0) {
-					console.log("Debug - No analysis data found"); // Debug log
 					setError({
 						type: "NO_ANALYSIS",
 						message: `Analysis is not available for this shloka. 
@@ -298,7 +277,6 @@ export default function AnalysisPage() {
 		});
 		// Construct the URL with proper encoding and the new part1/part2 values
 		const url = `/books/${encodeURIComponent(decodedBook)}/${encodeURIComponent(newPart1)}/${encodeURIComponent(newPart2)}/${newChapter}/${shlokaId}`;
-		console.log("Navigating to:", url);
 		router.push(url);
 	};
 
@@ -1177,7 +1155,7 @@ export default function AnalysisPage() {
 	// Modify the handleAddRow function
 	const handleAddRow = async () => {
 		try {
-			setAddRowLoading(true); // Set loading state at the start
+			setAddRowLoading(true);
 			if (!newRowData.anvaya_no || !newRowData.word || !newRowData.sentno) {
 				toast.error("Please fill in all required fields");
 				return;
@@ -1189,13 +1167,9 @@ export default function AnalysisPage() {
 			const anvayaMapping: { [key: string]: string } = {};
 			const [newMain, newSub] = newRowData.anvaya_no.split(".").map(Number);
 
-			// Find the item that needs to be converted
-			const itemToConvert = currentData.find((item: any) => item.sentno === newRowData.sentno && item.anvaya_no.startsWith(`${newMain}.`));
+			console.log("Starting with new anvaya number:", newRowData.anvaya_no);
 
-			if (shiftType === "convert_to_sub" && itemToConvert) {
-				// Only map the single item that needs to be converted
-				anvayaMapping[itemToConvert.anvaya_no] = `${newMain}.2`;
-			} else if (shiftType === "main") {
+			if (shiftType === "main") {
 				currentData.forEach((item: any) => {
 					if (item.sentno === newRowData.sentno) {
 						const [itemMain, itemSub] = item.anvaya_no.split(".").map(Number);
@@ -1215,87 +1189,134 @@ export default function AnalysisPage() {
 				});
 			}
 
-			// Update only the relations that reference the changed anvaya numbers
-			const updateRelations = (relations: string) => {
-				if (!relations || relations === "-") return relations;
+			console.log("Anvaya mapping created:", anvayaMapping);
 
-				return relations
-					.split(";")
-					.map((relation) => {
-						const [type, number] = relation.split(",");
-						const trimmedNumber = number?.trim();
-						return anvayaMapping[trimmedNumber] ? `${type},${anvayaMapping[trimmedNumber]}` : relation;
-					})
-					.join(";");
+			// Function to update a single relation
+			const updateSingleRelation = (relation: string) => {
+				if (!relation || relation === "-") return relation;
+
+				const [type, number] = relation.split(",");
+				const trimmedNumber = number?.trim();
+
+				// Check if this number is in our mapping
+				if (trimmedNumber && anvayaMapping[trimmedNumber]) {
+					console.log(`Updating relation: ${relation} -> ${type},${anvayaMapping[trimmedNumber]}`);
+					return `${type},${anvayaMapping[trimmedNumber]}`;
+				}
+
+				return relation;
 			};
 
-			// Only update items that are in the mapping
-			const updatedCurrentData = currentData.map((item: any) => {
-				if (item.sentno !== newRowData.sentno) return item;
+			// Function to update all relations in a string
+			const updateAllRelations = (relationsStr: string) => {
+				if (!relationsStr || relationsStr === "-") return relationsStr;
 
-				const newAnvayaNo = anvayaMapping[item.anvaya_no];
-				if (!newAnvayaNo) return item;
+				// Determine the separator (# for possible_relations, ; for kaaraka_sambandha)
+				const separator = relationsStr.includes("#") ? "#" : ";";
 
-				return {
-					...item,
-					anvaya_no: newAnvayaNo,
-					kaaraka_sambandha: updateRelations(item.kaaraka_sambandha),
-					possible_relations: updateRelations(item.possible_relations),
-				};
+				// Split and update each relation
+				const updatedRelations = relationsStr
+					.split(separator)
+					.map((relation) => updateSingleRelation(relation.trim()))
+					.filter(Boolean); // Remove any empty relations
+
+				return updatedRelations.join(separator);
+			};
+
+			// Update all rows with new anvaya numbers and relations
+			const updatedRows = currentData.map((item: any) => {
+				const updatedItem = { ...item };
+
+				// Update anvaya number if it's in our mapping
+				if (anvayaMapping[item.anvaya_no]) {
+					console.log(`Updating anvaya number: ${item.anvaya_no} -> ${anvayaMapping[item.anvaya_no]}`);
+					updatedItem.anvaya_no = anvayaMapping[item.anvaya_no];
+				}
+
+				// Update both relation fields
+				if (item.kaaraka_sambandha && item.kaaraka_sambandha !== "-") {
+					const oldKaaraka = item.kaaraka_sambandha;
+					updatedItem.kaaraka_sambandha = updateAllRelations(item.kaaraka_sambandha);
+					if (oldKaaraka !== updatedItem.kaaraka_sambandha) {
+						console.log(`Updated kaaraka relations for ${item.anvaya_no}:`, {
+							old: oldKaaraka,
+							new: updatedItem.kaaraka_sambandha,
+						});
+					}
+				}
+
+				if (item.possible_relations && item.possible_relations !== "-") {
+					const oldPossible = item.possible_relations;
+					updatedItem.possible_relations = updateAllRelations(item.possible_relations);
+					if (oldPossible !== updatedItem.possible_relations) {
+						console.log(`Updated possible relations for ${item.anvaya_no}:`, {
+							old: oldPossible,
+							new: updatedItem.possible_relations,
+						});
+					}
+				}
+
+				return updatedItem;
 			});
 
-			// Add the new row
+			// Add the new row and update all existing rows
 			const response = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`, {
 				method: "POST",
-				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 				body: JSON.stringify({
 					...newRowData,
 					shiftType,
-					currentData: updatedCurrentData,
-					targetMain: newMain, // Add this to help API identify which number to convert
+					updatedRows,
+					targetMain: newMain,
 				}),
 			});
 
-			if (response.ok) {
-				// Close dialog and reset form first
-				setAddRowDialogOpen(false);
-				setNewRowData({
-					anvaya_no: "",
-					word: "",
-					poem: "",
-					morph_analysis: "",
-					morph_in_context: "",
-					kaaraka_sambandha: "",
-					possible_relations: "",
-					bgcolor: "",
-					sentno: "",
-					name_classification: "-",
-					sarvanAma: "-",
-					prayoga: "-",
-					samAsa: "-",
-					english_meaning: "-",
-					sandhied_word: "-",
-					graph: "-",
-					hindi_meaning: "-",
-				});
-
-				// Immediately fetch fresh data
-				setLoading(true);
-				const refreshResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
-				const refreshedData = await refreshResponse.json();
-
-				// Update all relevant state with fresh data
-				setChapter(refreshedData);
-				setUpdatedData(refreshedData);
-				setOriginalData(refreshedData);
-
-				toast.success("Row added successfully!");
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || "Failed to add row");
 			}
+
+			// Close dialog and reset form first
+			setAddRowDialogOpen(false);
+			setNewRowData({
+				anvaya_no: "",
+				word: "",
+				poem: "",
+				morph_analysis: "",
+				morph_in_context: "",
+				kaaraka_sambandha: "",
+				possible_relations: "",
+				bgcolor: "",
+				sentno: "",
+				name_classification: "-",
+				sarvanAma: "-",
+				prayoga: "-",
+				samAsa: "-",
+				english_meaning: "-",
+				sandhied_word: "-",
+				graph: "-",
+				hindi_meaning: "-",
+			});
+
+			// Immediately fetch fresh data
+			setLoading(true);
+			const refreshResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`);
+			const refreshedData = await refreshResponse.json();
+
+			// Update all relevant state with fresh data
+			setChapter(refreshedData);
+			setUpdatedData(refreshedData);
+			setOriginalData(refreshedData);
+
+			toast.success("Row added and relations updated successfully!");
 		} catch (error) {
 			console.error("Add row error:", error);
 			toast.error("Error adding row: " + (error as Error).message);
 		} finally {
-			setAddRowLoading(false); // Reset loading state in finally block
+			setAddRowLoading(false);
 			setLoading(false);
 		}
 	};
@@ -1341,14 +1362,14 @@ export default function AnalysisPage() {
 						</div>
 						<div className="space-y-2">
 							<label>Shift Type*</label>
-							<Select value={shiftType} onValueChange={(value: "main" | "sub" | "convert_to_sub") => setShiftType(value)}>
+							<Select value={shiftType} onValueChange={(value: "main" | "sub" | "none") => setShiftType(value)}>
 								<SelectTrigger>
 									<SelectValue placeholder="Select shift type" />
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="main">Shift All Main Numbers</SelectItem>
 									<SelectItem value="sub">Add as Sub-Number</SelectItem>
-									<SelectItem value="convert_to_sub">Convert Existing to Sub-Number</SelectItem>
+									<SelectItem value="none">Add Without Changing Others</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -1396,17 +1417,6 @@ export default function AnalysisPage() {
 							<br />
 							<br />
 							<strong>Add as Sub-Number:</strong>
-							<br />
-							1.1 → 1.1
-							<br />
-							2.1 → 2.1
-							<br />
-							2.2(new) → 2.2
-							<br />
-							3.1 → 3.1
-							<br />
-							<br />
-							<strong>Convert Existing to Sub-Number:</strong>
 							<br />
 							1.1 → 1.1
 							<br />

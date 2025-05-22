@@ -284,10 +284,6 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 		</Dialog>
 	);
 
-	console.log("ShlokaCard props:", {
-		shlokaID: shloka._id,
-		analysisID,
-	});
 
 	return (
 		<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">

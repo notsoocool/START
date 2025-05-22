@@ -51,7 +51,6 @@ export function Header({
 	chapters,
 	onChapterChange,
 }: HeaderProps) {
-	console.log("Header props received:", { chapters, chaptno });
 	const [chapterShlokas, setChapterShlokas] = useState(availableShlokas);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isChangingChapter, setIsChangingChapter] = useState(false);
