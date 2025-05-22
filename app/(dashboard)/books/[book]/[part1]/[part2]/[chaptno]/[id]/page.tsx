@@ -1536,6 +1536,23 @@ export default function AnalysisPage() {
 		}
 	};
 
+	const handleShlokaUpdate = (updatedShloka: { _id: string; slokano: string; spart: string }) => {
+		// Update the shloka state
+		setShloka((prev) => ({
+			...prev!,
+			slokano: updatedShloka.slokano,
+			spart: updatedShloka.spart,
+		}));
+
+		// Update the URL if slokano changed
+		if (updatedShloka.slokano !== shloka?.slokano) {
+			const url = `/books/${encodeURIComponent(decodedBook)}/${encodeURIComponent(decodedPart1)}/${encodeURIComponent(decodedPart2)}/${decodedChaptno}/${
+				updatedShloka._id
+			}`;
+			router.push(url);
+		}
+	};
+
 	if (error) {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
@@ -1628,6 +1645,7 @@ export default function AnalysisPage() {
 				permissions={permissions}
 				part1={decodedPart1}
 				part2={decodedPart2}
+				onShlokaUpdate={handleShlokaUpdate}
 			/>
 
 			<div className="flex justify-end w-full gap-2">

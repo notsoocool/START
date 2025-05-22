@@ -12,12 +12,12 @@ interface Params {
 	slokano: string;
 }
 
-// Update CORS headers to include POST method
+// Update CORS headers to include all methods
 function corsHeaders() {
 	return {
 		"Access-Control-Allow-Origin": "*",
-		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type, Authorization, DB-Access-Key",
 	};
 }
 
@@ -462,6 +462,80 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		);
 	} catch (error) {
 		console.error("Error creating new row:", error);
+		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
+	}
+}
+
+// PUT API handler to update analysis entries when shloka number changes
+export async function PATCH(req: NextRequest, { params }: { params: Params }) {
+	const { book, part1, part2, chaptno, slokano } = params;
+	const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
+	await dbConnect();
+
+	try {
+		const { newSlokano } = await req.json();
+
+		// Validate new slokano
+		if (!newSlokano) {
+			return NextResponse.json({ message: "New slokano is required" }, { status: 400, headers: corsHeaders() });
+		}
+
+		// Get all analysis entries for the current shloka
+		const query = {
+			book,
+			part1: part1 !== "null" ? part1 : null,
+			part2: part2 !== "null" ? part2 : null,
+			chaptno,
+			slokano,
+		};
+
+		const analysisEntries = await Analysis.find(query);
+		if (!analysisEntries || analysisEntries.length === 0) {
+			return NextResponse.json({ message: "No analysis entries found" }, { status: 404, headers: corsHeaders() });
+		}
+
+		// Update all entries with the new slokano
+		const updatePromises = analysisEntries.map(async (entry) => {
+			const originalEntry = { ...entry.toObject() };
+			entry.slokano = newSlokano;
+			await entry.save();
+
+			// Log the change
+			await logHistory({
+				action: "edit",
+				modelType: "Analysis",
+				details: {
+					book,
+					part1: part1 !== "null" ? part1 : undefined,
+					part2: part2 !== "null" ? part2 : undefined,
+					chaptno,
+					slokano: originalEntry.slokano,
+					changes: [
+						{
+							field: "slokano",
+							oldValue: originalEntry.slokano,
+							newValue: newSlokano,
+						},
+					],
+				},
+			});
+		});
+
+		await Promise.all(updatePromises);
+
+		// Fetch updated entries
+		const updatedEntries = await Analysis.find({
+			...query,
+			slokano: newSlokano,
+		}).sort({ sentno: 1, anvaya_no: 1 });
+
+		return NextResponse.json({ message: "Analysis entries updated successfully", updatedEntries }, { headers: corsHeaders() });
+	} catch (error) {
+		console.error("Error updating analysis entries:", error);
 		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
 	}
 }

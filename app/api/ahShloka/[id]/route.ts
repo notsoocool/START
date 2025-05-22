@@ -124,3 +124,80 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
 	}
 }
+
+// Handler for PUT requests (updating shloka)
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+	const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
+	try {
+		await dbConnect();
+		const { id } = params;
+		const data = await req.json();
+
+		// Validate ObjectId
+		if (!ObjectId.isValid(id)) {
+			return NextResponse.json({ error: "Invalid Shloka ID" }, { status: 400 });
+		}
+
+		// Get the original shloka for comparison
+		const originalShloka = await AHShloka.findById(id);
+		if (!originalShloka) {
+			return NextResponse.json({ error: "Shloka not found" }, { status: 404 });
+		}
+
+		// Update the shloka
+		const updatedShloka = await AHShloka.findByIdAndUpdate(
+			id,
+			{
+				$set: {
+					spart: data.spart,
+					slokano: data.slokano,
+				},
+			},
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
+
+		// Log the changes
+		const changes = [];
+		if (originalShloka.spart !== data.spart) {
+			changes.push({
+				field: "spart",
+				oldValue: originalShloka.spart,
+				newValue: data.spart,
+			});
+		}
+		if (originalShloka.slokano !== data.slokano) {
+			changes.push({
+				field: "slokano",
+				oldValue: originalShloka.slokano,
+				newValue: data.slokano,
+			});
+		}
+
+		if (changes.length > 0) {
+			await logHistory({
+				action: "edit",
+				modelType: "Shloka",
+				details: {
+					book: originalShloka.book,
+					part1: originalShloka.part1 || undefined,
+					part2: originalShloka.part2 || undefined,
+					chaptno: originalShloka.chaptno,
+					slokano: originalShloka.slokano,
+					changes,
+				},
+			});
+		}
+
+		return NextResponse.json(updatedShloka);
+	} catch (error) {
+		console.error("Error updating shloka:", error);
+		return NextResponse.json({ error: "Error updating shloka" }, { status: 500 });
+	}
+}
