@@ -12,6 +12,46 @@ interface Params {
 	slokano: string;
 }
 
+interface Change {
+	field: string;
+	oldValue: null | {
+		anvaya_no: string;
+		word: string;
+		sentno: string;
+		poem: string;
+		morph_analysis: string;
+		morph_in_context: string;
+		kaaraka_sambandha: string;
+		possible_relations: string;
+		bgcolor: string;
+		name_classification: string;
+		sarvanAma: string;
+		prayoga: string;
+		samAsa: string;
+		english_meaning: string;
+		sandhied_word: string;
+		hindi_meaning: string;
+	};
+	newValue: null | {
+		anvaya_no: string;
+		word: string;
+		sentno: string;
+		poem: string;
+		morph_analysis: string;
+		morph_in_context: string;
+		kaaraka_sambandha: string;
+		possible_relations: string;
+		bgcolor: string;
+		name_classification: string;
+		sarvanAma: string;
+		prayoga: string;
+		samAsa: string;
+		english_meaning: string;
+		sandhied_word: string;
+		hindi_meaning: string;
+	};
+}
+
 // Update CORS headers to include all methods
 function corsHeaders() {
 	return {
@@ -247,7 +287,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		const savedRow = await newRow.save();
 
 		// Track all changes for history logging
-		const allChanges = [
+		const allChanges: Change[] = [
 			{
 				field: "new_analysis",
 				oldValue: null,
@@ -306,10 +346,27 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 						{ new: true }
 					);
 
-					// Add to changes array
+					// Add to changes array with old values
 					allChanges.push({
 						field: "update_analysis",
-						oldValue: null,
+						oldValue: {
+							anvaya_no: existingRow.anvaya_no,
+							word: existingRow.word,
+							sentno: existingRow.sentno,
+							poem: existingRow.poem,
+							morph_analysis: existingRow.morph_analysis,
+							morph_in_context: existingRow.morph_in_context,
+							kaaraka_sambandha: existingRow.kaaraka_sambandha,
+							possible_relations: existingRow.possible_relations,
+							bgcolor: existingRow.bgcolor,
+							name_classification: existingRow.name_classification,
+							sarvanAma: existingRow.sarvanAma,
+							prayoga: existingRow.prayoga,
+							samAsa: existingRow.samAsa,
+							english_meaning: existingRow.english_meaning,
+							sandhied_word: existingRow.sandhied_word,
+							hindi_meaning: existingRow.hindi_meaning,
+						},
 						newValue: {
 							anvaya_no: updatedRow.anvaya_no,
 							word: updatedRow.word,
