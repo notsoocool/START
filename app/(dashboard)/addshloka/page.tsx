@@ -698,10 +698,42 @@ export default function ShlokaPage() {
 		}
 
 		// Create loading toast
-		const loadingToast = toast.loading("Saving shloka and analysis...");
+		const loadingToast = toast.loading("Checking shloka number...");
 		setIsSaving(true);
 
 		try {
+			// First, check for duplicate shloka number
+			const checkResponse = await fetch("/api/ahShloka/check-duplicate", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+				body: JSON.stringify({
+					book: selectedBook,
+					part1: selectedPart1 || null,
+					part2: selectedPart2 || null,
+					chaptno,
+					slokano,
+					currentShlokaId: null, // Since this is a new shloka
+				}),
+			});
+
+			if (!checkResponse.ok) {
+				throw new Error("Failed to check shloka number");
+			}
+
+			const { exists, message } = await checkResponse.json();
+			if (exists) {
+				toast.dismiss(loadingToast);
+				toast.error(message);
+				setIsSaving(false);
+				return;
+			}
+
+			toast.loading("Saving shloka and analysis...", { id: loadingToast });
+
+			// If no duplicate found, proceed with saving
 			// First, save the shloka
 			const shlokaData = {
 				book: selectedBook,
