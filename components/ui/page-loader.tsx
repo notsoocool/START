@@ -3,37 +3,63 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useIsFetching } from "@tanstack/react-query";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 export const PageLoader = () => {
-	const [isLoading, setIsLoading] = useState(false);
+	const [isLoadingSession, setIsLoadingSession] = useState(false);
+	const [targetPath, setTargetPath] = useState<string | null>(null);
 	const pathname = usePathname();
+	const isFetching = useIsFetching();
+	const { pageReady, setPageReady } = usePageReady();
 
+	// Auto-set pageReady on Clerk auth pages
 	useEffect(() => {
-		setIsLoading(false);
-	}, [pathname]);
+		if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) {
+			setPageReady(true);
+		}
+	}, [pathname, setPageReady]);
 
-	// Global click handler for links
+	// Start loading session on navigation
 	useEffect(() => {
 		const handleLinkClick = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
 			const link = target.closest("a, button[data-navigate]");
-
 			if (link) {
 				const href = link.getAttribute("href");
-				// Only show loader for internal navigation
 				if (href && href.startsWith("/") && !href.startsWith("/#")) {
-					setIsLoading(true);
+					setIsLoadingSession(true);
+					setTargetPath(href);
 				}
 			}
 		};
-
 		document.addEventListener("click", handleLinkClick);
 		return () => document.removeEventListener("click", handleLinkClick);
 	}, []);
 
+	// End loading session only when both route and data are ready
+	useEffect(() => {
+		if (isLoadingSession && targetPath && pathname === targetPath && isFetching === 0) {
+			setIsLoadingSession(false);
+			setTargetPath(null);
+		}
+	}, [pathname, isFetching, isLoadingSession, targetPath]);
+
+	// Also handle direct loads (no navigation)
+	useEffect(() => {
+		if (!isLoadingSession && isFetching > 0) {
+			setIsLoadingSession(true);
+		}
+		if (isLoadingSession && isFetching === 0 && !targetPath) {
+			setIsLoadingSession(false);
+		}
+	}, [isFetching, isLoadingSession, targetPath]);
+
+	const showLoader = isLoadingSession || !pageReady;
+
 	return (
 		<AnimatePresence>
-			{isLoading && (
+			{showLoader && (
 				<motion.div
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}

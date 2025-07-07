@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useBooks } from "@/lib/hooks/use-api";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -239,7 +240,7 @@ export default function ShlokaPage() {
 	const [editableSandhiResults, setEditableSandhiResults] = useState<string[]>([]);
 	const [originalSandhiResults, setOriginalSandhiResults] = useState<any[]>([]);
 	const [analysisProcessing, setAnalysisProcessing] = useState<boolean>(false);
-	const [bookData, setBookData] = useState<BookData[]>([]);
+	const { data: booksData, isLoading: booksLoading, error: booksError } = useBooks();
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const [selectedPart1, setSelectedPart1] = useState<string>("");
 	const [selectedPart2, setSelectedPart2] = useState<string>("");
@@ -645,47 +646,32 @@ export default function ShlokaPage() {
 		}));
 	};
 
-	// Fetch book data when component mounts
-	useEffect(() => {
-		const fetchBookData = async () => {
-			try {
-				const response = await fetch("/api/books");
-				if (!response.ok) {
-					throw new Error("Failed to fetch books");
-				}
-				const data = await response.json();
-				setBookData(data);
-			} catch (error) {
-				console.error("Error fetching books:", error);
-				toast.error("Failed to fetch existing books");
-			}
-		};
-		fetchBookData();
-	}, []);
-
 	// Get unique book names from the data
-	const existingBooks = useMemo(() => bookData.map((item) => item.book), [bookData]);
+	const existingBooks = useMemo(() => (booksData ?? []).map((item: BookData) => item.book), [booksData]);
 
 	// Get available part1 options for selected book
 	const availablePart1s = useMemo(() => {
-		const book = bookData.find((b) => b.book === selectedBook);
-		return book?.part1.map((p) => p.part).filter((p) => p !== null) || [];
-	}, [bookData, selectedBook]);
+		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
+		return (
+			book?.part1.map((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part).filter((p: string | null) => p !== null) ||
+			[]
+		);
+	}, [booksData, selectedBook]);
 
 	// Get available part2 options for selected book and part1
 	const availablePart2s = useMemo(() => {
-		const book = bookData.find((b) => b.book === selectedBook);
-		const part1Data = book?.part1.find((p) => p.part === selectedPart1);
-		return part1Data?.part2.map((p) => p.part).filter((p) => p !== null) || [];
-	}, [bookData, selectedBook, selectedPart1]);
+		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
+		const part1Data = book?.part1.find((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part === selectedPart1);
+		return part1Data?.part2.map((p: { part: string | null; chapters: string[] }) => p.part).filter((p: string | null) => p !== null) || [];
+	}, [booksData, selectedBook, selectedPart1]);
 
 	// Get available chapters for selected combination
 	const availableChapters = useMemo(() => {
-		const book = bookData.find((b) => b.book === selectedBook);
-		const part1Data = book?.part1.find((p) => p.part === selectedPart1);
-		const part2Data = part1Data?.part2.find((p) => p.part === selectedPart2);
+		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
+		const part1Data = book?.part1.find((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part === selectedPart1);
+		const part2Data = part1Data?.part2.find((p: { part: string | null; chapters: string[] }) => p.part === selectedPart2);
 		return part2Data?.chapters || [];
-	}, [bookData, selectedBook, selectedPart1, selectedPart2]);
+	}, [booksData, selectedBook, selectedPart1, selectedPart2]);
 
 	const handleSave = async () => {
 		if (!selectedBook || !chaptno || !slokano) {

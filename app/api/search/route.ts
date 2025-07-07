@@ -14,20 +14,33 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Search query is required" }, { status: 400 });
 		}
 
+		// Split query into terms (by whitespace)
+		const terms = query.trim().split(/\s+/);
+
+		// Build $and array for Analysis model
+		const analysisAndConditions = terms.map((term) => ({
+			$or: [
+				{ word: { $regex: term, $options: "i" } },
+				{ sandhied_word: { $regex: term, $options: "i" } },
+				{ kaaraka_sambandha: { $regex: term, $options: "i" } },
+				{ morph_analysis: { $regex: term, $options: "i" } },
+				{ morph_in_context: { $regex: term, $options: "i" } },
+			],
+		}));
+
+		// Build $and array for Shloka model
+		const shlokaAndConditions = terms.map((term) => ({
+			spart: { $regex: term, $options: "i" },
+		}));
+
 		// Search in Analysis model
 		const analysisResults = await Analysis.find({
-			$or: [
-				{ word: { $regex: query, $options: "i" } },
-				{ sandhied_word: { $regex: query, $options: "i" } },
-				{ kaaraka_sambandha: { $regex: query, $options: "i" } },
-				{ morph_analysis: { $regex: query, $options: "i" } },
-				{ morph_in_context: { $regex: query, $options: "i" } },
-			],
+			$and: analysisAndConditions,
 		}).select("book part1 part2 chaptno slokano");
 
 		// Search in Shloka model
 		const shlokaResults = await Shloka.find({
-			spart: { $regex: query, $options: "i" },
+			$and: shlokaAndConditions,
 		}).select("_id book part1 part2 chaptno slokano spart");
 
 		// Get corresponding shloka IDs for analysis results

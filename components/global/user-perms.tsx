@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useUsers } from "@/lib/hooks/use-api";
+import { Loader2 } from "lucide-react";
 
 type User = {
 	userID: string;
@@ -16,10 +18,8 @@ type User = {
 };
 
 export default function UserPerms() {
-	const [users, setUsers] = useState<User[]>([]);
+	const { data: users = [], isLoading, error } = useUsers();
 	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const [currentUser, setCurrentUser] = useState<{
 		id: string;
 		firstName: string;
@@ -35,47 +35,18 @@ export default function UserPerms() {
 	const [searchValue, setSearchValue] = useState(""); // Separate state for input value
 	const [usersPerPage, setUsersPerPage] = useState(10);
 
-	const fetchUsers = async (page: number, search: string = "") => {
-		setLoading(true);
-		try {
-			const response = await fetch(`/api/getAllUsers?page=${page}&limit=${usersPerPage}&search=${search}`);
-
-			if (!response.ok) {
-				const data = await response.json();
-				setError(data.error);
-				return;
-			}
-
-			const data = await response.json();
-			setUsers(data.users);
-			setFilteredUsers(data.users);
-			setTotalPages(data.pagination.pages);
-			setCurrentPage(data.pagination.currentPage);
-		} catch (error) {
-			setError("Failed to fetch users");
-		} finally {
-			setLoading(false);
-		}
-	};
-
 	// Handle search input changes
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const value = e.target.value;
 		setSearchValue(value); // Update the input value immediately
-
-		// Update the search term after a short delay
-		setTimeout(() => {
-			setSearchTerm(value);
-			fetchUsers(1, value);
-		}, 300);
+		setSearchTerm(value);
+		setFilteredUsers(users.filter((user: User) => user.name?.toLowerCase().includes(value.toLowerCase())));
 	};
 
-	// Only fetch on initial load and pagination changes
+	// Only filter on initial load and when users change
 	useEffect(() => {
-		if (searchTerm === "") {
-			fetchUsers(currentPage);
-		}
-	}, [currentPage, usersPerPage]);
+		setFilteredUsers(users);
+	}, [users]);
 
 	useEffect(() => {
 		const fetchCurrentUser = async () => {
@@ -104,7 +75,7 @@ export default function UserPerms() {
 		});
 
 		if (response.ok) {
-			setUsers((prevUsers) => prevUsers.map((user) => (user.userID === userId ? { ...user, perms: newPermission } : user)));
+			setFilteredUsers((prevUsers) => prevUsers.map((user) => (user.userID === userId ? { ...user, perms: newPermission } : user)));
 		} else {
 			const data = await response.json();
 			alert(`Error: ${data.error}`);
@@ -159,7 +130,16 @@ export default function UserPerms() {
 		</div>
 	);
 
-	if (error) return <p>Error: {error}</p>;
+	if (isLoading) {
+		return (
+			<div className="flex justify-center py-8">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			</div>
+		);
+	}
+	if (error) {
+		return <div className="text-red-500">Failed to load users</div>;
+	}
 
 	return (
 		<div className="container mx-auto py-10">
@@ -176,23 +156,14 @@ export default function UserPerms() {
 				</TableHeader>
 				<TableBody>
 					<AnimatePresence mode="wait">
-						{loading ? (
-							<TableRow>
-								<TableCell colSpan={3} className="text-center py-4">
-									<div className="flex justify-center items-center">
-										<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-										<span className="ml-2">Loading...</span>
-									</div>
-								</TableCell>
-							</TableRow>
-						) : filteredUsers.length === 0 ? (
+						{filteredUsers.length === 0 ? (
 							<TableRow>
 								<TableCell colSpan={3} className="text-center py-4">
 									No users found
 								</TableCell>
 							</TableRow>
 						) : (
-							filteredUsers.map((user, index) => (
+							filteredUsers.map((user: User, index: number) => (
 								<motion.tr
 									key={user.userID}
 									initial={{ opacity: 0, y: 20 }}

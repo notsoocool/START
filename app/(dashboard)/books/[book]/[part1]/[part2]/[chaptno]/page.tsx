@@ -61,39 +61,13 @@ export default function Shlokas() {
 	}, [handleScroll]);
 
 	if (isLoading) {
-		return (
-			<div className="flex">
-				<div className="w-3/12">
-					<div className="sticky top-24 overflow-auto h-auto flex items-start flex-col gap-3">
-						<strong className="p-2">Shlokas</strong>
-						<Skeleton className="mt-2 h-6 w-48" />
-						<Skeleton className="mt-2 h-6 w-48 delay-150" />
-						<Skeleton className="mt-2 h-6 w-48 delay-300" />
-					</div>
-				</div>
-				<div className="p-2 pt-8 w-9/12">
-					<div className="max-w-screen-2xl mx-auto w-full">
-						<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between min-h-[200px] duration-300">
-							<CardHeader className="border-b border-primary-100">
-								<Skeleton className="h-6 w-40" />
-							</CardHeader>
-							<CardContent>
-								<div className=" w-full flex items-center justify-center">
-									<Loader2 className="size-6 text-slate-300 animate-spin" />
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				</div>
-			</div>
-		);
+		return null;
 	}
 
 	if (error) {
 		return (
 			<div className="flex min-h-screen bg-fixed items-center justify-center" style={fixedBgStyle}>
 				<div className="flex flex-col items-center justify-center py-12 text-center">
-					<AlertCircle className="h-12 w-12 text-red-500 mb-4" />
 					<div className="text-red-600 text-lg">{error.message || "Failed to load shlokas"}</div>
 				</div>
 			</div>

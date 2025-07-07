@@ -23,6 +23,7 @@ import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { Discussions } from "@/components/global/Discussions";
 import { ErrorDisplay } from "@/components/global/ErrorDisplay";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 declare global {
 	interface Window {
@@ -118,6 +119,8 @@ export default function AnalysisPage() {
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
 	const [addRowLoading, setAddRowLoading] = useState(false);
+	const { setPageReady } = usePageReady();
+	const [isDeletingRow, setIsDeletingRow] = useState(false);
 
 	useEffect(() => {
 		const fetchChaptersAndShlokas = async () => {
@@ -267,6 +270,14 @@ export default function AnalysisPage() {
 		fetchAllData();
 	}, [decodedId, decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
 
+	useEffect(() => {
+		if (!loading && !initialLoad && shloka && chapter) {
+			setPageReady(true);
+		} else {
+			setPageReady(false);
+		}
+	}, [loading, initialLoad, shloka, chapter, setPageReady]);
+
 	const handleShlokaChange = (shlokaId: string, newChapter: string, newPart1: string, newPart2: string) => {
 		console.log("Changing shloka with data:", {
 			shlokaId,
@@ -306,9 +317,8 @@ export default function AnalysisPage() {
 		setChangedRows((prev) => new Set(prev.add(procIndex)));
 	};
 
-	const handleSave = async (index: number) => {
-		const currentData = updatedData[index];
-
+	const handleSave = async (index: number, rowOverride?: any) => {
+		const currentData = rowOverride ?? updatedData[index];
 		try {
 			// Remove unnecessary fields and prepare data for update
 			const dataToUpdate = {
@@ -335,13 +345,11 @@ export default function AnalysisPage() {
 				part1: currentData.part1,
 				part2: currentData.part2,
 			};
-
 			const response = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json", "DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "" },
 				body: JSON.stringify(dataToUpdate),
 			});
-
 			if (response.ok) {
 				setChangedRows((prev) => {
 					const newSet = new Set(prev);
@@ -592,7 +600,7 @@ export default function AnalysisPage() {
 
 	const confirmDelete = async () => {
 		if (pendingDeleteIndex === null) return;
-
+		setIsDeletingRow(true);
 		try {
 			const currentData = updatedData[pendingDeleteIndex];
 			const currentAnvayaNo = currentData.anvaya_no;
@@ -611,66 +619,49 @@ export default function AnalysisPage() {
 			});
 
 			if (response.ok) {
+				// Track changed rows
+				const changedRows: number[] = [];
 				const updateStateData = (prevData: any[]) => {
-					// First, check if the deleted item is the only one in its group
-					// Only consider items with the same sentno
 					const isOnlyItemInGroup = !prevData.some((item) => {
 						const [itemMain] = item.anvaya_no.split(".");
 						return parseInt(itemMain) === currentMainNum && item.anvaya_no !== currentAnvayaNo && item.sentno === currentSentno;
 					});
-
-					// Create a mapping of old to new anvaya numbers
 					const anvayaMapping: { [key: string]: string } = {};
-
-					// First pass: build the mapping of old to new anvaya numbers
-					// Only for items with the same sentno
 					prevData.forEach((item) => {
 						if (item.sentno !== currentSentno) return;
-
 						const [itemMain, itemSub] = item.anvaya_no.split(".");
 						const itemMainNum = parseInt(itemMain);
 						const itemSubNum = parseInt(itemSub);
-
 						if (itemMainNum === currentMainNum && itemSubNum > currentSubNum) {
 							anvayaMapping[item.anvaya_no] = `${itemMain}.${itemSubNum - 1}`;
 						} else if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
 							anvayaMapping[item.anvaya_no] = `${itemMainNum - 1}.${itemSub}`;
 						}
 					});
-
-					// Updated helper function to update relations
 					const updateRelations = (relations: string, deletedAnvayaNo: string) => {
 						if (!relations) return "-";
-
 						return relations
 							.split("#")
 							.map((relation) => {
 								const [type, number] = relation.split(",");
-								// When the relation points to the deleted anvaya number,
-								// keep the type but remove the number
 								if (number?.trim() === deletedAnvayaNo) {
 									return `${type},`;
 								}
-								// Update relations that point to changed anvaya numbers
 								if (number && anvayaMapping[number.trim()]) {
 									return `${type},${anvayaMapping[number.trim()]}`;
 								}
 								return relation;
 							})
-							.filter(Boolean) // Remove null values
+							.filter(Boolean)
 							.join("#");
 					};
-
 					return prevData.map((item, index) => {
-						// Skip items with different sentno
 						if (item.sentno !== currentSentno) return item;
-
 						const [itemMain, itemSub] = item.anvaya_no.split(".");
 						const itemMainNum = parseInt(itemMain);
 						const itemSubNum = parseInt(itemSub);
-
-						// Mark the deleted item
 						if (item.anvaya_no === currentAnvayaNo) {
+							changedRows.push(index);
 							return {
 								...item,
 								deleted: true,
@@ -683,51 +674,51 @@ export default function AnalysisPage() {
 								bgcolor: "-",
 							};
 						}
-
 						let updatedItem = { ...item };
-
-						// Case 1: Update items in the same main group
 						if (itemMainNum === currentMainNum && itemSubNum > currentSubNum) {
-							setChangedRows((prev) => new Set(prev.add(index)));
+							changedRows.push(index);
 							updatedItem = {
 								...updatedItem,
 								anvaya_no: `${itemMain}.${itemSubNum - 1}`,
 							};
 						}
-
-						// Case 2: If the deleted item was the only one in its group,
-						// update all subsequent groups
 						if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
-							setChangedRows((prev) => new Set(prev.add(index)));
+							changedRows.push(index);
 							updatedItem = {
 								...updatedItem,
 								anvaya_no: `${itemMainNum - 1}.${itemSub}`,
 							};
 						}
-
-						// Update kaaraka and possible relations
+						const oldKaaraka = updatedItem.kaaraka_sambandha;
+						const oldPossible = updatedItem.possible_relations;
 						updatedItem.kaaraka_sambandha = updateRelations(updatedItem.kaaraka_sambandha, currentAnvayaNo);
 						updatedItem.possible_relations = updateRelations(updatedItem.possible_relations, currentAnvayaNo);
-
+						if (oldKaaraka !== updatedItem.kaaraka_sambandha || oldPossible !== updatedItem.possible_relations) {
+							changedRows.push(index);
+						}
 						return updatedItem;
 					});
 				};
-
-				setUpdatedData(updateStateData);
-				setOriginalData(updateStateData);
-				setChapter(updateStateData);
-
+				const newData = updateStateData(updatedData);
+				setUpdatedData(newData);
+				setOriginalData(newData);
+				setChapter(newData);
+				// Auto-save all changed rows except the deleted one
+				for (const idx of Array.from(new Set(changedRows))) {
+					if (newData[idx].deleted) continue;
+					await handleSave(idx, newData[idx]);
+				}
 				toast.success("Row deleted and relations updated successfully!");
-				// Close the dialog and reset the pending delete index
 				setDeleteDialogOpen(false);
 				setPendingDeleteIndex(null);
 			}
 		} catch (error) {
 			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
-			// Also close dialog and reset on error
 			setDeleteDialogOpen(false);
 			setPendingDeleteIndex(null);
+		} finally {
+			setIsDeletingRow(false);
 		}
 	};
 
@@ -1325,10 +1316,7 @@ export default function AnalysisPage() {
 	const renderAddRowButton = () => (
 		<Button onClick={() => setAddRowDialogOpen(true)} className="flex items-center gap-2" disabled={addRowLoading}>
 			{addRowLoading ? (
-				<>
-					<Loader2 className="size-4 animate-spin" />
-					Adding Row...
-				</>
+				<>Adding Row...</>
 			) : (
 				<>
 					<PlusCircle className="size-4" />
@@ -1567,38 +1555,8 @@ export default function AnalysisPage() {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
 
-	if (initialLoad) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full p-8">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<Skeleton className="h-6 w-40" />
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex items-center justify-center">
-							<Loader2 className="size-6 text-slate-300 animate-spin" />
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-	// Render loading state
-	if (loading) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full p-8">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<Skeleton className="h-6 w-40" />
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex items-center justify-center">
-							<Loader2 className="size-6 text-slate-300 animate-spin" />
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+	if (initialLoad || loading) {
+		return null;
 	}
 
 	// Then check for missing data
@@ -1661,7 +1619,6 @@ export default function AnalysisPage() {
 			<div className="flex justify-end w-full gap-2">
 				{renderAddRowButton()}
 				<Button onClick={handleRefresh} className="justify-center" variant="outline" disabled={loading}>
-					{loading ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
 					Refresh
 				</Button>
 				<Button onClick={handleSortByIndex} className="justify-center" variant="outline">
@@ -1709,13 +1666,6 @@ export default function AnalysisPage() {
 				DEFAULT_ZOOM={DEFAULT_ZOOM}
 			/>
 
-			{/* Loading State */}
-			{loading && (
-				<div className="flex items-center justify-center p-8">
-					<Loader2 className="h-8 w-8 animate-spin" />
-				</div>
-			)}
-
 			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
 				<DialogContent>
 					<DialogHeader>
@@ -1723,11 +1673,11 @@ export default function AnalysisPage() {
 						<DialogDescription>Are you sure you want to delete this row? This action cannot be undone.</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+						<Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeletingRow}>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={confirmDelete}>
-							Delete
+						<Button variant="destructive" onClick={confirmDelete} disabled={isDeletingRow}>
+							{isDeletingRow ? "Deleting..." : "Delete"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

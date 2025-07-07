@@ -15,6 +15,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { useUsers } from "@/lib/hooks/use-api";
+import { Loader2 } from "lucide-react";
 
 interface User {
 	userID: string;
@@ -37,8 +39,8 @@ interface GroupData {
 
 export default function GroupsPage() {
 	const router = useRouter();
+	const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
 	const [groups, setGroups] = useState<GroupData[]>([]);
-	const [users, setUsers] = useState<User[]>([]);
 	const [books, setBooks] = useState<Book[]>([]);
 	const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
@@ -53,15 +55,14 @@ export default function GroupsPage() {
 
 	useEffect(() => {
 		fetchGroups();
-		fetchUsers();
 		fetchBooks();
 	}, []);
 
 	useEffect(() => {
 		if (formData.type === "A") {
-			setFilteredUsers(users.filter((user) => user.perms === "Annotator"));
+			setFilteredUsers(users.filter((user: User) => user.perms === "Annotator"));
 		} else {
-			setFilteredUsers(users.filter((user) => user.perms === "Editor"));
+			setFilteredUsers(users.filter((user: User) => user.perms === "Editor"));
 		}
 	}, [formData.type, users]);
 
@@ -82,35 +83,15 @@ export default function GroupsPage() {
 		}
 	};
 
-	const fetchUsers = async () => {
-		try {
-			const response = await fetch("/api/users");
-			const data = await response.json();
-			if (Array.isArray(data)) {
-				setUsers(data);
-			} else {
-				console.error("Invalid users data format:", data);
-				setUsers([]);
-			}
-		} catch (error) {
-			console.error("Error fetching users:", error);
-			setUsers([]);
-		}
-	};
-
 	const fetchBooks = async () => {
 		try {
 			const response = await fetch("/api/books");
+			if (!response.ok) throw new Error("Failed to fetch books");
 			const data = await response.json();
-			if (Array.isArray(data)) {
-				setBooks(data);
-			} else {
-				console.error("Invalid books data format:", data);
-				setBooks([]);
-			}
+			setBooks(data);
 		} catch (error) {
 			console.error("Error fetching books:", error);
-			setBooks([]);
+			toast.error("Failed to load books");
 		}
 	};
 
@@ -195,6 +176,17 @@ export default function GroupsPage() {
 			supervisedGroups: [],
 		});
 	};
+
+	if (usersLoading) {
+		return (
+			<div className="flex justify-center py-8">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			</div>
+		);
+	}
+	if (usersError) {
+		return <div className="text-red-500">Failed to load users</div>;
+	}
 
 	return (
 		<div className="container mx-auto p-4 space-y-8">

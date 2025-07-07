@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
 import { Providers } from "./providers";
 import { PageLoader } from "@/components/ui/page-loader";
+import { PageReadyProvider } from "@/components/ui/PageReadyContext";
 
 // Initialize Inter font
 const inter = Inter({ subsets: ["latin"] });
@@ -16,14 +17,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<ClerkProvider>
-			<html lang="en" suppressHydrationWarning>
-				<body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 antialiased "}>
-					<Providers>
-						{children}
-						<PageLoader />
-					</Providers>
-				</body>
-			</html>
+			<PageReadyProvider>
+				<html lang="en" suppressHydrationWarning>
+					<body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 antialiased "}>
+						<Providers>
+							{children}
+							<PageLoader />
+						</Providers>
+					</body>
+				</html>
+			</PageReadyProvider>
 		</ClerkProvider>
 	);
 }

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Send, Mail, Check, AlertCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useNotifications } from "@/lib/hooks/use-api";
 
 interface User {
 	userID: string;
@@ -39,7 +40,7 @@ interface Notification {
 export default function NotificationsPage() {
 	const router = useRouter();
 	const [users, setUsers] = useState<User[]>([]);
-	const [notifications, setNotifications] = useState<Notification[]>([]);
+	const { data: notificationsData, isLoading: notificationsLoading, error: notificationsError } = useNotifications(1);
 	const [loading, setLoading] = useState(true);
 	const [sending, setSending] = useState(false);
 	const [currentUser, setCurrentUser] = useState<{ id: string; perms: string } | null>(null);
@@ -109,7 +110,6 @@ export default function NotificationsPage() {
 				const data = await response.json();
 
 				if (response.ok) {
-					setNotifications(data.notifications);
 					setTotalPages(data.pagination.pages);
 				} else {
 					console.error("Error fetching notifications:", data.error);
@@ -162,7 +162,7 @@ export default function NotificationsPage() {
 				const notifData = await notifResponse.json();
 
 				if (notifResponse.ok) {
-					setNotifications(notifData.notifications);
+					// notificationsData.notifications = notifData.notifications;
 				}
 			} else {
 				setError(data.error || "Failed to send notification");
@@ -187,7 +187,7 @@ export default function NotificationsPage() {
 
 			if (response.ok) {
 				// Update the local state to mark the notification as read
-				setNotifications(notifications.map((notification) => (notification._id === notificationId ? { ...notification, isRead: true } : notification)));
+				// notificationsData.notifications = notificationsData.notifications.map((notification) => (notification._id === notificationId ? { ...notification, isRead: true } : notification));
 			}
 		} catch (error) {
 			console.error("Error marking notification as read:", error);
@@ -206,18 +206,16 @@ export default function NotificationsPage() {
 
 			if (response.ok) {
 				// Update the local state to mark the error as resolved
-				setNotifications(
-					notifications.map((notification) =>
-						notification._id === notificationId
-							? {
-									...notification,
-									isResolved: true,
-									resolutionMessage,
-									resolvedAt: new Date().toISOString(),
-							  }
-							: notification
-					)
-				);
+				// notificationsData.notifications = notificationsData.notifications.map((notification) =>
+				// 	notification._id === notificationId
+				// 		? {
+				// 				...notification,
+				// 				isResolved: true,
+				// 				resolutionMessage,
+				// 				resolvedAt: new Date().toISOString(),
+				// 		  }
+				// 		: notification
+				// );
 				// Clear the resolution message
 				setResolutionMessages({ ...resolutionMessages, [notificationId]: "" });
 			}
@@ -234,7 +232,7 @@ export default function NotificationsPage() {
 
 			if (response.ok) {
 				// Remove the notification from the local state
-				setNotifications(notifications.filter((notification) => notification._id !== notificationId));
+				// notificationsData.notifications = notificationsData.notifications.filter((notification) => notification._id !== notificationId);
 			}
 		} catch (error) {
 			console.error("Error deleting notification:", error);
@@ -274,21 +272,23 @@ export default function NotificationsPage() {
 							<CardDescription>View and manage all notifications</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{loading ? (
+							{notificationsLoading ? (
 								<div className="flex justify-center py-8">
 									<Loader2 className="h-8 w-8 animate-spin text-primary" />
 								</div>
-							) : notifications.length === 0 ? (
+							) : (notificationsData?.notifications ?? []).length === 0 ? (
 								<div className="text-center py-8 text-muted-foreground">No notifications found</div>
 							) : (
 								<div className="space-y-4">
-									{notifications.map((notification) => (
+									{(notificationsData?.notifications ?? []).map((notification) => (
 										<div key={notification._id} className={`p-4 rounded-lg border ${notification.isRead ? "bg-background" : "bg-muted/50"}`}>
 											<div className="flex justify-between items-start">
 												<div>
 													<h3 className="font-medium">{notification.subject}</h3>
-													<p className="text-sm text-muted-foreground">From: {notification.senderName}
-													{notification.recipientName && (<>, To: {notification.recipientName}</>)}</p>
+													<p className="text-sm text-muted-foreground">
+														From: {notification.senderName}
+														{notification.recipientName && <>, To: {notification.recipientName}</>}
+													</p>
 													<p className="text-xs text-muted-foreground mt-1">{formatDate(notification.createdAt)}</p>
 												</div>
 												<div className="flex items-center space-x-2">

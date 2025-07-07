@@ -25,6 +25,37 @@ interface Notification {
 	resolvedAt?: string;
 }
 
+// New types for additional endpoints
+interface ShlokaAnalysis {
+	_id: string;
+	chaptno: string;
+	slokano: string;
+	sentno: string;
+	[key: string]: any;
+}
+
+interface Shloka {
+	_id: string;
+	slokano: string;
+	spart: string;
+	[key: string]: any;
+}
+
+interface Discussion {
+	_id: string;
+	shlokaId: string;
+	userId: string;
+	userName: string;
+	message: string;
+	createdAt: string;
+}
+
+interface UserPerm {
+	userID: string;
+	name: string;
+	perms: string;
+}
+
 // API Functions
 const fetchCurrentUser = async (): Promise<User> => {
 	const response = await fetch("/api/getCurrentUser");
@@ -154,5 +185,150 @@ export function useShlokas(book: string, part1: string, part2: string, chaptno: 
 		},
 		staleTime: 5 * 60 * 1000, // 5 minutes - shlokas don't change often
 		enabled: !!(book && part1 && part2 && chaptno), // Only run when all params are available
+	});
+}
+
+// 1. Analysis for a shloka
+export function useShlokaAnalysis(book: string, part1: string, part2: string, chaptno: string, slokano: string) {
+	return useQuery({
+		queryKey: ["shlokaAnalysis", book, part1, part2, chaptno, slokano],
+		queryFn: async () => {
+			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${slokano}`);
+			if (!response.ok) throw new Error("Failed to fetch shloka analysis");
+			return response.json();
+		},
+		enabled: !!(book && part1 && part2 && chaptno && slokano),
+	});
+}
+
+// 2. Get a single shloka by ID
+export function useShlokaById(id: string) {
+	return useQuery({
+		queryKey: ["shlokaById", id],
+		queryFn: async () => {
+			const response = await fetch(`/api/ahShloka/${id}`);
+			if (!response.ok) throw new Error("Failed to fetch shloka by id");
+			return response.json();
+		},
+		enabled: !!id,
+	});
+}
+
+// 3. Discussions for a shloka
+export function useDiscussions(shlokaId: string) {
+	return useQuery({
+		queryKey: ["discussions", shlokaId],
+		queryFn: async () => {
+			const response = await fetch(`/api/discussions?shlokaId=${shlokaId}`);
+			if (!response.ok) throw new Error("Failed to fetch discussions");
+			return response.json();
+		},
+		enabled: !!shlokaId,
+		staleTime: 30 * 1000,
+	});
+}
+
+export function useAddDiscussion() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (data: { shlokaId: string; message: string }) => {
+			const response = await fetch("/api/discussions", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(data),
+			});
+			if (!response.ok) throw new Error("Failed to add discussion");
+			return response.json();
+		},
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({ queryKey: ["discussions", variables.shlokaId] });
+		},
+	});
+}
+
+// 4. User list/permissions
+export function useUsers() {
+	return useQuery({
+		queryKey: ["users"],
+		queryFn: async () => {
+			const response = await fetch("/api/users");
+			if (!response.ok) throw new Error("Failed to fetch users");
+			return response.json();
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
+// 5. History
+export function useHistory(page: number = 1, limit: number = 20) {
+	return useQuery({
+		queryKey: ["history", page, limit],
+		queryFn: async () => {
+			const response = await fetch(`/api/history?page=${page}&limit=${limit}`);
+			if (!response.ok) throw new Error("Failed to fetch history");
+			return response.json();
+		},
+		staleTime: 60 * 1000,
+	});
+}
+
+// 6. Shlokas by group/search
+export function useGroupShlokas(groupId: string, search: string = "") {
+	return useQuery({
+		queryKey: ["groupShlokas", groupId, search],
+		queryFn: async () => {
+			const params = new URLSearchParams({ groupId });
+			if (search) params.append("search", search);
+			const response = await fetch(`/api/shlokas?${params.toString()}`);
+			if (!response.ok) throw new Error("Failed to fetch group shlokas");
+			return response.json();
+		},
+		enabled: !!groupId,
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
+// 7. Book publishing status
+export function useBookStatus() {
+	return useQuery({
+		queryKey: ["bookStatus"],
+		queryFn: async () => {
+			const response = await fetch("/api/books/status");
+			if (!response.ok) throw new Error("Failed to fetch book status");
+			return response.json();
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
+// Add useGroups
+export function useGroups() {
+	return useQuery({
+		queryKey: ["groups"],
+		queryFn: async () => {
+			const response = await fetch("/api/groups");
+			if (!response.ok) throw new Error("Failed to fetch groups");
+			return response.json();
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
+// Add usePublishShloka
+export function usePublishShloka() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ shlokaId, field, value, groupId }: { shlokaId: string; field: string; value: boolean; groupId: string }) => {
+			const response = await fetch("/api/shlokas/publish", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ shlokaId, field, value, groupId }),
+			});
+			if (!response.ok) throw new Error("Failed to update publish status");
+			return response.json();
+		},
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({ queryKey: ["groupShlokas", variables.groupId] });
+		},
 	});
 }

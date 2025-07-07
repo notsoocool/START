@@ -284,7 +284,6 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 		</Dialog>
 	);
 
-
 	return (
 		<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
 			<div ref={shlokaRef}>

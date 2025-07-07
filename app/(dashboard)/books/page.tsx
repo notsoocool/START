@@ -198,13 +198,8 @@ export default function SacredTexts() {
 			<div className="max-w-4xl mx-auto space-y-6">
 				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">Sanskrit Texts</h2>
 				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
-					{isLoading ? (
-						<div className="flex justify-center items-center py-12">
-							<Loader2 className="h-12 w-12 animate-spin text-purple-600" />
-						</div>
-					) : error ? (
+					{isLoading ? null : error ? (
 						<div className="flex flex-col items-center justify-center py-12 text-center">
-							<AlertCircle className="h-12 w-12 text-red-500 mb-4" />
 							<div className="text-red-600">{error}</div>
 						</div>
 					) : books.length === 0 ? (

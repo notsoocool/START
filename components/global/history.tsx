@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Loader2, ChevronLeft, ChevronRight, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useHistory } from "@/lib/hooks/use-api";
 
 interface HistoryEntry {
 	_id: string;
@@ -47,31 +48,12 @@ interface Pagination {
 }
 
 export default function HistoryPage() {
-	const [history, setHistory] = useState<HistoryEntry[]>([]);
-	const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: 20, pages: 0 });
-	const [loading, setLoading] = useState(true);
 	const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
 	const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-
-	const fetchHistory = async (page: number) => {
-		try {
-			setLoading(true);
-			const response = await fetch(`/api/history?page=${page}&limit=20`);
-			if (!response.ok) throw new Error("Failed to fetch history");
-			const data = await response.json();
-			setHistory(data.history);
-			setPagination(data.pagination);
-		} catch (error) {
-			console.error("Error fetching history:", error);
-			toast.error("Failed to load history");
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchHistory(1);
-	}, []);
+	const [page, setPage] = useState(1);
+	const { data, isLoading, error, refetch } = useHistory(page, 20);
+	const history = data?.history || [];
+	const pagination = data?.pagination || { total: 0, page: 1, limit: 20, pages: 0 };
 
 	const getActionColor = (action: string) => {
 		switch (action) {
@@ -116,6 +98,11 @@ export default function HistoryPage() {
 	const handleEntryClick = (entry: HistoryEntry) => {
 		setSelectedEntry(entry);
 		setShowDetailsDialog(true);
+	};
+
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage);
+		refetch();
 	};
 
 	const renderDetailsDialog = () => {
@@ -210,15 +197,17 @@ export default function HistoryPage() {
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>History of Changes</CardTitle>
-				<Button variant="outline" size="icon" onClick={() => fetchHistory(pagination.page)} disabled={loading}>
-					<RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+				<Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
+					<RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 				</Button>
 			</CardHeader>
 			<CardContent>
-				{loading ? (
+				{isLoading ? (
 					<div className="flex justify-center py-8">
 						<Loader2 className="h-8 w-8 animate-spin text-primary" />
 					</div>
+				) : error ? (
+					<div className="text-red-500">Failed to load history</div>
 				) : (
 					<>
 						<Table>
@@ -233,7 +222,7 @@ export default function HistoryPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{history.map((entry) => (
+								{history.map((entry: HistoryEntry) => (
 									<TableRow key={entry._id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleEntryClick(entry)}>
 										<TableCell>{format(new Date(entry.timestamp), "MMM d, yyyy HH:mm")}</TableCell>
 										<TableCell>{entry.userName}</TableCell>
@@ -253,14 +242,14 @@ export default function HistoryPage() {
 						</Table>
 
 						<div className="flex items-center justify-between mt-4">
-							<Button variant="outline" onClick={() => fetchHistory(pagination.page - 1)} disabled={pagination.page === 1}>
+							<Button variant="outline" onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1}>
 								<ChevronLeft className="h-4 w-4 mr-2" />
 								Previous
 							</Button>
 							<span className="text-sm text-muted-foreground">
 								Page {pagination.page} of {pagination.pages}
 							</span>
-							<Button variant="outline" onClick={() => fetchHistory(pagination.page + 1)} disabled={pagination.page === pagination.pages}>
+							<Button variant="outline" onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.pages}>
 								Next
 								<ChevronRight className="h-4 w-4 ml-2" />
 							</Button>

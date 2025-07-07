@@ -8,96 +8,55 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, MessageSquare, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useDiscussions, useAddDiscussion, useCurrentUser } from "@/lib/hooks/use-api";
 
 interface DiscussionProps {
 	shlokaId: string;
 }
 
-interface User {
-	id: string;
-	firstName: string;
-	lastName: string;
-	perms: string[];
+interface Discussion {
+	_id: string;
+	shlokaId: string;
+	userId: string;
+	userName: string;
+	content: string;
+	parentId?: string;
+	createdAt: string;
 }
 
 export function Discussions({ shlokaId }: DiscussionProps) {
-	const [currentUser, setCurrentUser] = useState<User | null>(null);
-	const [discussions, setDiscussions] = useState<any[]>([]);
+	const { data: currentUser } = useCurrentUser();
+	const { data: discussions = [], isLoading, error, refetch } = useDiscussions(shlokaId);
+	const addDiscussion = useAddDiscussion();
 	const [newComment, setNewComment] = useState("");
 	const [replyText, setReplyText] = useState("");
-	const [loading, setLoading] = useState(false);
 	const [replyTo, setReplyTo] = useState<string | null>(null);
-
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				const response = await fetch("/api/getCurrentUser");
-				if (response.ok) {
-					const userData = await response.json();
-					setCurrentUser(userData);
-				}
-			} catch (error) {
-				console.error("Error fetching user:", error);
-			}
-		};
-
-		fetchUser();
-	}, []);
-
-	const fetchDiscussions = async () => {
-		try {
-			const response = await fetch(`/api/discussions?shlokaId=${shlokaId}`);
-			const data = await response.json();
-			setDiscussions(data);
-		} catch (error) {
-			console.error("Error fetching discussions:", error);
-		}
-	};
-
-	useEffect(() => {
-		fetchDiscussions();
-	}, [shlokaId]);
 
 	const handleSubmit = async () => {
 		if (!currentUser) {
 			toast.error("Please sign in to comment");
 			return;
 		}
-
 		const commentText = replyTo ? replyText : newComment;
-
 		if (!commentText.trim()) {
 			toast.error("Please enter a comment");
 			return;
 		}
-
-		setLoading(true);
-		try {
-			const response = await fetch("/api/discussions", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+		addDiscussion.mutate(
+			{ shlokaId, message: commentText },
+			{
+				onSuccess: () => {
+					setNewComment("");
+					setReplyText("");
+					setReplyTo(null);
+					refetch();
+					toast.success("Comment posted successfully!");
 				},
-				body: JSON.stringify({
-					shlokaId,
-					content: commentText,
-					parentId: replyTo,
-				}),
-			});
-
-			if (!response.ok) throw new Error("Failed to post comment");
-
-			setNewComment("");
-			setReplyText("");
-			setReplyTo(null);
-			await fetchDiscussions();
-			toast.success("Comment posted successfully!");
-		} catch (error) {
-			toast.error("Error posting comment");
-		} finally {
-			setLoading(false);
-		}
+				onError: () => {
+					toast.error("Error posting comment");
+				},
+			}
+		);
 	};
 
 	const handleDelete = async (id: string) => {
@@ -120,31 +79,27 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 				throw new Error(data.error || "Failed to delete comment");
 			}
 
-			await fetchDiscussions();
+			refetch();
 			toast.success("Comment deleted successfully!");
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Error deleting comment");
 		}
 	};
 
-	const canDeleteComment = (discussion: any) => {
+	const canDeleteComment = (discussion: Discussion) => {
 		if (!currentUser) return false;
-
-		// Check if user is owner
 		const isOwner = currentUser.id === discussion.userId;
-		// Check if user has Admin or Root permissions
-		const isAdminOrRoot = currentUser.perms?.includes("Admin") || currentUser.perms?.includes("Root");
-
+		const isAdminOrRoot = Array.isArray(currentUser.perms)
+			? currentUser.perms.includes("Admin") || currentUser.perms.includes("Root")
+			: ["Admin", "Root"].includes(currentUser.perms);
 		return isOwner || isAdminOrRoot;
 	};
 
-	const renderDiscussions = (parentId: string | null = null, depth: number = 0) => {
-		const filteredDiscussions = discussions.filter((d) => d.parentId === parentId);
-
-		return filteredDiscussions.map((discussion) => {
-			const parentDiscussion = discussions.find((d) => d._id === discussion.parentId);
+	const renderDiscussions = (parentId: string | null = null, depth: number = 0): JSX.Element[] => {
+		const filteredDiscussions = discussions.filter((d: Discussion) => d.parentId === parentId);
+		return filteredDiscussions.map((discussion: Discussion) => {
+			const parentDiscussion = discussions.find((d: Discussion) => d._id === discussion.parentId);
 			const isReplying = replyTo === discussion._id;
-
 			return (
 				<div key={discussion._id} className={`${depth > 0 ? "ml-8 border-l-2 border-muted pl-4" : ""}`}>
 					<Card className="mb-4">
@@ -171,14 +126,13 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 										<MessageSquare className="h-4 w-4 mr-2" />
 										Reply
 									</Button>
-
 									{isReplying && (
 										<div className="mt-4 space-y-2">
 											<Textarea
 												placeholder="Write your reply..."
 												value={replyText}
 												onChange={(e) => setReplyText(e.target.value)}
-												disabled={!currentUser || loading}
+												disabled={!currentUser || addDiscussion.status === "pending"}
 												className="min-h-[100px]"
 											/>
 											<div className="flex justify-end gap-2">
@@ -191,8 +145,8 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 												>
 													Cancel
 												</Button>
-												<Button onClick={handleSubmit} disabled={!currentUser || loading}>
-													{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+												<Button onClick={handleSubmit} disabled={!currentUser || addDiscussion.status === "pending"}>
+													{addDiscussion.status === "pending" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 													Reply
 												</Button>
 											</div>
@@ -210,26 +164,36 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 
 	return (
 		<div className="space-y-4">
-			<div className="space-y-4">
-				<Textarea
-					placeholder={currentUser ? "Add a comment..." : "Please sign in to comment"}
-					value={newComment}
-					onChange={(e) => setNewComment(e.target.value)}
-					disabled={!currentUser || loading}
-				/>
-				<div className="flex items-center justify-between">
-					{replyTo && (
-						<Button variant="ghost" onClick={() => setReplyTo(null)}>
-							Cancel Reply
-						</Button>
-					)}
-					<Button onClick={handleSubmit} disabled={!currentUser || loading}>
-						{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Post Comment
-					</Button>
+			{isLoading ? (
+				<div className="flex justify-center py-8">
+					<Loader2 className="h-8 w-8 animate-spin text-primary" />
 				</div>
-			</div>
-			<div className="space-y-4">{renderDiscussions(null)}</div>
+			) : error ? (
+				<div className="text-red-500">Failed to load discussions</div>
+			) : (
+				<>
+					<div className="space-y-4">
+						<Textarea
+							placeholder={currentUser ? "Add a comment..." : "Please sign in to comment"}
+							value={newComment}
+							onChange={(e) => setNewComment(e.target.value)}
+							disabled={!currentUser || addDiscussion.status === "pending"}
+						/>
+						<div className="flex items-center justify-between">
+							{replyTo && (
+								<Button variant="ghost" onClick={() => setReplyTo(null)}>
+									Cancel Reply
+								</Button>
+							)}
+							<Button onClick={handleSubmit} disabled={!currentUser || addDiscussion.status === "pending"}>
+								{addDiscussion.status === "pending" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+								Post Comment
+							</Button>
+						</div>
+					</div>
+					<div className="space-y-4">{renderDiscussions()}</div>
+				</>
+			)}
 		</div>
 	);
 }
