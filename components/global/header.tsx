@@ -5,13 +5,13 @@ import { Loader2, Bell, Check } from "lucide-react";
 import { Navigation } from "./navigation";
 import { HeaderLogo } from "./header-logo";
 import { Search } from "./search";
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
 
 interface Notification {
 	_id: string;
@@ -25,75 +25,18 @@ interface Notification {
 	isResolved: boolean;
 }
 
-interface User {
-	id: string;
-	perms: string;
-}
-
 export const Header = () => {
 	const router = useRouter();
-	const [notifications, setNotifications] = useState<Notification[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [unreadCount, setUnreadCount] = useState(0);
-	const [currentUser, setCurrentUser] = useState<User | null>(null);
+	const { data: currentUser } = useCurrentUser();
+	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(1);
+	const markAsReadMutation = useMarkNotificationAsRead();
 
-	// Fetch current user
-	useEffect(() => {
-		const fetchCurrentUser = async () => {
-			try {
-				const response = await fetch("/api/getCurrentUser");
-				const data = await response.json();
-
-				if (response.ok) {
-					setCurrentUser(data);
-				}
-			} catch (error) {
-				console.error("Error fetching current user:", error);
-			}
-		};
-
-		fetchCurrentUser();
-	}, []);
-
-	// Fetch notifications
-	useEffect(() => {
-		const fetchNotifications = async () => {
-			try {
-				const response = await fetch("/api/notifications/get?page=1");
-				const data = await response.json();
-
-				if (response.ok) {
-					setNotifications(data.notifications);
-					setUnreadCount(data.notifications.filter((n: Notification) => !n.isRead).length);
-				}
-			} catch (error) {
-				console.error("Error fetching notifications:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchNotifications();
-	}, []);
+	const notifications = notificationsData?.notifications || [];
+	const unreadCount = notifications.filter((n: Notification) => !n.isRead).length;
 
 	const handleMarkAsRead = async (notificationId: string, event: React.MouseEvent) => {
 		event.stopPropagation(); // Prevent navigation when clicking the check button
-		try {
-			const response = await fetch("/api/notifications/markRead", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ notificationId }),
-			});
-
-			if (response.ok) {
-				setNotifications(notifications.map((notification) => (notification._id === notificationId ? { ...notification, isRead: true } : notification)));
-				setUnreadCount((prev) => Math.max(0, prev - 1));
-			}
-		} catch (error) {
-			console.error("Error marking notification as read:", error);
-		}
+		markAsReadMutation.mutate(notificationId);
 	};
 
 	const formatDate = (dateString: string) => {
@@ -159,14 +102,14 @@ export const Header = () => {
 												<div className="flex items-center justify-between">
 													<h3 className="font-semibold">Notifications</h3>
 													<Link href={getViewAllLink()}>
-														<Button variant="ghost" size="sm" className="text-xs">
+														<Button variant="ghost" size="sm" className="text-xs" data-navigate="true">
 															View All
 														</Button>
 													</Link>
 												</div>
 											</div>
 											<ScrollArea className="h-[400px]">
-												{loading ? (
+												{notificationsLoading ? (
 													<div className="flex justify-center py-8">
 														<Loader2 className="h-6 w-6 animate-spin text-primary" />
 													</div>
@@ -201,8 +144,14 @@ export const Header = () => {
 																		<p className="text-xs text-muted-foreground">{formatDate(notification.createdAt)}</p>
 																	</div>
 																	{!notification.isRead && (
-																		<Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleMarkAsRead(notification._id, e)}>
-																			<Check className="h-4 w-4" />
+																		<Button
+																			variant="ghost"
+																			size="icon"
+																			className="h-6 w-6"
+																			onClick={(e) => handleMarkAsRead(notification._id, e)}
+																			disabled={markAsReadMutation.isPending}
+																		>
+																			{markAsReadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
 																		</Button>
 																	)}
 																</div>

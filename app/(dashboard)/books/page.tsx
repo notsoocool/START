@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Book, Bookmark, FileText, ScrollText, Type, Lock } from "lucide-react";
+import { Book, Bookmark, FileText, ScrollText, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { useUser } from "@clerk/nextjs";
+import { useCurrentUser, useBooks } from "@/lib/hooks/use-api";
 
 // Define the item types based on API response structure
 type Item = {
@@ -38,31 +38,10 @@ const colorMap = {
 };
 
 // Component to display each tree node and handle the expand/collapse state
-// Inside TreeNode Component, update the click handler for chapters
-// Inside TreeNode component
 const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?: number; book?: string; part1?: string; part2?: string }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const router = useRouter();
-	const { user } = useUser();
-	const [userPerms, setUserPerms] = useState<string | null>(null);
-
-	useEffect(() => {
-		const fetchUserPerms = async () => {
-			try {
-				const response = await fetch("/api/getCurrentUser");
-				if (response.ok) {
-					const data = await response.json();
-					setUserPerms(data.perms);
-				}
-			} catch (error) {
-				console.error("Error fetching user permissions:", error);
-			}
-		};
-
-		if (user) {
-			fetchUserPerms();
-		}
-	}, [user]);
+	const { data: currentUser } = useCurrentUser(); // Use the cached user data
 
 	const handleChapterClick = () => {
 		if (item.type === "chapter") {
@@ -85,18 +64,20 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 						variant="ghost"
 						className="w-full justify-start p-2 h-auto text-left"
 						onClick={item.type === "chapter" ? handleChapterClick : () => setIsOpen(!isOpen)}
+						data-navigate={item.type === "chapter" ? "true" : undefined}
 					>
 						<Icon className="mr-2 h-5 w-5" />
-						<span className="font-medium flex flex-row w-full justify-between"><div>{item.title}</div>
-						{item.type === "book" && item.status?.locked && (userPerms === "Admin" || userPerms === "Root") && (
-							<div className="relative group ml-2">
-								<Lock className="h-4 w-4 text-red-500" />
-								<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-gray-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity">
-									Locked - Only visible to Admin/Root
-								</span>
-							</div>
-						)}
-                        </span>
+						<span className="font-medium flex flex-row w-full justify-between">
+							<div>{item.title}</div>
+							{item.type === "book" && item.status?.locked && (currentUser?.perms === "Admin" || currentUser?.perms === "Root") && (
+								<div className="relative group ml-2">
+									<Lock className="h-4 w-4 text-red-500" />
+									<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-gray-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity">
+										Locked - Only visible to Admin/Root
+									</span>
+								</div>
+							)}
+						</span>
 					</Button>
 				</div>
 				<AnimatePresence>
@@ -132,98 +113,69 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 };
 
 export default function SacredTexts() {
-	const [books, setBooks] = useState<Item[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const { isSignedIn } = useAuth();
-	const router = useRouter();
+	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+	const { data: booksData, isLoading: booksLoading, error: booksError } = useBooks();
 
-	useEffect(() => {
-		const fetchBooks = async () => {
-			try {
-				setIsLoading(true);
-				setError(null);
-
-				if (!isSignedIn) {
-					setError("User not authenticated");
-					return;
-				}
-
-				const response = await fetch("/api/books");
-				if (!response.ok) {
-					throw new Error("Failed to fetch books");
-				}
-
-				const data = await response.json();
-
-				const transformedData = data.map((book: any) => ({
-					id: book.book,
-					title: book.book,
-					type: "book" as const,
-					status: book.status,
-					children:
-						book.part1 && book.part1.length > 0
-							? book.part1
-									.map((part1: any) => {
-										if (part1.part === null) {
-											return part1.part2[0].chapters.map((chapter: string) => ({
-												id: `${book.book}-chapter-${chapter}`,
-												title: `Chapter ${chapter}`,
-												type: "chapter" as const,
-											}));
-										}
-										if (!part1.part2?.[0]?.part) {
-											return {
-												id: `${book.book}-${part1.part}`,
-												title: part1.part,
-												type: "subpart" as const,
-												children:
-													part1.part2?.[0]?.chapters.map((chapter: string) => ({
-														id: `${book.book}-${part1.part}-chapter-${chapter}`,
-														title: `Chapter ${chapter}`,
-														type: "chapter" as const,
-													})) || [],
-											};
-										}
+	// Transform the books data
+	const books: Item[] = booksData
+		? booksData.map((book: any) => ({
+				id: book.book,
+				title: book.book,
+				type: "book" as const,
+				status: book.status,
+				children:
+					book.part1 && book.part1.length > 0
+						? book.part1
+								.map((part1: any) => {
+									if (part1.part === null) {
+										return part1.part2[0].chapters.map((chapter: string) => ({
+											id: `${book.book}-chapter-${chapter}`,
+											title: `Chapter ${chapter}`,
+											type: "chapter" as const,
+										}));
+									}
+									if (!part1.part2?.[0]?.part) {
 										return {
 											id: `${book.book}-${part1.part}`,
 											title: part1.part,
 											type: "subpart" as const,
-											children: part1.part2
-												.map((part2: any) => ({
-													id: `${book.book}-${part1.part}-${part2.part}`,
-													title: part2.part,
-													type: "sub-subpart" as const,
-													children: part2.chapters.map((chapter: string) => ({
-														id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
-														title: `Chapter ${chapter}`,
-														type: "chapter" as const,
-													})),
-												}))
-												.flat(),
+											children:
+												part1.part2?.[0]?.chapters.map((chapter: string) => ({
+													id: `${book.book}-${part1.part}-chapter-${chapter}`,
+													title: `Chapter ${chapter}`,
+													type: "chapter" as const,
+												})) || [],
 										};
-									})
-									.flat()
-							: book.chapters
-							? book.chapters.map((chapter: string) => ({
-									id: `${book.book}-chapter-${chapter}`,
-									title: `Chapter ${chapter}`,
-									type: "chapter" as const,
-							  }))
-							: [],
-				}));
-
-				setBooks(transformedData);
-			} catch (error) {
-				console.error("Error fetching books:", error);
-				setError("Failed to load books. Please try again.");
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchBooks();
-	}, [isSignedIn]);
+									}
+									return {
+										id: `${book.book}-${part1.part}`,
+										title: part1.part,
+										type: "subpart" as const,
+										children: part1.part2
+											.map((part2: any) => ({
+												id: `${book.book}-${part1.part}-${part2.part}`,
+												title: part2.part,
+												type: "sub-subpart" as const,
+												children: part2.chapters.map((chapter: string) => ({
+													id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+													title: `Chapter ${chapter}`,
+													type: "chapter" as const,
+												})),
+											}))
+											.flat(),
+									};
+								})
+								.flat()
+						: book.chapters
+						? book.chapters.map((chapter: string) => ({
+								id: `${book.book}-chapter-${chapter}`,
+								title: `Chapter ${chapter}`,
+								type: "chapter" as const,
+						  }))
+						: [],
+		  }))
+		: [];
 
 	if (!isSignedIn) {
 		return (
@@ -238,6 +190,9 @@ export default function SacredTexts() {
 		);
 	}
 
+	const isLoading = userLoading || booksLoading;
+	const error = booksError?.message;
+
 	return (
 		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
 			<div className="max-w-4xl mx-auto space-y-6">
@@ -245,10 +200,13 @@ export default function SacredTexts() {
 				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
 					{isLoading ? (
 						<div className="flex justify-center items-center py-12">
-							<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+							<Loader2 className="h-12 w-12 animate-spin text-purple-600" />
 						</div>
 					) : error ? (
-						<div className="text-center text-red-600 py-12">{error}</div>
+						<div className="flex flex-col items-center justify-center py-12 text-center">
+							<AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+							<div className="text-red-600">{error}</div>
+						</div>
 					) : books.length === 0 ? (
 						<div className="text-center text-gray-600 py-12">No books available for your access level.</div>
 					) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Send, Mail, Check, AlertCircle } from "lucide-react";
+import { Loader2, Send, Check, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Notification {
 	_id: string;
@@ -29,79 +31,21 @@ interface Notification {
 }
 
 export default function UserNotificationsPage() {
-	const [notifications, setNotifications] = useState<Notification[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [sending, setSending] = useState(false);
-	const [currentUser, setCurrentUser] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
 	const [subject, setSubject] = useState("");
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState("view");
 	const [page, setPage] = useState(1);
-	const [totalPages, setTotalPages] = useState(1);
 
-	// Fetch current user
-	useEffect(() => {
-		const fetchCurrentUser = async () => {
-			try {
-				const response = await fetch("/api/getCurrentUser");
-				const data = await response.json();
+	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(page);
+	const markAsReadMutation = useMarkNotificationAsRead();
+	const queryClient = useQueryClient();
 
-				if (response.ok) {
-					setCurrentUser({
-						id: data.id,
-						firstName: data.firstName,
-						lastName: data.lastName,
-					});
-				} else {
-					console.error("Error fetching current user:", data.error);
-				}
-			} catch (error) {
-				console.error("Error fetching current user:", error);
-			}
-		};
-
-		fetchCurrentUser();
-	}, []);
-
-	// Fetch notifications
-	useEffect(() => {
-		const fetchNotifications = async () => {
-			try {
-				setLoading(true);
-				const response = await fetch(`/api/notifications/get?page=${page}`);
-				const data = await response.json();
-
-				if (response.ok) {
-					setNotifications(data.notifications);
-					setTotalPages(data.pagination.pages);
-				} else {
-					console.error("Error fetching notifications:", data.error);
-				}
-			} catch (error) {
-				console.error("Error fetching notifications:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		if (currentUser) {
-			fetchNotifications();
-		}
-	}, [currentUser, page]);
-
-	const handleSendMessage = async () => {
-		if (!subject.trim() || !message.trim()) {
-			setError("Subject and message are required");
-			return;
-		}
-
-		try {
-			setSending(true);
-			setError(null);
-			setSuccess(null);
-
+	// Send message mutation
+	const sendMessageMutation = useMutation({
+		mutationFn: async ({ subject, message }: { subject: string; message: string }) => {
 			const response = await fetch("/api/notifications/send", {
 				method: "POST",
 				headers: {
@@ -114,48 +58,40 @@ export default function UserNotificationsPage() {
 				}),
 			});
 
-			const data = await response.json();
-
-			if (response.ok) {
-				setSuccess("Message sent successfully!");
-				setSubject("");
-				setMessage("");
-
-				// Refresh notifications
-				const notifResponse = await fetch(`/api/notifications/get?page=${page}`);
-				const notifData = await notifResponse.json();
-
-				if (notifResponse.ok) {
-					setNotifications(notifData.notifications);
-				}
-			} else {
-				setError(data.error || "Failed to send message");
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.error || "Failed to send message");
 			}
-		} catch (error) {
-			console.error("Error sending message:", error);
-			setError("An error occurred while sending the message");
-		} finally {
-			setSending(false);
+
+			return response.json();
+		},
+		onSuccess: () => {
+			setSuccess("Message sent successfully!");
+			setSubject("");
+			setMessage("");
+			setError(null);
+			// Invalidate and refetch notifications
+			queryClient.invalidateQueries({ queryKey: ["notifications"] });
+		},
+		onError: (error: Error) => {
+			setError(error.message);
+			setSuccess(null);
+		},
+	});
+
+	const handleSendMessage = async () => {
+		if (!subject.trim() || !message.trim()) {
+			setError("Subject and message are required");
+			return;
 		}
+
+		setError(null);
+		setSuccess(null);
+		sendMessageMutation.mutate({ subject, message });
 	};
 
-	const handleMarkAsRead = async (notificationId: string) => {
-		try {
-			const response = await fetch("/api/notifications/markRead", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ notificationId }),
-			});
-
-			if (response.ok) {
-				// Update the local state to mark the notification as read
-				setNotifications(notifications.map((notification) => (notification._id === notificationId ? { ...notification, isRead: true } : notification)));
-			}
-		} catch (error) {
-			console.error("Error marking notification as read:", error);
-		}
+	const handleMarkAsRead = (notificationId: string) => {
+		markAsReadMutation.mutate(notificationId);
 	};
 
 	const formatDate = (dateString: string) => {
@@ -166,13 +102,27 @@ export default function UserNotificationsPage() {
 		}
 	};
 
-	if (!currentUser) {
+	if (userLoading) {
 		return (
 			<div className="flex items-center justify-center h-screen">
 				<Loader2 className="h-8 w-8 animate-spin text-primary" />
 			</div>
 		);
 	}
+
+	if (!currentUser) {
+		return (
+			<div className="flex items-center justify-center h-screen">
+				<div className="text-center">
+					<AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+					<p>Unable to load user data</p>
+				</div>
+			</div>
+		);
+	}
+
+	const notifications = notificationsData?.notifications || [];
+	const totalPages = notificationsData?.pagination?.pages || 1;
 
 	return (
 		<div className="container mx-auto py-8">
@@ -191,7 +141,7 @@ export default function UserNotificationsPage() {
 							<CardDescription>View notifications sent to you</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{loading ? (
+							{notificationsLoading ? (
 								<div className="flex justify-center py-8">
 									<Loader2 className="h-8 w-8 animate-spin text-primary" />
 								</div>
@@ -199,7 +149,7 @@ export default function UserNotificationsPage() {
 								<div className="text-center py-8 text-muted-foreground">No notifications found</div>
 							) : (
 								<div className="space-y-4">
-									{notifications.map((notification) => (
+									{notifications.map((notification: Notification) => (
 										<div key={notification._id} className={`p-4 rounded-lg border ${notification.isRead ? "bg-background" : "bg-muted/50"}`}>
 											<div className="flex justify-between items-start">
 												<div>
@@ -219,8 +169,8 @@ export default function UserNotificationsPage() {
 														</Badge>
 													)}
 													{!notification.isRead && (
-														<Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification._id)}>
-															<Check className="h-4 w-4" />
+														<Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification._id)} disabled={markAsReadMutation.isPending}>
+															{markAsReadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
 														</Button>
 													)}
 												</div>
@@ -290,8 +240,8 @@ export default function UserNotificationsPage() {
 							</div>
 						</CardContent>
 						<CardFooter>
-							<Button onClick={handleSendMessage} disabled={sending || !subject.trim() || !message.trim()} className="w-full">
-								{sending ? (
+							<Button onClick={handleSendMessage} disabled={sendMessageMutation.isPending || !subject.trim() || !message.trim()} className="w-full">
+								{sendMessageMutation.isPending ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 										Sending...

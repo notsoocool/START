@@ -2,12 +2,13 @@
 
 import { useMedia } from "react-use";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Button } from "../ui/button";
 import { NavButton } from "./nav-button";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/lib/hooks/use-api";
 
 const routes = [
 	{
@@ -38,36 +39,21 @@ const routes = [
 
 export const Navigation = () => {
 	const [isOpened, setIsOpened] = useState(false);
-	const [isAdmin, setIsAdmin] = useState(false);
-
 	const router = useRouter();
 	const pathname = usePathname();
 	const isMobile = useMedia("(max-width: 1024px)", false);
 
-	useEffect(() => {
-		const checkAdminStatus = async () => {
-			const response = await fetch("/api/getCurrentUser");
-
-			if (!response.ok) {
-				console.error("Error fetching current user");
-				return;
-			}
-
-			const data = await response.json();
-
-			// Redirect if current user is not Admin or Root
-			if (data.perms === "Root" || data.perms === "Admin") {
-				setIsAdmin(true); // Redirect to main page
-			}
-		};
-
-		checkAdminStatus();
-	}, []);
+	const { data: currentUser, isLoading } = useCurrentUser();
+	const isAdmin = currentUser?.perms === "Root" || currentUser?.perms === "Admin";
 
 	const onClick = (href: string) => {
 		router.push(href);
 		setIsOpened(false);
 	};
+
+	if (isLoading) {
+		return null; // or a loading spinner
+	}
 
 	return (
 		<>
@@ -85,6 +71,7 @@ export const Navigation = () => {
 									key={route.href}
 									variant="ghost"
 									onClick={() => onClick(route.href)}
+									data-navigate="true"
 									className={cn(
 										"w-full justify-start font-medium transition-all duration-300",
 										"hover:bg-purple-100 dark:hover:bg-purple-900/30",
@@ -99,6 +86,7 @@ export const Navigation = () => {
 								<Button
 									variant="ghost"
 									onClick={() => onClick("/admin")}
+									data-navigate="true"
 									className={cn(
 										"w-full justify-start font-medium transition-all duration-300",
 										"hover:bg-purple-100 dark:hover:bg-purple-900/30",
