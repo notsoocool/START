@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 export default function AddWordPage() {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const [iframeHeight, setIframeHeight] = useState(800);
+	const { setPageReady } = usePageReady();
+
+	useEffect(() => {
+		setPageReady(true);
+	}, [setPageReady]);
 
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {

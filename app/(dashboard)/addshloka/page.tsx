@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useBooks } from "@/lib/hooks/use-api";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -214,6 +215,7 @@ const SaveDialog = ({
 );
 
 export default function ShlokaPage() {
+	const { setPageReady } = usePageReady();
 	const [shlokaInput, setShlokaInput] = useState<string>("");
 	const [shlokaProcessing, setShlokaProcessing] = useState<boolean>(false);
 	const [processedShlokas, setProcessedShlokas] = useState<any[]>([]);
@@ -790,6 +792,10 @@ export default function ShlokaPage() {
 			setIsSaving(false);
 		}
 	};
+
+	useEffect(() => {
+		if (errorMessage) setPageReady(true);
+	}, [errorMessage, setPageReady]);
 
 	return (
 		<div className="container mx-auto p-6 space-y-8">

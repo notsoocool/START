@@ -278,6 +278,10 @@ export default function AnalysisPage() {
 		}
 	}, [loading, initialLoad, shloka, chapter, setPageReady]);
 
+	useEffect(() => {
+		if (error) setPageReady(true);
+	}, [error, setPageReady]);
+
 	const handleShlokaChange = (shlokaId: string, newChapter: string, newPart1: string, newPart2: string) => {
 		console.log("Changing shloka with data:", {
 			shlokaId,

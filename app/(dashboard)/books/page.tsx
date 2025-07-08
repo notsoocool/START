@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Book, Bookmark, FileText, ScrollText, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useCurrentUser, useBooks } from "@/lib/hooks/use-api";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 // Define the item types based on API response structure
 type Item = {
@@ -116,6 +117,7 @@ export default function SacredTexts() {
 	const { isSignedIn } = useAuth();
 	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 	const { data: booksData, isLoading: booksLoading, error: booksError } = useBooks();
+	const { setPageReady } = usePageReady();
 
 	// Transform the books data
 	const books: Item[] = booksData
@@ -192,6 +194,11 @@ export default function SacredTexts() {
 
 	const isLoading = userLoading || booksLoading;
 	const error = booksError?.message;
+
+	useEffect(() => {
+		if (!isLoading) setPageReady(true);
+		if (error) setPageReady(true);
+	}, [isLoading, setPageReady, error]);
 
 	return (
 		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">

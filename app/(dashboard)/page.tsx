@@ -32,6 +32,10 @@ const MainPage = () => {
 		}
 	}, [loading, setPageReady]);
 
+	useEffect(() => {
+		if (error) setPageReady(true);
+	}, [error, setPageReady]);
+
 	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[80vh] space-y-4">

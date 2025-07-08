@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Loader2, Send, Check, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface Notification {
 	_id: string;
@@ -42,6 +43,7 @@ export default function UserNotificationsPage() {
 	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(page);
 	const markAsReadMutation = useMarkNotificationAsRead();
 	const queryClient = useQueryClient();
+	const { setPageReady } = usePageReady();
 
 	// Send message mutation
 	const sendMessageMutation = useMutation({
@@ -101,6 +103,14 @@ export default function UserNotificationsPage() {
 			return dateString;
 		}
 	};
+
+	useEffect(() => {
+		if (!userLoading) setPageReady(true);
+	}, [userLoading, setPageReady]);
+
+	useEffect(() => {
+		if (error) setPageReady(true);
+	}, [error, setPageReady]);
 
 	if (userLoading) {
 		return (

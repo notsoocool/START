@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 				{ kaaraka_sambandha: { $regex: term, $options: "i" } },
 				{ morph_analysis: { $regex: term, $options: "i" } },
 				{ morph_in_context: { $regex: term, $options: "i" } },
+                { possible_relations: { $regex: term, $options: "i" } },
 			],
 		}));
 

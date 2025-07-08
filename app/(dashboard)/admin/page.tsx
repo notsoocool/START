@@ -14,11 +14,17 @@ import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { usePageReady } from "@/components/ui/PageReadyContext";
 
 export default function AdminPage() {
 	const [activeTab, setActiveTab] = useState("upload");
 	const [treeData, setTreeData] = useState<TreeNode[]>([]);
 	const router = useRouter();
+	const { setPageReady } = usePageReady();
+
+	useEffect(() => {
+		setPageReady(true);
+	}, [setPageReady]);
 
 	useEffect(() => {
 		const checkAuthorization = async () => {
