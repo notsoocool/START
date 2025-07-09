@@ -17,16 +17,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<ClerkProvider>
-			<PageReadyProvider>
-				<html lang="en" suppressHydrationWarning>
-					<body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 antialiased "}>
+			<html lang="en" suppressHydrationWarning>
+				<body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 antialiased "}>
+					<PageReadyProvider>
 						<Providers>
 							{children}
 							<PageLoader />
 						</Providers>
-					</body>
-				</html>
-			</PageReadyProvider>
+					</PageReadyProvider>
+				</body>
+			</html>
 		</ClerkProvider>
 	);
 }

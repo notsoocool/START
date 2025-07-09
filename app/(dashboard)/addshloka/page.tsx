@@ -797,6 +797,10 @@ export default function ShlokaPage() {
 		if (errorMessage) setPageReady(true);
 	}, [errorMessage, setPageReady]);
 
+	useEffect(() => {
+		if (!booksLoading && !booksError) setPageReady(true);
+	}, [booksLoading, booksError, setPageReady]);
+
 	return (
 		<div className="container mx-auto p-6 space-y-8">
 			<Card>
