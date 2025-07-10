@@ -12,7 +12,6 @@ import { Loader2, Send, Check, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface Notification {
 	_id: string;
@@ -43,7 +42,6 @@ export default function UserNotificationsPage() {
 	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(page);
 	const markAsReadMutation = useMarkNotificationAsRead();
 	const queryClient = useQueryClient();
-	const { setPageReady } = usePageReady();
 
 	// Send message mutation
 	const sendMessageMutation = useMutation({
@@ -105,12 +103,16 @@ export default function UserNotificationsPage() {
 	};
 
 	useEffect(() => {
-		if (!userLoading) setPageReady(true);
-	}, [userLoading, setPageReady]);
+		if (!userLoading) {
+			// setPageReady(true); // Removed
+		}
+	}, [userLoading]); // Removed setPageReady
 
 	useEffect(() => {
-		if (error) setPageReady(true);
-	}, [error, setPageReady]);
+		if (error) {
+			// setPageReady(true); // Removed
+		}
+	}, [error]); // Removed setPageReady
 
 	if (userLoading) {
 		return (

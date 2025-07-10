@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface Shloka {
 	_id: string;
@@ -36,7 +35,6 @@ export default function PublishPage() {
 	const [selectedGroup, setSelectedGroup] = useState<string>("");
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
-	const { setPageReady } = usePageReady();
 
 	useEffect(() => {
 		fetchGroups();
@@ -47,10 +45,6 @@ export default function PublishPage() {
 			fetchShlokas();
 		}
 	}, [selectedGroup, searchTerm]);
-
-	useEffect(() => {
-		if (!isLoading) setPageReady(true);
-	}, [isLoading, setPageReady]);
 
 	const fetchGroups = async () => {
 		try {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 import { useUser } from "@clerk/nextjs";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface User {
 	id: string;
@@ -18,23 +17,12 @@ const MainPage = () => {
 	const { user, isLoaded } = useUser();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const { setPageReady } = usePageReady();
 
 	useEffect(() => {
 		if (isLoaded) {
 			setLoading(false);
 		}
 	}, [isLoaded]);
-
-	useEffect(() => {
-		if (!loading) {
-			setPageReady(true);
-		}
-	}, [loading, setPageReady]);
-
-	useEffect(() => {
-		if (error) setPageReady(true);
-	}, [error, setPageReady]);
 
 	if (loading) {
 		return (

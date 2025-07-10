@@ -3,22 +3,11 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useIsFetching } from "@tanstack/react-query";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 export const PageLoader = () => {
 	const [isLoadingSession, setIsLoadingSession] = useState(false);
 	const [targetPath, setTargetPath] = useState<string | null>(null);
 	const pathname = usePathname();
-	const isFetching = useIsFetching();
-	const { pageReady, setPageReady } = usePageReady();
-
-	// Auto-set pageReady on Clerk auth pages
-	useEffect(() => {
-		if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) {
-			setPageReady(true);
-		}
-	}, [pathname, setPageReady]);
 
 	// Start loading session on navigation
 	useEffect(() => {
@@ -37,25 +26,15 @@ export const PageLoader = () => {
 		return () => document.removeEventListener("click", handleLinkClick);
 	}, []);
 
-	// End loading session only when both route and data are ready
+	// End loading session when route changes
 	useEffect(() => {
-		if (isLoadingSession && targetPath && pathname === targetPath && isFetching === 0) {
+		if (isLoadingSession && targetPath && pathname === targetPath) {
 			setIsLoadingSession(false);
 			setTargetPath(null);
 		}
-	}, [pathname, isFetching, isLoadingSession, targetPath]);
+	}, [pathname, isLoadingSession, targetPath]);
 
-	// Also handle direct loads (no navigation)
-	useEffect(() => {
-		if (!isLoadingSession && isFetching > 0) {
-			setIsLoadingSession(true);
-		}
-		if (isLoadingSession && isFetching === 0 && !targetPath) {
-			setIsLoadingSession(false);
-		}
-	}, [isFetching, isLoadingSession, targetPath]);
-
-	const showLoader = isLoadingSession || !pageReady;
+	const showLoader = isLoadingSession;
 
 	return (
 		<AnimatePresence>
@@ -92,7 +71,6 @@ export const PageLoader = () => {
 								className="absolute inset-6 w-4 h-4 border border-gray-300 dark:border-gray-600 border-r-gray-600 dark:border-r-gray-300 rounded-full"
 							/>
 						</div>
-
 						{/* Loading text with pulse animation */}
 						<motion.div
 							initial={{ y: 20, opacity: 0 }}
@@ -109,7 +87,6 @@ export const PageLoader = () => {
 							</motion.h3>
 							<p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">Preparing your content, this will only take a moment...</p>
 						</motion.div>
-
 						{/* Progress bar animation */}
 						<div className="w-48 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
 							<motion.div

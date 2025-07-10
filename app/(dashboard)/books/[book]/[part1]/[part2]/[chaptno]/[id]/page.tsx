@@ -23,7 +23,6 @@ import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { Discussions } from "@/components/global/Discussions";
 import { ErrorDisplay } from "@/components/global/ErrorDisplay";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 declare global {
 	interface Window {
@@ -119,7 +118,6 @@ export default function AnalysisPage() {
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
 	const [addRowLoading, setAddRowLoading] = useState(false);
-	const { setPageReady } = usePageReady();
 	const [isDeletingRow, setIsDeletingRow] = useState(false);
 
 	useEffect(() => {
@@ -270,17 +268,6 @@ export default function AnalysisPage() {
 		fetchAllData();
 	}, [decodedId, decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
 
-	useEffect(() => {
-		if (!loading && !initialLoad && shloka && chapter) {
-			setPageReady(true);
-		} else {
-			setPageReady(false);
-		}
-	}, [loading, initialLoad, shloka, chapter, setPageReady]);
-
-	useEffect(() => {
-		if (error) setPageReady(true);
-	}, [error, setPageReady]);
 
 	const handleShlokaChange = (shlokaId: string, newChapter: string, newPart1: string, newPart2: string) => {
 		console.log("Changing shloka with data:", {
@@ -1559,9 +1546,39 @@ export default function AnalysisPage() {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
 
-	if (initialLoad || loading) {
-		return null;
+	if (initialLoad) {
+		return (
+			<div className="max-w-screen-2xl mx-auto w-full p-8">
+				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+					<CardHeader className="border-b border-primary-100">
+						<Skeleton className="h-6 w-40" />
+					</CardHeader>
+					<CardContent>
+						<div className="h-[300px] w-full flex items-center justify-center">
+							<Loader2 className="size-6 text-slate-300 animate-spin" />
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
 	}
+	// Render loading state
+	if (loading) {
+		return (
+			<div className="max-w-screen-2xl mx-auto w-full p-8">
+				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
+					<CardHeader className="border-b border-primary-100">
+						<Skeleton className="h-6 w-40" />
+					</CardHeader>
+					<CardContent>
+						<div className="h-[300px] w-full flex items-center justify-center">
+							<Loader2 className="size-6 text-slate-300 animate-spin" />
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+    }
 
 	// Then check for missing data
 	if (!shloka || !chapter) {

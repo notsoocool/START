@@ -8,7 +8,6 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useParams } from "next/navigation";
 import { useShlokas } from "@/lib/hooks/use-api";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 // Define the shloka type
 type Shloka = {
@@ -30,7 +29,6 @@ export default function Shlokas() {
 	const [activeShlokaId, setActiveShlokaId] = useState<string | null>(null);
 	const shlokasRef = useRef<HTMLDivElement>(null);
 	const shlokaRefs = useRef<{ [key: string]: HTMLElement | null }>({});
-	const { setPageReady } = usePageReady();
 
 	const { book, part1, part2, chaptno } = useParams();
 	const { data: shlokasData, isLoading, error } = useShlokas(book as string, part1 as string, part2 as string, chaptno as string);
@@ -62,16 +60,33 @@ export default function Shlokas() {
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, [handleScroll]);
 
-	useEffect(() => {
-		if (!isLoading) setPageReady(true);
-	}, [isLoading, setPageReady]);
-
-	useEffect(() => {
-		if (error) setPageReady(true);
-	}, [error, setPageReady]);
-
 	if (isLoading) {
-		return null;
+		return (
+			<div className="flex">
+				<div className="w-3/12">
+					<div className="sticky top-24 overflow-auto h-auto flex items-start flex-col gap-3">
+						<strong className="p-2">Shlokas</strong>
+						<Skeleton className="mt-2 h-6 w-48" />
+						<Skeleton className="mt-2 h-6 w-48 delay-150" />
+						<Skeleton className="mt-2 h-6 w-48 delay-300" />
+					</div>
+				</div>
+				<div className="p-2 pt-8 w-9/12">
+					<div className="max-w-screen-2xl mx-auto w-full">
+						<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between min-h-[200px] duration-300">
+							<CardHeader className="border-b border-primary-100">
+								<Skeleton className="h-6 w-40" />
+							</CardHeader>
+							<CardContent>
+								<div className=" w-full flex items-center justify-center">
+									<Loader2 className="size-6 text-slate-300 animate-spin" />
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	if (error) {

@@ -9,7 +9,6 @@ import { Loader2, BookOpen } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface Shloka {
 	_id: string;
@@ -25,7 +24,6 @@ export default function BookmarksPage() {
 	const [bookmarkedShlokas, setBookmarkedShlokas] = useState<Shloka[]>([]);
 	const [loading, setLoading] = useState(true);
 	const { user, isLoaded } = useUser();
-	const { setPageReady } = usePageReady();
 
 	useEffect(() => {
 		const fetchBookmarkedShlokas = async () => {
@@ -46,10 +44,6 @@ export default function BookmarksPage() {
 			fetchBookmarkedShlokas();
 		}
 	}, [user, isLoaded]);
-
-	useEffect(() => {
-		if (!loading) setPageReady(true);
-	}, [loading, setPageReady]);
 
 	if (!isLoaded || loading) {
 		return (

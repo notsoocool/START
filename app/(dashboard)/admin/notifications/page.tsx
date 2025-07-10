@@ -13,7 +13,6 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Send, Mail, Check, AlertCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useNotifications } from "@/lib/hooks/use-api";
-import { usePageReady } from "@/components/ui/PageReadyContext";
 
 interface User {
 	userID: string;
@@ -54,7 +53,6 @@ export default function NotificationsPage() {
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [resolutionMessages, setResolutionMessages] = useState<Record<string, string>>({});
-	const { setPageReady } = usePageReady();
 
 	// Fetch current user and check if they're Root
 	useEffect(() => {
@@ -127,14 +125,6 @@ export default function NotificationsPage() {
 			fetchNotifications();
 		}
 	}, [currentUser, page]);
-
-	useEffect(() => {
-		if (!loading) setPageReady(true);
-	}, [loading, setPageReady]);
-
-	useEffect(() => {
-		if (error) setPageReady(true);
-	}, [error, setPageReady]);
 
 	const handleSendNotification = async () => {
 		if (!subject.trim() || !message.trim()) {
