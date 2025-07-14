@@ -12,6 +12,10 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
+import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface Notification {
 	_id: string;
@@ -30,6 +34,9 @@ export const Header = () => {
 	const { data: currentUser } = useCurrentUser();
 	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(1);
 	const markAsReadMutation = useMarkNotificationAsRead();
+	const { theme, setTheme, resolvedTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
 
 	const notifications = notificationsData?.notifications || [];
 	const unreadCount = notifications.filter((n: Notification) => !n.isRead).length;
@@ -72,6 +79,16 @@ export const Header = () => {
 					</div>
 					<div className="flex items-center gap-6">
 						<Search />
+						{/* Dark mode toggle - only render after mount to avoid hydration errors and className mismatch */}
+						{mounted && (
+							<div className="flex items-center gap-2">
+								<Sun className={"h-5 w-5 text-yellow-500 transition-all duration-300" + (resolvedTheme === "dark" ? " opacity-40" : "")} />
+								<Switch checked={resolvedTheme === "dark"} onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")} aria-label="Toggle dark mode" />
+								<Moon
+									className={"h-5 w-5 text-purple-700 dark:text-purple-300 transition-all duration-300" + (resolvedTheme !== "dark" ? " opacity-40" : "")}
+								/>
+							</div>
+						)}
 						<ClerkLoaded>
 							{currentUser ? (
 								<>

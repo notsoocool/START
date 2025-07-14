@@ -31,10 +31,13 @@ const iconMap = {
 };
 
 const colorMap = {
-	book: "bg-gradient-to-r from-purple-100 to-purple-200 hover:from-purple-200 hover:to-purple-300 shadow-sm",
-	subpart: "bg-gradient-to-r from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 shadow-sm",
-	"sub-subpart": "bg-gradient-to-r from-green-100 to-green-200 hover:from-green-200 hover:to-green-300 shadow-sm",
-	chapter: "bg-gradient-to-r from-yellow-100 to-yellow-200 hover:from-yellow-200 hover:to-yellow-300 shadow-sm",
+	book: "bg-gradient-to-r from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 hover:from-purple-200 hover:to-purple-300 dark:hover:from-purple-800 dark:hover:to-purple-900 shadow-sm",
+	subpart:
+		"bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-950 hover:from-blue-200 hover:to-blue-300 dark:hover:from-blue-800 dark:hover:to-blue-900 shadow-sm",
+	"sub-subpart":
+		"bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900 dark:to-green-950 hover:from-green-200 hover:to-green-300 dark:hover:from-green-800 dark:hover:to-green-900 shadow-sm",
+	chapter:
+		"bg-gradient-to-r from-yellow-100 to-yellow-200 dark:from-yellow-900 dark:to-yellow-950 hover:from-yellow-200 hover:to-yellow-300 dark:hover:from-yellow-800 dark:hover:to-yellow-900 shadow-sm",
 };
 
 // Component to display each tree node and handle the expand/collapse state
@@ -57,7 +60,7 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 	if (!hasChildren && item.type !== "chapter") return null;
 
 	return (
-		<Card className={`mb-2 ${colorMap[item.type]} transition-colors duration-200`}>
+		<Card className={`mb-2 ${colorMap[item.type]} transition-colors duration-500`}>
 			<CardContent className="p-2">
 				<div className="flex items-center justify-between">
 					<Button
@@ -179,11 +182,13 @@ export default function SacredTexts() {
 
 	if (!isSignedIn) {
 		return (
-			<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+			<div className="p-8">
 				<div className="max-w-4xl mx-auto space-y-6">
-					<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">Sanskrit Texts</h2>
-					<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
-						<p className="text-center text-gray-600">Please sign in to view the books.</p>
+					<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-8">
+						Sanskrit Texts
+					</h2>
+					<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">
+						<p className="text-center text-gray-600 dark:text-gray-300">Please sign in to view the books.</p>
 					</div>
 				</div>
 			</div>
@@ -203,16 +208,18 @@ export default function SacredTexts() {
 	}, [isLoading, error]); // Removed setPageReady from dependency array
 
 	return (
-		<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+		<div className="p-8">
 			<div className="max-w-4xl mx-auto space-y-6">
-				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">Sanskrit Texts</h2>
-				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
+				<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-8">
+					Sanskrit Texts
+				</h2>
+				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">
 					{isLoading ? null : error ? (
 						<div className="flex flex-col items-center justify-center py-12 text-center">
-							<div className="text-red-600">{error}</div>
+							<div className="text-red-600 dark:text-red-400">{error}</div>
 						</div>
 					) : books.length === 0 ? (
-						<div className="text-center text-gray-600 py-12">No books available for your access level.</div>
+						<div className="text-center text-gray-600 dark:text-gray-300 py-12">No books available for your access level.</div>
 					) : (
 						books.map((book) => <TreeNode key={book.id} item={book} />)
 					)}

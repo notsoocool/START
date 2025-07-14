@@ -49,12 +49,12 @@ export default function BookmarksPage() {
 		return (
 			<div className="container mx-auto px-4 py-8">
 				<div className="flex justify-between items-center mb-8">
-					<h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Your Bookmarked Shlokas</h1>
+					<h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 transition-colors duration-500">Your Bookmarked Shlokas</h1>
 					<Badge variant="secondary" className="text-sm px-3 py-1">
 						<Loader2 className="size-4 mr-2 animate-spin" /> Loading Bookmarks
 					</Badge>
 				</div>
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-colors duration-500">
 					{[1, 2, 3].map((i) => (
 						<Card
 							key={i}

@@ -7,7 +7,7 @@ type Props = {
 };
 const DashboardLayout = ({ children }: Props) => {
 	return (
-		<div className="flex flex-col min-h-screen">
+		<div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-950 dark:to-gray-900">
 			<Header />
 			<Toaster />
 			<main className="flex-grow px-3 lg:px-14">{children}</main>

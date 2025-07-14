@@ -92,12 +92,12 @@ export default function Shlokas() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-fixed bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80">
+		<div className="flex min-h-screen bg-fixed bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80 transition-colors duration-500">
 			{/* Shloka List */}
-			<div className="w-3/12">
-				<div className="sticky top-24 overflow-auto h-[85vh] flex items-start flex-col gap-2">
-					<div className="flex items-center justify-between w-full">
-						<strong className="p-2 text-gray-900 dark:text-gray-100 text-lg">Shlokas</strong>
+			<div className="w-3/12 transition-colors duration-500">
+				<div className="sticky top-24 overflow-auto h-[85vh] flex items-start flex-col gap-2 transition-colors duration-500">
+					<div className="flex items-center justify-between w-full transition-colors duration-500">
+						<strong className="p-2 text-gray-900 dark:text-gray-100 text-lg transition-colors duration-500">Shlokas</strong>
 					</div>
 					{shlokas.map((shloka: Shloka) => (
 						<Button
@@ -114,7 +114,7 @@ export default function Shlokas() {
 									});
 								}
 							}}
-							className={`w-full justify-start transition-colors duration-200
+							className={`w-full justify-start transition-colors duration-500
 									${
 										shloka._id === activeShlokaId
 											? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
@@ -139,10 +139,7 @@ export default function Shlokas() {
 								ref={(el) => {
 									shlokaRefs.current[shloka._id] = el;
 								}}
-								className="group overflow-hidden hover:shadow-lg transition-all duration-300 
-									border border-gray-200 dark:border-gray-800 
-									hover:border-purple-300 dark:hover:border-purple-700 
-									bg-white/80 dark:bg-gray-900/80"
+								className="group overflow-hidden hover:shadow-lg transition-all duration-500 border border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-700 bg-white/80 dark:bg-gray-900/80 transition-colors duration-500"
 							>
 								<CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-gray-800/90">
 									<CardTitle className="flex justify-between text-gray-900 dark:text-gray-100">

@@ -45,7 +45,7 @@ const MainPage = () => {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+		<div className="py-8 px-4">
 			{/* Hero Section */}
 			<section className="py-32 px-4 sm:px-6 lg:px-8 text-center">
 				<div className="container mx-auto">
@@ -114,7 +114,7 @@ const MainPage = () => {
 // Feature Card Component
 function FeatureCard({ title, description, icon }: { title: string; description: string; icon: string }) {
 	return (
-		<div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1">
+		<div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 transition-colors duration-500">
 			<div className="text-4xl mb-4">{icon}</div>
 			<h3 className="text-2xl font-semibold text-gray-900 mb-4">{title}</h3>
 			<p className="text-gray-600 leading-relaxed">{description}</p>
