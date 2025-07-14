@@ -86,11 +86,10 @@ export default function AnalysisPage() {
 	const [shlokas, setShlokas] = useState<string[]>([]);
 	const [availableShlokas, setAvailableShlokas] = useState<Shloka[]>([]);
 	const router = useRouter();
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 	const [indexSortDirection, setIndexSortDirection] = useState<"asc" | "desc">("asc");
-	const [addRowDialogOpen, setAddRowDialogOpen] = useState(false);
+	const [openDialog, setOpenDialog] = useState<null | "addRow" | "deleteRow" | "meaning" | "deleteAnalysis">(null);
 	const [newRowData, setNewRowData] = useState({
 		anvaya_no: "",
 		word: "",
@@ -114,9 +113,7 @@ export default function AnalysisPage() {
 	const [morphInContextChanges, setMorphInContextChanges] = useState<Set<number>>(new Set());
 	const [kaarakaRelationChanges, setKaarakaRelationChanges] = useState<Set<number>>(new Set());
 	const [analysisId, setAnalysisId] = useState<string | null>(null);
-	const [meaningDialogOpen, setMeaningDialogOpen] = useState(false);
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
-	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
 	const [addRowLoading, setAddRowLoading] = useState(false);
 	const [isDeletingRow, setIsDeletingRow] = useState(false);
 
@@ -267,7 +264,6 @@ export default function AnalysisPage() {
 
 		fetchAllData();
 	}, [decodedId, decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
-
 
 	const handleShlokaChange = (shlokaId: string, newChapter: string, newPart1: string, newPart2: string) => {
 		console.log("Changing shloka with data:", {
@@ -586,7 +582,7 @@ export default function AnalysisPage() {
 
 	const initiateDelete = (procIndex: number) => {
 		setPendingDeleteIndex(procIndex);
-		setDeleteDialogOpen(true);
+		setOpenDialog("deleteRow");
 	};
 
 	const confirmDelete = async () => {
@@ -700,13 +696,13 @@ export default function AnalysisPage() {
 					await handleSave(idx, newData[idx]);
 				}
 				toast.success("Row deleted and relations updated successfully!");
-				setDeleteDialogOpen(false);
+				setOpenDialog(null);
 				setPendingDeleteIndex(null);
 			}
 		} catch (error) {
 			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
-			setDeleteDialogOpen(false);
+			setOpenDialog(null);
 			setPendingDeleteIndex(null);
 		} finally {
 			setIsDeletingRow(false);
@@ -926,7 +922,7 @@ export default function AnalysisPage() {
 												onClick={(e) => {
 													e.preventDefault();
 													setSelectedWordMeaning(selectedMeaning[procIndex]);
-													setMeaningDialogOpen(true);
+													setOpenDialog("meaning");
 												}}
 											>
 												Show More
@@ -1262,7 +1258,7 @@ export default function AnalysisPage() {
 			}
 
 			// Close dialog and reset form first
-			setAddRowDialogOpen(false);
+			setOpenDialog(null);
 			setNewRowData({
 				anvaya_no: "",
 				word: "",
@@ -1305,7 +1301,7 @@ export default function AnalysisPage() {
 
 	// Modify the renderAddRowButton function
 	const renderAddRowButton = () => (
-		<Button onClick={() => setAddRowDialogOpen(true)} className="flex items-center gap-2" disabled={addRowLoading}>
+		<Button onClick={() => setOpenDialog("addRow")} className="flex items-center gap-2" disabled={addRowLoading}>
 			{addRowLoading ? (
 				<>Adding Row...</>
 			) : (
@@ -1320,11 +1316,11 @@ export default function AnalysisPage() {
 	// Modify the renderAddRowDialog function's footer
 	const renderAddRowDialog = () => (
 		<Dialog
-			open={addRowDialogOpen}
+			open={openDialog === "addRow"}
 			onOpenChange={(open) => {
 				if (!addRowLoading) {
 					// Only allow closing if not loading
-					setAddRowDialogOpen(open);
+					setOpenDialog(open ? "addRow" : null);
 				}
 			}}
 		>
@@ -1408,7 +1404,7 @@ export default function AnalysisPage() {
 					</div>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setAddRowDialogOpen(false)} disabled={addRowLoading}>
+					<Button variant="outline" onClick={() => setOpenDialog(null)} disabled={addRowLoading}>
 						Cancel
 					</Button>
 					<Button onClick={() => handleAddRow()} disabled={addRowLoading}>
@@ -1482,20 +1478,20 @@ export default function AnalysisPage() {
 			console.error("Delete error:", error);
 			toast.error("Error during deletion: " + (error as Error).message);
 		} finally {
-			setDeleteAnalysisDialogOpen(false);
+			setOpenDialog(null);
 		}
 	};
 
 	// Add this JSX near the end of your component, before the final closing tag
 	const renderDeleteAnalysisDialog = () => (
-		<Dialog open={deleteAnalysisDialogOpen} onOpenChange={setDeleteAnalysisDialogOpen}>
+		<Dialog open={openDialog === "deleteAnalysis"} onOpenChange={(open) => setOpenDialog(open ? "deleteAnalysis" : null)}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Delete Entire Analysis</DialogTitle>
 					<DialogDescription>Are you sure you want to delete this entire analysis and its associated shloka? This action cannot be undone.</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setDeleteAnalysisDialogOpen(false)}>
+					<Button variant="outline" onClick={() => setOpenDialog(null)}>
 						Cancel
 					</Button>
 					<Button variant="destructive" onClick={handleDeleteAnalysis}>
@@ -1578,7 +1574,7 @@ export default function AnalysisPage() {
 				</Card>
 			</div>
 		);
-    }
+	}
 
 	// Then check for missing data
 	if (!shloka || !chapter) {
@@ -1687,14 +1683,14 @@ export default function AnalysisPage() {
 				DEFAULT_ZOOM={DEFAULT_ZOOM}
 			/>
 
-			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+			<Dialog open={openDialog === "deleteRow"} onOpenChange={(open) => setOpenDialog(open ? "deleteRow" : null)}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Confirm Deletion</DialogTitle>
 						<DialogDescription>Are you sure you want to delete this row? This action cannot be undone.</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeletingRow}>
+						<Button variant="outline" onClick={() => setOpenDialog(null)} disabled={isDeletingRow}>
 							Cancel
 						</Button>
 						<Button variant="destructive" onClick={confirmDelete} disabled={isDeletingRow}>
@@ -1706,7 +1702,7 @@ export default function AnalysisPage() {
 
 			{renderAddRowDialog()}
 
-			<Dialog open={meaningDialogOpen} onOpenChange={setMeaningDialogOpen}>
+			<Dialog open={openDialog === "meaning"} onOpenChange={(open) => setOpenDialog(open ? "meaning" : null)}>
 				<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Complete Meaning</DialogTitle>
@@ -1719,7 +1715,7 @@ export default function AnalysisPage() {
 						))}
 					</div>
 					<DialogFooter>
-						<Button onClick={() => setMeaningDialogOpen(false)}>Close</Button>
+						<Button onClick={() => setOpenDialog(null)}>Close</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

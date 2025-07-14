@@ -17,14 +17,6 @@ type Shloka = {
 	spart: string;
 };
 
-// Add this at the top of your file, outside the component
-const fixedBgStyle = {
-	background: "linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(249, 250, 251, 0.8))",
-	"@media (prefers-color-scheme: dark)": {
-		background: "linear-gradient(to bottom, rgba(17, 24, 39, 0.8), rgba(17, 24, 39, 0.8))",
-	},
-} as React.CSSProperties;
-
 export default function Shlokas() {
 	const [activeShlokaId, setActiveShlokaId] = useState<string | null>(null);
 	const shlokasRef = useRef<HTMLDivElement>(null);
@@ -91,7 +83,7 @@ export default function Shlokas() {
 
 	if (error) {
 		return (
-			<div className="flex min-h-screen bg-fixed items-center justify-center" style={fixedBgStyle}>
+			<div className="flex min-h-screen bg-fixed items-center justify-center bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80">
 				<div className="flex flex-col items-center justify-center py-12 text-center">
 					<div className="text-red-600 text-lg">{error.message || "Failed to load shlokas"}</div>
 				</div>
@@ -100,7 +92,7 @@ export default function Shlokas() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-fixed" style={fixedBgStyle}>
+		<div className="flex min-h-screen bg-fixed bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80">
 			{/* Shloka List */}
 			<div className="w-3/12">
 				<div className="sticky top-24 overflow-auto h-[85vh] flex items-start flex-col gap-2">
