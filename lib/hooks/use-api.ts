@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 
 // Types
 interface User {
@@ -247,15 +247,16 @@ export function useAddDiscussion() {
 }
 
 // 4. User list/permissions
-export function useUsers() {
+export function useUsers(page: number = 1, limit: number = 10) {
 	return useQuery({
-		queryKey: ["users"],
+		queryKey: ["users", page, limit],
 		queryFn: async () => {
-			const response = await fetch("/api/users");
+			const response = await fetch(`/api/users?page=${page}&limit=${limit}`);
 			if (!response.ok) throw new Error("Failed to fetch users");
 			return response.json();
 		},
 		staleTime: 5 * 60 * 1000,
+		placeholderData: keepPreviousData,
 	});
 }
 

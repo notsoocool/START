@@ -17,52 +17,60 @@ type User = {
 	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root"; // Include Root in User type
 };
 
+interface UsersApiResponse {
+	users: User[];
+	total: number;
+}
+
 export default function UserPerms() {
-	const { data: users = [], isLoading, error } = useUsers();
+	const [currentPage, setCurrentPage] = useState(1);
+	const [usersPerPage, setUsersPerPage] = useState(10);
+	const { data, isLoading, error, refetch } = useUsers(currentPage, usersPerPage) as {
+		data: UsersApiResponse;
+		isLoading: boolean;
+		error: any;
+		refetch: () => void;
+	};
+	const users = data?.users || [];
+	const total = data?.total || 0;
 	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 	const [currentUser, setCurrentUser] = useState<{
 		id: string;
 		firstName: string;
 		lastName: string;
 		perms: User["perms"];
-	} | null>(null); // Updated type for current user
-	const router = useRouter(); // Initialize useRouter
-
-	// Pagination state
-	const [currentPage, setCurrentPage] = useState(1);
-	const [totalPages, setTotalPages] = useState(1);
+	} | null>(null);
+	const router = useRouter();
 	const [searchTerm, setSearchTerm] = useState("");
-	const [searchValue, setSearchValue] = useState(""); // Separate state for input value
-	const [usersPerPage, setUsersPerPage] = useState(10);
+	const [searchValue, setSearchValue] = useState("");
 
-	// Handle search input changes
-	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value;
-		setSearchValue(value); // Update the input value immediately
-		setSearchTerm(value);
-		setFilteredUsers(users.filter((user: User) => user.name?.toLowerCase().includes(value.toLowerCase())));
-	};
-
-	// Only filter on initial load and when users change
+	// Update filteredUsers when users or search changes
 	useEffect(() => {
-		setFilteredUsers(users);
-	}, [users]);
+		if (searchTerm) {
+			setFilteredUsers(users.filter((user: User) => user.name?.toLowerCase().includes(searchTerm.toLowerCase())));
+		} else {
+			setFilteredUsers(users);
+		}
+	}, [users, searchTerm]);
 
 	useEffect(() => {
 		const fetchCurrentUser = async () => {
 			const response = await fetch("/api/getCurrentUser");
-
 			if (!response.ok) {
 				console.error("Error fetching current user");
 				return;
 			}
-
 			const data = await response.json();
-			setCurrentUser(data); // Set current user data with updated structure
+			setCurrentUser(data);
 		};
-
 		fetchCurrentUser();
 	}, [router]);
+
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setSearchValue(value);
+		setSearchTerm(value);
+	};
 
 	const handlePermissionChange = async (userId: string, newPermission: User["perms"]) => {
 		const response = await fetch(`/api/updateUser`, {
@@ -73,14 +81,15 @@ export default function UserPerms() {
 			},
 			body: JSON.stringify({ userId, newPermission }),
 		});
-
 		if (response.ok) {
-			setFilteredUsers((prevUsers) => prevUsers.map((user) => (user.userID === userId ? { ...user, perms: newPermission } : user)));
+			await refetch(); // Refetch users from backend
 		} else {
 			const data = await response.json();
 			alert(`Error: ${data.error}`);
 		}
 	};
+
+	const totalPages = Math.ceil(total / usersPerPage);
 
 	// Add pagination controls
 	const Pagination = () => (

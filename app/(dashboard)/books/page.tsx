@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useCurrentUser, useBooks } from "@/lib/hooks/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Define the item types based on API response structure
 type Item = {
@@ -115,14 +116,25 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 	);
 };
 
-export default function SacredTexts() {
-	const { isSignedIn } = useAuth();
+// Separate component for the books content
+function BooksContent() {
 	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 	const { data: booksData, isLoading: booksLoading, error: booksError } = useBooks();
+	const queryClient = useQueryClient();
+
+	useEffect(() => {
+		// Clear React Query cache when component unmounts (e.g., on sign out)
+		return () => {
+			queryClient.clear();
+		};
+	}, [queryClient]);
+
+	const isLoading = userLoading || booksLoading;
+	const error = booksError?.message;
 
 	// Transform the books data
-	const books: Item[] = booksData
-		? booksData.map((book: any) => ({
+	const books = booksData
+		? booksData.map((book: { book: string; part1?: any[]; chapters?: string[]; status?: any }) => ({
 				id: book.book,
 				title: book.book,
 				type: "book" as const,
@@ -180,32 +192,41 @@ export default function SacredTexts() {
 		  }))
 		: [];
 
-	if (!isSignedIn) {
+	if (isLoading) {
 		return (
-			<div className="p-8">
-				<div className="max-w-4xl mx-auto space-y-6">
-					<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-8">
-						Sanskrit Texts
-					</h2>
-					<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">
-						<p className="text-center text-gray-600 dark:text-gray-300">Please sign in to view the books.</p>
-					</div>
-				</div>
+			<div className="flex items-center justify-center min-h-[200px]">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
 			</div>
 		);
 	}
 
-	const isLoading = userLoading || booksLoading;
-	const error = booksError?.message;
+	if (error) {
+		return (
+			<div className="flex flex-col items-center justify-center py-12 text-center">
+				<div className="text-red-600 dark:text-red-400">{error}</div>
+			</div>
+		);
+	}
 
-	useEffect(() => {
-		if (!isLoading) {
-			// setPageReady(true); // Removed as per edit hint
-		}
-		if (error) {
-			// setPageReady(true); // Removed as per edit hint
-		}
-	}, [isLoading, error]); // Removed setPageReady from dependency array
+	if (books.length === 0) {
+		return <div className="text-center text-gray-600 dark:text-gray-300 py-12">No books available for your access level.</div>;
+	}
+
+	return books.map((book: Item) => <TreeNode key={book.id} item={book} />);
+}
+
+// Main component
+export default function SacredTexts() {
+	const { isSignedIn, isLoaded: authLoaded } = useAuth();
+
+	// Wait for Clerk to load
+	if (!authLoaded) {
+		return (
+			<div className="flex items-center justify-center min-h-screen">
+				<Loader2 className="h-8 w-8 animate-spin text-primary" />
+			</div>
+		);
+	}
 
 	return (
 		<div className="p-8">
@@ -214,15 +235,7 @@ export default function SacredTexts() {
 					Sanskrit Texts
 				</h2>
 				<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">
-					{isLoading ? null : error ? (
-						<div className="flex flex-col items-center justify-center py-12 text-center">
-							<div className="text-red-600 dark:text-red-400">{error}</div>
-						</div>
-					) : books.length === 0 ? (
-						<div className="text-center text-gray-600 dark:text-gray-300 py-12">No books available for your access level.</div>
-					) : (
-						books.map((book) => <TreeNode key={book.id} item={book} />)
-					)}
+					{!isSignedIn ? <p className="text-center text-gray-600 dark:text-gray-300">Please sign in to view the books.</p> : <BooksContent />}
 				</div>
 			</div>
 		</div>
