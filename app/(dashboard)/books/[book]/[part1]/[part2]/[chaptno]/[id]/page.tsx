@@ -711,11 +711,7 @@ export default function AnalysisPage() {
 
 	// Helper function to determine if a field is editable based on permissions
 	const isFieldEditable = (field: string) => {
-		if (permissions === "Root" || permissions === "Admin" || permissions === "Editor") return true; // Admin and Root and Editor can edit everything
-		if (permissions === "Annotator") {
-			// Remove anvaya_no from the list of editable fields for Annotator
-			return ["word", "poem", "morph_in_context", "kaaraka_sambandha"].includes(field);
-		}
+		if (permissions === "Root" || permissions === "Admin" || permissions === "Editor" || permissions === "Annotator") return true;
 		return false;
 	};
 
