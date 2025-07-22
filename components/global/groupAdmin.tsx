@@ -39,7 +39,8 @@ interface GroupData {
 
 export default function GroupsPage() {
 	const router = useRouter();
-	const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
+	const { data, isLoading: usersLoading, error: usersError } = useUsers(1, 1000); // fetch all users for now
+	const users = data?.users || [];
 	const [groups, setGroups] = useState<GroupData[]>([]);
 	const [books, setBooks] = useState<Book[]>([]);
 	const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);

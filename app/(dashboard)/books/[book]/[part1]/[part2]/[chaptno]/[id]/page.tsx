@@ -1300,18 +1300,21 @@ export default function AnalysisPage() {
 	};
 
 	// Modify the renderAddRowButton function
-	const renderAddRowButton = () => (
-		<Button onClick={() => setOpenDialog("addRow")} className="flex items-center gap-2" disabled={addRowLoading}>
-			{addRowLoading ? (
-				<>Adding Row...</>
-			) : (
-				<>
-					<PlusCircle className="size-4" />
-					Add Row
-				</>
-			)}
-		</Button>
-	);
+	const renderAddRowButton = () => {
+		if (permissions === "User") return null;
+		return (
+			<Button onClick={() => setOpenDialog("addRow")} className="flex items-center gap-2" disabled={addRowLoading}>
+				{addRowLoading ? (
+					<>Adding Row...</>
+				) : (
+					<>
+						<PlusCircle className="size-4" />
+						Add Row
+					</>
+				)}
+			</Button>
+		);
+	};
 
 	// Modify the renderAddRowDialog function's footer
 	const renderAddRowDialog = () => (
