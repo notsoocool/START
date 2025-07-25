@@ -5,11 +5,12 @@ import { currentUser } from "@clerk/nextjs/server";
 import mongoose from "mongoose";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
-export async function POST(req:  NextRequest) {
-    const authResponse = verifyDBAccess(req);
-    if (authResponse.status === 401) {
-        return authResponse;
-    }
+export async function POST(req: NextRequest) {
+	const authResponse = await verifyDBAccess(req);
+	if (authResponse instanceof NextResponse && authResponse.status === 401) {
+		return authResponse;
+	}
+
 	try {
 		const user = await currentUser();
 		if (!user) {
@@ -23,6 +24,7 @@ export async function POST(req:  NextRequest) {
 			shlokaId: new mongoose.Types.ObjectId(body.shlokaId),
 			userId: user.id,
 			userName: `${user.firstName} ${user.lastName}`,
+			content: body.message, // Map message to content field
 		});
 
 		return NextResponse.json(discussion);

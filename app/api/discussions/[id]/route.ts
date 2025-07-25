@@ -6,7 +6,6 @@ import Perms from "@/lib/db/permissionsModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-	// Verify DB access key for DELETE requests
 	const authResponse = await verifyDBAccess(request);
 	if (authResponse instanceof NextResponse && authResponse.status === 401) {
 		return authResponse;
@@ -32,7 +31,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 		}
 
 		// Allow deletion if user is owner OR has Admin/Root permissions
-		if (discussion.userId !== user.id && !userPermissions.perms.includes("Admin") && !userPermissions.perms.includes("Root")) {
+		const userPerms = userPermissions.perms;
+		const hasAdminOrRoot = Array.isArray(userPerms) ? userPerms.includes("Admin") || userPerms.includes("Root") : userPerms === "Admin" || userPerms === "Root";
+
+		if (discussion.userId !== user.id && !hasAdminOrRoot) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 

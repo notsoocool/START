@@ -46,7 +46,7 @@ interface Discussion {
 	shlokaId: string;
 	userId: string;
 	userName: string;
-	message: string;
+	content: string;
 	createdAt: string;
 }
 
@@ -234,7 +234,10 @@ export function useAddDiscussion() {
 		mutationFn: async (data: { shlokaId: string; message: string }) => {
 			const response = await fetch("/api/discussions", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
 				body: JSON.stringify(data),
 			});
 			if (!response.ok) throw new Error("Failed to add discussion");
