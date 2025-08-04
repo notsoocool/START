@@ -336,7 +336,7 @@ export default function ShlokaPage() {
 					console.log("Sending split sentence for analysis:", splitSentence);
 
 					const response = await fetch(
-						`https://scl.samsaadhanii.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&text=${encodeURIComponent(
+						`https://scl.samsaadhanii.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&compound_analysis=YES&text=${encodeURIComponent(
 							splitSentence
 						)}`
 					);
