@@ -99,6 +99,33 @@ export default function GroupsPage() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
+		// Validation for required fields
+		if (!formData.name.trim()) {
+			toast.error("Group name is required");
+			return;
+		}
+
+		if (formData.members.length === 0) {
+			toast.error("At least one member must be selected");
+			return;
+		}
+
+		// Group A specific validation
+		if (formData.type === "A") {
+			if (formData.assignedBooks.length === 0) {
+				toast.error("Group A must have at least one assigned book");
+				return;
+			}
+		}
+
+		// Group B specific validation
+		if (formData.type === "B") {
+			if (formData.supervisedGroups.length === 0) {
+				toast.error("Group B must supervise at least one annotator group");
+				return;
+			}
+		}
+
 		if (!isEditing) {
 			const nameExists = groups.some((group) => group.name.toLowerCase() === formData.name.toLowerCase());
 			if (nameExists) {
@@ -212,8 +239,15 @@ export default function GroupsPage() {
 					<form onSubmit={handleSubmit} className="space-y-6">
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div className="space-y-2">
-								<Label htmlFor="name">Group Name</Label>
-								<Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required disabled={isEditing} />
+								<Label htmlFor="name">Group Name *</Label>
+								<Input
+									id="name"
+									value={formData.name}
+									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+									required
+									disabled={isEditing}
+									placeholder="Enter group name"
+								/>
 							</div>
 
 							<div className="space-y-2">
@@ -230,7 +264,7 @@ export default function GroupsPage() {
 							</div>
 
 							<div className="space-y-2">
-								<Label>Members ({formData.type === "A" ? "Annotators" : "Editors"})</Label>
+								<Label>Members ({formData.type === "A" ? "Annotators" : "Editors"}) *</Label>
 								<ScrollArea className="h-[200px] rounded-md border p-4">
 									<div className="space-y-2">
 										{filteredUsers.map((user) => (
@@ -254,7 +288,7 @@ export default function GroupsPage() {
 							</div>
 
 							<div className="space-y-2">
-								<Label>Assigned Books</Label>
+								<Label>Assigned Books {formData.type === "A" ? "*" : ""}</Label>
 								{formData.type === "B" ? (
 									<div className="text-sm text-muted-foreground p-4 border rounded-md">
 										Books will be automatically assigned based on the supervised annotator groups.
@@ -284,7 +318,7 @@ export default function GroupsPage() {
 
 							{formData.type === "B" && (
 								<div className="space-y-2">
-									<Label>Supervised Groups (Annotator Groups)</Label>
+									<Label>Supervised Groups (Annotator Groups) *</Label>
 									<ScrollArea className="h-[200px] rounded-md border p-4">
 										<div className="space-y-2">
 											{groups
@@ -316,7 +350,15 @@ export default function GroupsPage() {
 						</div>
 
 						<div className="flex gap-2">
-							<Button type="submit">
+							<Button
+								type="submit"
+								disabled={
+									!formData.name.trim() ||
+									formData.members.length === 0 ||
+									(formData.type === "A" && formData.assignedBooks.length === 0) ||
+									(formData.type === "B" && formData.supervisedGroups.length === 0)
+								}
+							>
 								{isEditing ? (
 									<>
 										<Pencil className="mr-2 h-4 w-4" /> Update Group
