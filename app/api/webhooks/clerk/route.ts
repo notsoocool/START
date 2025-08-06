@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
 	// If there are no headers, error out
 	if (!svix_id || !svix_timestamp || !svix_signature) {
-		return new Response("Error occured -- no svix headers", {
+		return new Response("Error occurred -- no svix headers", {
 			status: 400,
 		});
 	}
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 		}) as WebhookEvent;
 	} catch (err) {
 		console.error("Error verifying webhook:", err);
-		return new Response("Error occured", {
+		return new Response("Error occurred", {
 			status: 400,
 		});
 	}
@@ -49,13 +49,20 @@ export async function POST(req: Request) {
 		try {
 			await dbConnect();
 
+			// Extract user data from the webhook payload
+			const userData = evt.data;
+			const firstName = userData.first_name || "";
+			const lastName = userData.last_name || "";
+			const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
+
 			// Create a new user in our permissions model
 			await Start.create({
-				userID: evt.data.id,
-				name: `${evt.data.first_name} ${evt.data.last_name}`,
+				userID: userData.id,
+				name: fullName,
 				perms: "User", // Default permission
 			});
 
+			console.log("User created successfully:", userData.id, fullName);
 			return NextResponse.json({ success: true });
 		} catch (error) {
 			console.error("Error creating user in permissions model:", error);
