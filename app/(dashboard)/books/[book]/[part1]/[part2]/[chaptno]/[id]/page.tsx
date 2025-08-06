@@ -23,6 +23,7 @@ import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { Discussions } from "@/components/global/Discussions";
 import { ErrorDisplay } from "@/components/global/ErrorDisplay";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 declare global {
 	interface Window {
@@ -51,6 +52,7 @@ export default function AnalysisPage() {
 
 	const [shloka, setShloka] = useState<Shloka | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [loadingExit, setLoadingExit] = useState(false);
 	const [chapter, setChapter] = useState<any>(null);
 	const [initialLoad, setInitialLoad] = useState(true);
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
@@ -121,9 +123,19 @@ export default function AnalysisPage() {
 	const [isDeletingRow, setIsDeletingRow] = useState(false);
 
 	useEffect(() => {
-		const fetchChaptersAndShlokas = async () => {
+		if (!decodedId) return;
+
+		const fetchAllData = async () => {
+			// Declare variables outside try block so they're accessible in catch
+			let shlokaData: any = null;
+			let chapterData: any = null;
+			let originalSlokano: string = "";
+
 			try {
-				// Fetch the book tree to get chapters
+				setLoading(true);
+				setError(null);
+
+				// Fetch book structure and chapters
 				const bookResponse = await fetch(`/api/books`);
 				const bookData = await bookResponse.json();
 
@@ -140,41 +152,12 @@ export default function AnalysisPage() {
 				if (currentBook) {
 					// Get chapters from the nested structure: part1[0].part2[0].chapters
 					const chapters = currentBook.part1?.[0]?.part2?.[0]?.chapters || [];
-
-					// The chapters array is already in the correct format (array of chapter numbers)
 					setChapters(chapters);
 				} else {
 					console.log("No matching book found for:", { decodedBook, decodedPart1, decodedPart2 });
 				}
 
-				// Fetch shlokas for current chapter using decoded values
-				if (decodedChaptno) {
-					const shlokaResponse = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
-					const shlokaData = await shlokaResponse.json();
-					setAvailableShlokas(shlokaData.shlokas);
-				}
-			} catch (error) {
-				console.error("Error fetching chapters or shlokas:", error);
-				toast.error("Failed to load chapters or shlokas");
-			}
-		};
-		fetchChaptersAndShlokas();
-	}, [decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
-
-	useEffect(() => {
-		if (!decodedId) return;
-
-		const fetchAllData = async () => {
-			// Declare variables outside try block so they're accessible in catch
-			let shlokaData: any = null;
-			let chapterData: any = null;
-			let originalSlokano: string = "";
-
-			try {
-				setLoading(true);
-				setError(null);
-
-				// First fetch shloka data
+				// Fetch shloka details
 				const shlokaResponse = await fetch(`/api/ahShloka/${decodedId}`);
 				if (!shlokaResponse.ok) {
 					throw new Error("Shloka not found");
@@ -183,11 +166,12 @@ export default function AnalysisPage() {
 				setShloka(shlokaData);
 				originalSlokano = shlokaData.slokano;
 
-				// Fetch available shlokas
+				// Load available shlokas
 				const availableShlokaResponse = await fetch(`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`);
 				const availableShlokaData = await availableShlokaResponse.json();
 				setAvailableShlokas(availableShlokaData.shlokas);
 
+				// Load analysis data
 				// Try to fetch analysis data with the original slokano
 				let chapterResponse = await fetch(`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData.slokano}`);
 
@@ -260,8 +244,14 @@ export default function AnalysisPage() {
 					});
 				}
 			} finally {
-				setInitialLoad(false);
-				setLoading(false);
+				// Start fade-out transition
+				setLoadingExit(true);
+				// Wait for fade-out animation to complete before hiding loading screen
+				setTimeout(() => {
+					setInitialLoad(false);
+					setLoading(false);
+					setLoadingExit(false);
+				}, 500); // Match the duration of the exit animation
 			}
 		};
 
@@ -1588,7 +1578,7 @@ export default function AnalysisPage() {
 	const getGroupStatusMessage = () => {
 		if (permissions === "User") return "User permission - Read only";
 		if (permissions === "Root" || permissions === "Admin") return `${permissions} permission - Full access`;
-		
+
 		if (permissions === "Editor" || permissions === "Annotator") {
 			if (!bookAssignedGroup) {
 				return `${permissions} permission - No editing permission for this book`;
@@ -1599,7 +1589,7 @@ export default function AnalysisPage() {
 				return `${permissions} permission - No editing permission for this book`;
 			}
 		}
-		
+
 		return "Unknown permission status";
 	};
 
@@ -1607,38 +1597,8 @@ export default function AnalysisPage() {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
 
-	if (initialLoad) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full p-8">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<Skeleton className="h-6 w-40" />
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex items-center justify-center">
-							<Loader2 className="size-6 text-slate-300 animate-spin" />
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-	// Render loading state
-	if (loading) {
-		return (
-			<div className="max-w-screen-2xl mx-auto w-full p-8">
-				<Card className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col justify-between duration-300">
-					<CardHeader className="border-b border-primary-100">
-						<Skeleton className="h-6 w-40" />
-					</CardHeader>
-					<CardContent>
-						<div className="h-[300px] w-full flex items-center justify-center">
-							<Loader2 className="size-6 text-slate-300 animate-spin" />
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+	if (initialLoad || loading) {
+		return <LoadingScreen text="Loading Analysis..." loadingExit={loadingExit} />;
 	}
 
 	// Then check for missing data
