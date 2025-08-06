@@ -73,12 +73,37 @@ const TreeNode = ({ item, level = 0, book, part1, part2 }: { item: Item; level?:
 						<Icon className="mr-2 h-5 w-5" />
 						<span className="font-medium flex flex-row w-full justify-between">
 							<div>{item.title}</div>
-							{item.type === "book" && item.status?.locked && (currentUser?.perms === "Admin" || currentUser?.perms === "Root") && (
-								<div className="relative group ml-2">
-									<Lock className="h-4 w-4 text-red-500" />
-									<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-gray-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity">
-										Locked - Only visible to Admin/Root
-									</span>
+							{item.type === "book" && item.status && (
+								<div className="flex items-center gap-1 ml-2">
+									{/* Locked indicator - only show to Admin/Root */}
+									{item.status.locked && (currentUser?.perms === "Admin" || currentUser?.perms === "Root") && (
+										<div className="relative group">
+											<Lock className="h-4 w-4 text-red-500" />
+											<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+												Locked - Only Admin/Root
+											</span>
+										</div>
+									)}
+
+									{/* User Published indicator */}
+									{item.status.userPublished && (
+										<div className="relative group">
+											<div className="h-2 w-2 bg-green-500 rounded-full" />
+											<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+												User Published - All users can see
+											</span>
+										</div>
+									)}
+
+									{/* Group Published indicator */}
+									{item.status.groupPublished && (
+										<div className="relative group">
+											<div className="h-2 w-2 bg-blue-500 rounded-full" />
+											<span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+												Group Published - Group members only
+											</span>
+										</div>
+									)}
 								</div>
 							)}
 						</span>
@@ -133,63 +158,67 @@ function BooksContent() {
 	const error = booksError?.message;
 
 	// Transform the books data
+	console.log("Books data from API:", booksData);
 	const books = booksData
-		? booksData.map((book: { book: string; part1?: any[]; chapters?: string[]; status?: any }) => ({
-				id: book.book,
-				title: book.book,
-				type: "book" as const,
-				status: book.status,
-				children:
-					book.part1 && book.part1.length > 0
-						? book.part1
-								.map((part1: any) => {
-									if (part1.part === null) {
-										return part1.part2[0].chapters.map((chapter: string) => ({
-											id: `${book.book}-chapter-${chapter}`,
-											title: `Chapter ${chapter}`,
-											type: "chapter" as const,
-										}));
-									}
-									if (!part1.part2?.[0]?.part) {
+		? booksData.map((book: { book: string; part1?: any[]; chapters?: string[]; status?: any }) => {
+				console.log("Processing book:", book.book, "with status:", book.status);
+				return {
+					id: book.book,
+					title: book.book,
+					type: "book" as const,
+					status: book.status,
+					children:
+						book.part1 && book.part1.length > 0
+							? book.part1
+									.map((part1: any) => {
+										if (part1.part === null) {
+											return part1.part2[0].chapters.map((chapter: string) => ({
+												id: `${book.book}-chapter-${chapter}`,
+												title: `Chapter ${chapter}`,
+												type: "chapter" as const,
+											}));
+										}
+										if (!part1.part2?.[0]?.part) {
+											return {
+												id: `${book.book}-${part1.part}`,
+												title: part1.part,
+												type: "subpart" as const,
+												children:
+													part1.part2?.[0]?.chapters.map((chapter: string) => ({
+														id: `${book.book}-${part1.part}-chapter-${chapter}`,
+														title: `Chapter ${chapter}`,
+														type: "chapter" as const,
+													})) || [],
+											};
+										}
 										return {
 											id: `${book.book}-${part1.part}`,
 											title: part1.part,
 											type: "subpart" as const,
-											children:
-												part1.part2?.[0]?.chapters.map((chapter: string) => ({
-													id: `${book.book}-${part1.part}-chapter-${chapter}`,
-													title: `Chapter ${chapter}`,
-													type: "chapter" as const,
-												})) || [],
+											children: part1.part2
+												.map((part2: any) => ({
+													id: `${book.book}-${part1.part}-${part2.part}`,
+													title: part2.part,
+													type: "sub-subpart" as const,
+													children: part2.chapters.map((chapter: string) => ({
+														id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+														title: `Chapter ${chapter}`,
+														type: "chapter" as const,
+													})),
+												}))
+												.flat(),
 										};
-									}
-									return {
-										id: `${book.book}-${part1.part}`,
-										title: part1.part,
-										type: "subpart" as const,
-										children: part1.part2
-											.map((part2: any) => ({
-												id: `${book.book}-${part1.part}-${part2.part}`,
-												title: part2.part,
-												type: "sub-subpart" as const,
-												children: part2.chapters.map((chapter: string) => ({
-													id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
-													title: `Chapter ${chapter}`,
-													type: "chapter" as const,
-												})),
-											}))
-											.flat(),
-									};
-								})
-								.flat()
-						: book.chapters
-						? book.chapters.map((chapter: string) => ({
-								id: `${book.book}-chapter-${chapter}`,
-								title: `Chapter ${chapter}`,
-								type: "chapter" as const,
-						  }))
-						: [],
-		  }))
+									})
+									.flat()
+							: book.chapters
+							? book.chapters.map((chapter: string) => ({
+									id: `${book.book}-chapter-${chapter}`,
+									title: `Chapter ${chapter}`,
+									type: "chapter" as const,
+							  }))
+							: [],
+				};
+		  })
 		: [];
 
 	if (isLoading) {

@@ -40,36 +40,53 @@ export async function GET(request: NextRequest) {
 				return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
 			}
 
-			// Get user's groups
+			// Get user's groups and their assigned books
 			const userGroups = await Group.find({ members: user.id });
 			const userGroupIds = userGroups.map((group) => group._id.toString());
 			const parentGroupIds = userGroups.filter((group) => group.parentGroup).map((group) => group.parentGroup);
 
+			// Get all books assigned to user's groups
+			const assignedBooks = userGroups.flatMap((group) => group.assignedBooks || []);
+			const parentGroupBooks = await Group.find({
+				_id: { $in: parentGroupIds },
+			}).distinct("assignedBooks");
+			const allAssignedBooks = [...assignedBooks, ...parentGroupBooks];
+
 			if (userPermissions.perms === "User") {
-				// Regular users can only see user-published books and their own books that are not locked
-				matchCondition = {
-					$and: [{ $or: [{ userPublished: true }, { owner: user.id }] }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
-				};
-			} else if (userPermissions.perms === "Annotator") {
-				// Annotators can see:
-				// 1. User-published books that are not locked
-				// 2. Group-published books from their groups that are not locked
-				// 3. Group-published books from parent groups that are not locked
-				// 4. Their own books that are not locked
+				// Regular users can see:
+				// 1. User-published books (regardless of owner/group)
+				// 2. Their own books (if they are the owner)
+				// 3. Group-published books from their assigned groups
+				// 4. None of the above if the book is locked (except Admin/Root can see locked books)
 				matchCondition = {
 					$and: [
 						{
 							$or: [
 								{ userPublished: true },
-								{
-									$and: [
-										{ groupPublished: true },
-										{
-											$or: [{ groupId: { $in: userGroupIds } }, { groupId: { $in: parentGroupIds } }],
-										},
-									],
-								},
 								{ owner: user.id },
+								{
+									$and: [{ groupPublished: true }, { book: { $in: allAssignedBooks } }],
+								},
+							],
+						},
+						{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
+					],
+				};
+			} else if (userPermissions.perms === "Annotator" || userPermissions.perms === "Editor") {
+				// Annotators and Editors can see:
+				// 1. User-published books (regardless of owner/group)
+				// 2. Group-published books from their assigned groups
+				// 3. Their own books
+				// 4. None of the above if the book is locked (except Admin/Root can see locked books)
+				matchCondition = {
+					$and: [
+						{
+							$or: [
+								{ userPublished: true },
+								{ owner: user.id },
+								{
+									$and: [{ groupPublished: true }, { book: { $in: allAssignedBooks } }],
+								},
 							],
 						},
 						{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
