@@ -103,6 +103,12 @@ export async function GET(request: NextRequest) {
 			{
 				$match: matchCondition,
 			},
+			// Filter to only show chapters that are individually published
+			{
+				$match: {
+					$or: [{ userPublished: true }, { groupPublished: true }],
+				},
+			},
 			// Initial sorting
 			{
 				$sort: {

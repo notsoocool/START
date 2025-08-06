@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Book name is required" }, { status: 400 });
 		}
 
-		// Update all shlokas for the specified book
+		// This endpoint is for book-level publishing only
 		const result = await AHShloka.updateMany(
 			{ book },
 			{
@@ -31,8 +31,9 @@ export async function POST(request: NextRequest) {
 		);
 
 		return NextResponse.json({
-			message: `Successfully updated ${result.modifiedCount} shlokas`,
+			message: `Successfully updated ${result.modifiedCount} shlokas in book ${book}`,
 			modifiedCount: result.modifiedCount,
+			scope: `book ${book}`,
 		});
 	} catch (error) {
 		console.error("Error updating book publishing status:", error);
