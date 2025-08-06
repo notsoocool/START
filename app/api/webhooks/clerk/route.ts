@@ -47,19 +47,54 @@ export async function POST(req: Request) {
 
 	if (eventType === "user.created") {
 		try {
+			console.log("=== WEBHOOK DEBUG START ===");
+			console.log("Processing user.created webhook for user:", evt.data.id);
+			console.log("Full webhook data:", JSON.stringify(evt.data, null, 2));
+
 			await dbConnect();
+			console.log("Database connected successfully");
+
+			// Extract user data from the webhook payload
+			const userData = evt.data;
+			const firstName = userData.first_name || "";
+			const lastName = userData.last_name || "";
+			const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
+
+			console.log("Creating user with data:", {
+				userID: userData.id,
+				name: fullName,
+				perms: "User",
+			});
+
+			// Check if user already exists
+			const existingUser = await Start.findOne({ userID: userData.id });
+			if (existingUser) {
+				console.log("User already exists in database:", existingUser);
+				return NextResponse.json({ success: true, user: existingUser, message: "User already exists" });
+			}
 
 			// Create a new user in our permissions model
-			await Start.create({
-				userID: evt.data.id,
-				name: `${evt.data.first_name} ${evt.data.last_name}`,
+			const newUser = await Start.create({
+				userID: userData.id,
+				name: fullName,
 				perms: "User", // Default permission
 			});
 
-			return NextResponse.json({ success: true });
+			console.log("User created successfully in database:", newUser);
+			console.log("=== WEBHOOK DEBUG END ===");
+			return NextResponse.json({ success: true, user: newUser });
 		} catch (error) {
+			console.error("=== WEBHOOK ERROR ===");
 			console.error("Error creating user in permissions model:", error);
-			return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+			console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+			console.error("=== WEBHOOK ERROR END ===");
+			return NextResponse.json(
+				{
+					error: "Failed to create user",
+					details: error instanceof Error ? error.message : "Unknown error",
+				},
+				{ status: 500 }
+			);
 		}
 	}
 
