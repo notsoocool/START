@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
 
 		// Build the match condition based on user authentication and permissions
 		let matchCondition = {};
+		let userPermissions = null;
 
 		if (!user) {
 			// For unauthenticated users, show only user-published books that are not locked
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 			};
 		} else {
 			// Get user permissions
-			const userPermissions = await Perms.findOne({ userID: user.id });
+			userPermissions = await Perms.findOne({ userID: user.id });
 			if (!userPermissions) {
 				return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
 			}
@@ -103,12 +104,16 @@ export async function GET(request: NextRequest) {
 			{
 				$match: matchCondition,
 			},
-			// Filter to only show chapters that are individually published
-			{
-				$match: {
-					$or: [{ userPublished: true }, { groupPublished: true }],
-				},
-			},
+			// Filter to only show chapters that are individually published (but not for Admin/Root)
+			...(userPermissions && userPermissions.perms !== "Admin" && userPermissions.perms !== "Root"
+				? [
+						{
+							$match: {
+								$or: [{ userPublished: true }, { groupPublished: true }],
+							},
+						},
+				  ]
+				: []),
 			// Initial sorting
 			{
 				$sort: {
