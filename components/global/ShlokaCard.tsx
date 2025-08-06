@@ -27,9 +27,22 @@ interface ShlokaCardProps {
 	part1: string;
 	part2: string;
 	onShlokaUpdate?: (updatedShloka: { _id: string; slokano: string; spart: string }) => void;
+	userGroups?: string[];
+	bookAssignedGroup?: string | null;
 }
 
-export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, part1, part2, onShlokaUpdate }: ShlokaCardProps) {
+export function ShlokaCard({
+	book,
+	chaptno,
+	shloka,
+	analysisID,
+	permissions,
+	part1,
+	part2,
+	onShlokaUpdate,
+	userGroups = [],
+	bookAssignedGroup,
+}: ShlokaCardProps) {
 	const shlokaRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
 	const [deleteAnalysisDialogOpen, setDeleteAnalysisDialogOpen] = useState(false);
@@ -39,6 +52,26 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 		spart: shloka.spart,
 	});
 	const [isEditing, setIsEditing] = useState(false);
+
+	// Helper function to check if user can edit based on permissions and group membership
+	const canEditShloka = () => {
+		// Admin and Root can edit everything
+		if (permissions === "Root" || permissions === "Admin") return true;
+
+		// User permission cannot edit anything
+		if (permissions === "User") return false;
+
+		// Editor and Annotator can only edit if they belong to the book's assigned group
+		if (permissions === "Editor" || permissions === "Annotator") {
+			// If no group is assigned to the book, they cannot edit
+			if (!bookAssignedGroup) return false;
+
+			// Check if user belongs to the book's assigned group
+			return userGroups.includes(bookAssignedGroup);
+		}
+
+		return false;
+	};
 
 	const handleShare = async () => {
 		if (!shlokaRef.current) return;
@@ -301,7 +334,7 @@ export function ShlokaCard({ book, chaptno, shloka, analysisID, permissions, par
 					</div>
 					<div className="flex items-center gap-2">
 						<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
-						{(permissions === "Root" || permissions === "Admin" || permissions === "Editor") && (
+						{canEditShloka() && (
 							<>
 								<Button variant="outline" size="icon" onClick={() => setEditDialogOpen(true)} className="size-8">
 									<Edit2 className="size-4" />

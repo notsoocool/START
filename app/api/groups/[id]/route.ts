@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import Group from "@/lib/db/groupModel";
 import dbConnect from "@/lib/db/connect";
 
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+	try {
+		await dbConnect();
+		const group = await Group.findById(params.id);
+
+		if (!group) {
+			return NextResponse.json({ error: "Group not found" }, { status: 404 });
+		}
+
+		return NextResponse.json(group);
+	} catch (error) {
+		console.error("Error fetching group:", error);
+		return NextResponse.json({ error: "Failed to fetch group" }, { status: 500 });
+	}
+}
+
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
 	try {
 		await dbConnect();

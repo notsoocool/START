@@ -64,6 +64,9 @@ export default function AnalysisPage() {
 	const [allMeanings, setAllMeanings] = useState<any[]>([]); // Holds all the meanings from API response
 	const [originalData, setOriginalData] = useState<any[]>([]);
 	const [permissions, setPermissions] = useState(null);
+	const [userGroups, setUserGroups] = useState<string[]>([]);
+	const [bookAssignedGroup, setBookAssignedGroup] = useState<string | null>(null);
+	const [isGroupCheckLoading, setIsGroupCheckLoading] = useState(true);
 	const columnOptions = [
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
@@ -559,18 +562,39 @@ export default function AnalysisPage() {
 	useEffect(() => {
 		const fetchPermissions = async () => {
 			setLoading(true); // Start loading when fetching permissions
+			setIsGroupCheckLoading(true);
 			try {
+				// Fetch user permissions
 				const response = await fetch("/api/getCurrentUser");
 				if (!response.ok) {
 					throw new Error("User not authenticated");
 				}
 				const data = await response.json();
 				setPermissions(data.perms);
+
+				// Fetch user's group membership
+				const groupsResponse = await fetch("/api/groups");
+				if (groupsResponse.ok) {
+					const groupsData = await groupsResponse.json();
+
+					const userGroups = groupsData.filter((group: any) => group.members && group.members.includes(data.id)).map((group: any) => group._id);
+					setUserGroups(userGroups);
+				}
+
+				// Fetch book's assigned group
+				const bookGroupsResponse = await fetch("/api/groups");
+				if (bookGroupsResponse.ok) {
+					const bookGroupsData = await bookGroupsResponse.json();
+
+					const bookGroup = bookGroupsData.find((group: any) => group.assignedBooks && group.assignedBooks.includes(decodedBook));
+					setBookAssignedGroup(bookGroup ? bookGroup._id : null);
+				}
 			} catch (error) {
 				console.error("Error fetching permissions:", error);
 				setPermissions(null);
 			} finally {
 				setLoading(false); // Stop loading when permissions are fetched
+				setIsGroupCheckLoading(false);
 			}
 		};
 
@@ -709,9 +733,30 @@ export default function AnalysisPage() {
 		}
 	};
 
-	// Helper function to determine if a field is editable based on permissions
+	// Helper function to determine if a field is editable based on permissions and group membership
 	const isFieldEditable = (field: string) => {
-		if (permissions === "Root" || permissions === "Admin" || permissions === "Editor" || permissions === "Annotator") return true;
+		// Admin and Root can edit everything
+		if (permissions === "Root" || permissions === "Admin") {
+			return true;
+		}
+
+		// User permission cannot edit anything
+		if (permissions === "User") {
+			return false;
+		}
+
+		// Editor and Annotator can only edit if they belong to the book's assigned group
+		if (permissions === "Editor" || permissions === "Annotator") {
+			// If no group is assigned to the book, they cannot edit
+			if (!bookAssignedGroup) {
+				return false;
+			}
+
+			// Check if user belongs to the book's assigned group
+			const isInGroup = userGroups.includes(bookAssignedGroup);
+			return isInGroup;
+		}
+
 		return false;
 	};
 
@@ -722,8 +767,9 @@ export default function AnalysisPage() {
 		const deletedStyle = { backgroundColor: isDeleted ? "#f8d8da" : "transparent" };
 		const deletedContent = <span className="text-gray-500">-</span>;
 
-		const canEdit = permissions === "Editor" || permissions === "Admin" || permissions === "Root" || permissions === "Annotator";
-		const showAnalysisButtons = permissions === "Editor" || permissions === "Admin" || permissions === "Root" || permissions === "Annotator";
+		// Check if user can edit based on permissions and group membership
+		const canEdit = isFieldEditable("word"); // Use the same logic for all editing permissions
+		const showAnalysisButtons = canEdit && (permissions === "Editor" || permissions === "Admin" || permissions === "Root" || permissions === "Annotator");
 
 		const handleAddToMorphAnalysis = (procIndex: number) => {
 			const currentMorphInContext = currentProcessedData?.morph_in_context || processed.morph_in_context;
@@ -761,8 +807,8 @@ export default function AnalysisPage() {
 		};
 
 		const renderInput = (field: string, value: string, width: string = "w-[180px]", placeholder: string) => {
-			// If user permission, just return the value as text
-			if (permissions === "User") {
+			// If user doesn't have edit permissions, just return the value as text
+			if (!isFieldEditable(field)) {
 				return <span className="px-2">{value || "-"}</span>;
 			}
 
@@ -830,7 +876,7 @@ export default function AnalysisPage() {
 					<Select
 						value={currentProcessedData?.bgcolor || ""}
 						onValueChange={(value) => handleValueChange(procIndex, "bgcolor", value)}
-						disabled={permissions === "User"}
+						disabled={!isFieldEditable("bgcolor")}
 					>
 						<SelectTrigger className="w-[180px]">
 							<span
@@ -882,7 +928,7 @@ export default function AnalysisPage() {
 					<TableCell style={deletedStyle}>
 						{isDeleted ? (
 							<span className="text-gray-500">Deleted</span>
-						) : permissions === "Root" || permissions === "Admin" || permissions === "Editor" ? ( // Only Root and Admin and Editor can edit anvaya_no
+						) : isFieldEditable("anvaya_no") ? ( // Use isFieldEditable to check group membership
 							<Input
 								type="text"
 								value={currentProcessedData?.anvaya_no || processed.anvaya_no}
@@ -891,7 +937,7 @@ export default function AnalysisPage() {
 								placeholder="Enter Index"
 							/>
 						) : (
-							processed.anvaya_no // Show as plain text for Editor and User
+							processed.anvaya_no // Show as plain text for users without edit permissions
 						)}
 					</TableCell>
 				)}
@@ -947,7 +993,7 @@ export default function AnalysisPage() {
 				{selectedColumns.includes("hindi_meaning") &&
 					renderCell("hindi_meaning", renderInput("hindi_meaning", currentProcessedData?.hindi_meaning, "w-[180px]", "Enter Hindi Meaning"))}
 				{selectedColumns.includes("bgcolor") && renderBgColor()}
-				{canEdit && (
+				{isFieldEditable("word") && (
 					<TableCell className="flex flex-col gap-3 items-center" style={deletedStyle}>
 						<Button size="icon" onClick={() => initiateDelete(procIndex)} className="bg-red-400 size-8 text-white">
 							<Trash className="size-4" />
@@ -1298,6 +1344,7 @@ export default function AnalysisPage() {
 	// Modify the renderAddRowButton function
 	const renderAddRowButton = () => {
 		if (permissions === "User") return null;
+		if (!isFieldEditable("word")) return null; // Check group membership
 		return (
 			<Button onClick={() => setOpenDialog("addRow")} className="flex items-center gap-2" disabled={addRowLoading}>
 				{addRowLoading ? (
@@ -1537,6 +1584,25 @@ export default function AnalysisPage() {
 		}
 	};
 
+	// Helper function to get group status message
+	const getGroupStatusMessage = () => {
+		if (permissions === "User") return "User permission - Read only";
+		if (permissions === "Root" || permissions === "Admin") return `${permissions} permission - Full access`;
+		
+		if (permissions === "Editor" || permissions === "Annotator") {
+			if (!bookAssignedGroup) {
+				return `${permissions} permission - No editing permission for this book`;
+			}
+			if (userGroups.includes(bookAssignedGroup)) {
+				return `${permissions} permission - Full editing access`;
+			} else {
+				return `${permissions} permission - No editing permission for this book`;
+			}
+		}
+		
+		return "Unknown permission status";
+	};
+
 	if (error) {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
@@ -1621,6 +1687,24 @@ export default function AnalysisPage() {
 				/>
 			</div>
 
+			{/* Group Status Indicator */}
+			{permissions && !isGroupCheckLoading && (
+				<div className="bg-muted p-3 rounded-md">
+					<div className="flex items-center justify-between">
+						<span className="text-sm font-medium">Permission Status:</span>
+						<span
+							className={`text-sm px-2 py-1 rounded ${
+								isFieldEditable("word")
+									? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+									: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+							}`}
+						>
+							{getGroupStatusMessage()}
+						</span>
+					</div>
+				</div>
+			)}
+
 			<ShlokaCard
 				book={decodedBook}
 				chaptno={decodedChaptno}
@@ -1630,6 +1714,8 @@ export default function AnalysisPage() {
 				part1={decodedPart1}
 				part2={decodedPart2}
 				onShlokaUpdate={handleShlokaUpdate}
+				userGroups={userGroups}
+				bookAssignedGroup={bookAssignedGroup}
 			/>
 
 			<div className="flex justify-end w-full gap-2">
@@ -1664,7 +1750,7 @@ export default function AnalysisPage() {
 							{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
 							{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
 							{selectedColumns.includes("bgcolor") && <TableHead>Color Code</TableHead>}
-							{permissions !== "User" && <TableHead className="w-[100px]">Actions</TableHead>}
+							{isFieldEditable("word") && <TableHead className="w-[100px]">Actions</TableHead>}
 						</TableRow>
 					</TableHeader>
 					{renderTableContent()}

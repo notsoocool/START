@@ -35,6 +35,10 @@ const routes = [
 		href: "/bookmarks",
 		label: "Bookmarks",
 	},
+	{
+		href: "/group-info",
+		label: "Group Info",
+	},
 ];
 
 export const Navigation = () => {
