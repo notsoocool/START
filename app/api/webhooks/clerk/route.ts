@@ -49,20 +49,13 @@ export async function POST(req: Request) {
 		try {
 			await dbConnect();
 
-			// Extract user data from the webhook payload
-			const userData = evt.data;
-			const firstName = userData.first_name || "";
-			const lastName = userData.last_name || "";
-			const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
-
 			// Create a new user in our permissions model
 			await Start.create({
-				userID: userData.id,
-				name: fullName,
+				userID: evt.data.id,
+				name: `${evt.data.first_name} ${evt.data.last_name}`,
 				perms: "User", // Default permission
 			});
 
-			console.log("User created successfully:", userData.id, fullName);
 			return NextResponse.json({ success: true });
 		} catch (error) {
 			console.error("Error creating user in permissions model:", error);

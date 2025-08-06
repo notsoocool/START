@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 // List of paths that should be accessible without authentication
 const publicPaths = ["/sign-in", "/sign-up", "/api/", "/_next", "/favicon.ico"];
 
-export default clerkMiddleware(async (auth, request) => {
+export default clerkMiddleware((auth, request) => {
 	// Check maintenance mode
 	if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true") {
 		if (request.nextUrl.pathname !== "/maintenance") {
@@ -25,8 +25,7 @@ export default clerkMiddleware(async (auth, request) => {
 	}
 
 	// Check authentication for all other paths
-	const { userId } = await auth();
-	if (!userId) {
+	if (!auth().userId) {
 		return NextResponse.redirect(new URL("/sign-up", request.url));
 	}
 
