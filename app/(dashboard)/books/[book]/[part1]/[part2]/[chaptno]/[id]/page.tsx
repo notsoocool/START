@@ -40,6 +40,7 @@ type Shloka = {
 	userPublished: boolean;
 	groupPublished: boolean;
 	locked: boolean;
+	owner: string | null;
 };
 
 export default function AnalysisPage() {
@@ -69,6 +70,7 @@ export default function AnalysisPage() {
 	const [userGroups, setUserGroups] = useState<string[]>([]);
 	const [bookAssignedGroup, setBookAssignedGroup] = useState<string | null>(null);
 	const [isGroupCheckLoading, setIsGroupCheckLoading] = useState(true);
+	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 	const columnOptions = [
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
@@ -561,6 +563,7 @@ export default function AnalysisPage() {
 				}
 				const data = await response.json();
 				setPermissions(data.perms);
+				setCurrentUserId(data.id); // Store current user ID
 
 				// Fetch user's group membership
 				const groupsResponse = await fetch("/api/groups");
@@ -574,7 +577,7 @@ export default function AnalysisPage() {
 				// Fetch book's assigned group
 				const bookGroupsResponse = await fetch("/api/groups");
 				if (bookGroupsResponse.ok) {
-					const bookGroupsData = await bookGroupsResponse.json();
+					const bookGroupsData = await groupsResponse.json();
 
 					const bookGroup = bookGroupsData.find((group: any) => group.assignedBooks && group.assignedBooks.includes(decodedBook));
 					setBookAssignedGroup(bookGroup ? bookGroup._id : null);
@@ -733,6 +736,11 @@ export default function AnalysisPage() {
 		// User permission cannot edit anything
 		if (permissions === "User") {
 			return false;
+		}
+
+		// Check if user is the book owner - owners can edit everything
+		if (shloka?.owner && currentUserId && shloka.owner === currentUserId) {
+			return true;
 		}
 
 		// Editor and Annotator can only edit if they belong to the book's assigned group
@@ -1334,7 +1342,13 @@ export default function AnalysisPage() {
 	// Modify the renderAddRowButton function
 	const renderAddRowButton = () => {
 		if (permissions === "User") return null;
-		if (!isFieldEditable("word")) return null; // Check group membership
+
+		// Check if user is the book owner
+		const isBookOwner = shloka?.owner && currentUserId && shloka.owner === currentUserId;
+
+		// If not owner, check group membership
+		if (!isBookOwner && !isFieldEditable("word")) return null;
+
 		return (
 			<Button onClick={() => setOpenDialog("addRow")} className="flex items-center gap-2" disabled={addRowLoading}>
 				{addRowLoading ? (
@@ -1576,6 +1590,11 @@ export default function AnalysisPage() {
 
 	// Helper function to get group status message
 	const getGroupStatusMessage = () => {
+		// Check if user is the book owner first
+		if (shloka?.owner && currentUserId && shloka.owner === currentUserId) {
+			return "Book Owner - Full editing access";
+		}
+
 		if (permissions === "User") return "User permission - Read only";
 		if (permissions === "Root" || permissions === "Admin") return `${permissions} permission - Full access`;
 
