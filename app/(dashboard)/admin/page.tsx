@@ -10,6 +10,7 @@ import GroupsPage from "@/components/global/groupAdmin";
 import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
 import HistoryPage from "@/components/global/history";
+import DataDownload from "@/components/global/dataDownload";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
@@ -85,6 +86,7 @@ export default function AdminPage() {
 				<TabsTrigger value="group">Group Administration</TabsTrigger>
 				<TabsTrigger value="publish">Book Publishing</TabsTrigger>
 				<TabsTrigger value="history">History</TabsTrigger>
+				<TabsTrigger value="download">Data Download</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="upload">
@@ -149,6 +151,16 @@ export default function AdminPage() {
 
 			<TabsContent value="history">
 				<HistoryPage />
+			</TabsContent>
+			<TabsContent value="download">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">Data Download</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<DataDownload />
+					</CardContent>
+				</Card>
 			</TabsContent>
 		</Tabs>
 	);
