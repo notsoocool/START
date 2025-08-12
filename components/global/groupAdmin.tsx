@@ -45,6 +45,7 @@ export default function GroupsPage() {
 	const [books, setBooks] = useState<Book[]>([]);
 	const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
+	const [highlightedGroupId, setHighlightedGroupId] = useState<string | null>(null);
 	const [formData, setFormData] = useState({
 		name: "",
 		type: "A" as "A" | "B",
@@ -58,6 +59,67 @@ export default function GroupsPage() {
 		fetchGroups();
 		fetchBooks();
 	}, []);
+
+	// Check for highlighted group from user permissions page
+	useEffect(() => {
+		const highlightGroup = window.sessionStorage.getItem("highlightGroup");
+		if (highlightGroup) {
+			setHighlightedGroupId(highlightGroup);
+			window.sessionStorage.removeItem("highlightGroup"); // Clear after use
+
+			// Scroll to the highlighted group
+			setTimeout(() => {
+				const groupElement = document.getElementById(`group-${highlightGroup}`);
+				if (groupElement) {
+					groupElement.scrollIntoView({
+						behavior: "smooth",
+						block: "center",
+					});
+				}
+			}, 200);
+
+			// Remove highlighting after 5 seconds
+			setTimeout(() => {
+				setHighlightedGroupId(null);
+			}, 5000);
+		}
+	}, []);
+
+	// Function to get user name by ID
+	const getUserName = (userId: string) => {
+		const user = users.find((u: User) => u.userID === userId);
+		return user ? user.name : "Unknown User";
+	};
+
+	// Function to remove a user from a group
+	const handleRemoveUserFromGroup = async (groupId: string, userId: string) => {
+		try {
+			const group = groups.find((g) => g._id === groupId);
+			if (!group) return;
+
+			const updatedMembers = group.members.filter((id) => id !== userId);
+
+			const response = await fetch(`/api/groups/${groupId}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					...group,
+					members: updatedMembers,
+				}),
+			});
+
+			if (response.ok) {
+				toast.success("User removed from group successfully!");
+				fetchGroups(); // Refresh groups
+			} else {
+				const data = await response.json();
+				toast.error(data.error || "Failed to remove user from group");
+			}
+		} catch (error) {
+			console.error("Error removing user from group:", error);
+			toast.error("An unexpected error occurred while removing user from group");
+		}
+	};
 
 	useEffect(() => {
 		if (formData.type === "A") {
@@ -383,17 +445,69 @@ export default function GroupsPage() {
 				<h2 className="text-2xl font-bold">Existing Groups</h2>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{groups.map((group) => (
-						<Card key={group._id}>
+						<Card
+							key={group._id}
+							id={`group-${group._id}`}
+							className={`transition-all duration-500 ${
+								highlightedGroupId === group._id ? "ring-4 ring-blue-500 ring-opacity-75 shadow-lg scale-105 bg-blue-50 dark:bg-blue-950/20" : ""
+							}`}
+						>
 							<CardHeader>
-								<CardTitle>{group.name}</CardTitle>
+								<CardTitle className={highlightedGroupId === group._id ? "text-blue-700 dark:text-blue-300" : ""}>
+									{group.name}
+									{highlightedGroupId === group._id && (
+										<span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">Highlighted</span>
+									)}
+								</CardTitle>
 								<CardDescription>Type: {group.type}</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<div className="space-y-2">
-									<p className="text-sm">Members: {group.members.length}</p>
-									<p className="text-sm">Books: {group.assignedBooks.length}</p>
+								<div className="space-y-3">
+									<div className="flex justify-between items-center">
+										<p className="text-sm font-medium">Members ({group.members.length})</p>
+										<p className="text-sm font-medium">Books ({group.assignedBooks.length})</p>
+									</div>
+
 									{group.type === "B" && group.supervisedGroups && (
-										<p className="text-sm">Supervising: {Array.isArray(group.supervisedGroups) ? group.supervisedGroups.length : 0} annotator groups</p>
+										<p className="text-sm text-muted-foreground">
+											Supervising: {Array.isArray(group.supervisedGroups) ? group.supervisedGroups.length : 0} annotator groups
+										</p>
+									)}
+
+									{/* User List */}
+									{group.members.length > 0 && (
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">Group Members:</p>
+											<div className="max-h-24 overflow-y-auto space-y-1">
+												{group.members.map((memberId) => (
+													<div key={memberId} className="flex items-center justify-between text-xs bg-muted/50 px-2 py-1 rounded">
+														<span className="truncate">{getUserName(memberId)}</span>
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => handleRemoveUserFromGroup(group._id, memberId)}
+															className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+														>
+															<X className="h-3 w-3" />
+														</Button>
+													</div>
+												))}
+											</div>
+										</div>
+									)}
+
+									{/* Book List */}
+									{group.assignedBooks.length > 0 && (
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">Assigned Books:</p>
+											<div className="max-h-16 overflow-y-auto">
+												{group.assignedBooks.map((book) => (
+													<div key={book} className="text-xs bg-muted/30 px-2 py-1 rounded">
+														{book}
+													</div>
+												))}
+											</div>
+										</div>
 									)}
 								</div>
 							</CardContent>

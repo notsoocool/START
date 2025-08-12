@@ -551,51 +551,68 @@ export default function AnalysisPage() {
 			}));
 		}
 	};
+
+	// Fetch permissions and group information - CONSOLIDATED INTO ONE useEffect
 	useEffect(() => {
-		const fetchPermissions = async () => {
-			setLoading(true); // Start loading when fetching permissions
+		const fetchAllPermissions = async () => {
 			setIsGroupCheckLoading(true);
 			try {
-				// Fetch user permissions
-				const response = await fetch("/api/getCurrentUser");
-				if (!response.ok) {
+				// Fetch user permissions ONCE
+				const userResponse = await fetch("/api/getCurrentUser");
+				if (!userResponse.ok) {
 					throw new Error("User not authenticated");
 				}
-				const data = await response.json();
-				setPermissions(data.perms);
-				setCurrentUserId(data.id); // Store current user ID
+				const userData = await userResponse.json();
+				console.log("User data fetched:", { id: userData.id, perms: userData.perms });
+				setPermissions(userData.perms);
+				setCurrentUserId(userData.id);
 
-				// Fetch user's group membership
+				// Fetch groups ONCE
 				const groupsResponse = await fetch("/api/groups");
-				if (groupsResponse.ok) {
-					const groupsData = await groupsResponse.json();
-
-					const userGroups = groupsData.filter((group: any) => group.members && group.members.includes(data.id)).map((group: any) => group._id);
-					setUserGroups(userGroups);
+				if (!groupsResponse.ok) {
+					throw new Error("Failed to fetch groups");
 				}
+				const groupsData = await groupsResponse.json();
+				console.log("Groups data fetched:", groupsData.length, "groups");
 
-				// Fetch book's assigned group
-				const bookGroupsResponse = await fetch("/api/groups");
-				if (bookGroupsResponse.ok) {
-					const bookGroupsData = await groupsResponse.json();
+				// Get user's group memberships
+				const userGroups = groupsData.filter((group: any) => group.members && group.members.includes(userData.id)).map((group: any) => group._id);
+				console.log("User groups:", userGroups);
+				setUserGroups(userGroups);
 
-					const bookGroup = bookGroupsData.find((group: any) => group.assignedBooks && group.assignedBooks.includes(decodedBook));
-					setBookAssignedGroup(bookGroup ? bookGroup._id : null);
-				}
+				// Find book's assigned group - FIXED LOGIC for multiple supervisors
+				const bookGroup = groupsData.find((group: any) => {
+					// Check if user is in this group AND book is assigned to it
+					const userInGroup = group.members && group.members.includes(userData.id);
+					const bookAssigned = group.assignedBooks && group.assignedBooks.includes(decodedBook);
+
+					console.log("Group check:", {
+						groupId: group._id,
+						groupName: group.name,
+						userInGroup,
+						bookAssigned,
+						groupMembers: group.members,
+						assignedBooks: group.assignedBooks,
+					});
+
+					return userInGroup && bookAssigned;
+				});
+
+				setBookAssignedGroup(bookGroup ? bookGroup._id : null);
 			} catch (error) {
-				console.error("Error fetching permissions:", error);
 				setPermissions(null);
+				setUserGroups([]);
+				setBookAssignedGroup(null);
 			} finally {
-				setLoading(false); // Stop loading when permissions are fetched
 				setIsGroupCheckLoading(false);
 			}
 		};
 
 		// Only fetch permissions once on initial mount
 		if (permissions === null) {
-			fetchPermissions();
+			fetchAllPermissions();
 		}
-	}, []); // Empty dependency array ensures it only runs once
+	}, [decodedBook]); // Only depend on decodedBook, not permissions
 
 	const initiateDelete = (procIndex: number) => {
 		setPendingDeleteIndex(procIndex);
@@ -1600,12 +1617,12 @@ export default function AnalysisPage() {
 
 		if (permissions === "Editor" || permissions === "Annotator") {
 			if (!bookAssignedGroup) {
-				return `${permissions} permission - No editing permission for this book`;
+				return `${permissions} permission - No group assigned to this book (Contact admin)`;
 			}
 			if (userGroups.includes(bookAssignedGroup)) {
 				return `${permissions} permission - Full editing access`;
 			} else {
-				return `${permissions} permission - No editing permission for this book`;
+				return `${permissions} permission - Book not assigned to your group (Contact admin)`;
 			}
 		}
 
@@ -1616,8 +1633,22 @@ export default function AnalysisPage() {
 		return <ErrorDisplay error={error} onBack={() => window.history.back()} />;
 	}
 
+	// Show loading screen only during initial load, not during permission checks
 	if (initialLoad || loading) {
 		return <LoadingScreen text="Loading Analysis..." loadingExit={loadingExit} />;
+	}
+
+	// Show a fallback loading state if permissions are still being fetched
+	if (isGroupCheckLoading && !permissions) {
+		return (
+			<div className="flex items-center justify-center min-h-screen">
+				<div className="text-center">
+					<Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+					<p className="text-lg">Loading permissions...</p>
+					<p className="text-sm text-muted-foreground">Please wait while we verify your access</p>
+				</div>
+			</div>
+		);
 	}
 
 	// Then check for missing data

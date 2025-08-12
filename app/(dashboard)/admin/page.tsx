@@ -20,6 +20,14 @@ export default function AdminPage() {
 	const [treeData, setTreeData] = useState<TreeNode[]>([]);
 	const router = useRouter();
 
+	// Function to change tabs from child components
+	const changeTab = (tabName: string) => {
+		console.log("changeTab called with:", tabName);
+		console.log("Current activeTab:", activeTab);
+		setActiveTab(tabName);
+		console.log("activeTab set to:", tabName);
+	};
+
 	useEffect(() => {
 		const checkAuthorization = async () => {
 			try {
@@ -44,6 +52,11 @@ export default function AdminPage() {
 		checkAuthorization();
 	}, [router]);
 
+	// Debug activeTab changes
+	useEffect(() => {
+		console.log("activeTab changed to:", activeTab);
+	}, [activeTab]);
+
 	useEffect(() => {
 		const fetchTreeData = async () => {
 			try {
@@ -63,29 +76,15 @@ export default function AdminPage() {
 	}, [activeTab]);
 
 	return (
-		<Tabs defaultValue="upload" className="space-y-4 mx-4 my-4">
+		<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 mx-4 my-4">
 			<TabsList>
-				<TabsTrigger value="upload" onClick={() => setActiveTab("upload")}>
-					Upload JSON
-				</TabsTrigger>
-				<TabsTrigger value="permissions" onClick={() => setActiveTab("permissions")}>
-					Change User Permissions
-				</TabsTrigger>
-				<TabsTrigger value="replace" onClick={() => setActiveTab("replace")}>
-					Replace Book Name
-				</TabsTrigger>
-				<TabsTrigger value="delete" onClick={() => setActiveTab("delete")}>
-					Delete Entries
-				</TabsTrigger>
-				<TabsTrigger value="group" onClick={() => setActiveTab("group")}>
-					Group Administration
-				</TabsTrigger>
-				<TabsTrigger value="publish" onClick={() => setActiveTab("publish")}>
-					Book Publishing
-				</TabsTrigger>
-				<TabsTrigger value="history" onClick={() => setActiveTab("history")}>
-					History
-				</TabsTrigger>
+				<TabsTrigger value="upload">Upload JSON</TabsTrigger>
+				<TabsTrigger value="permissions">Change User Permissions</TabsTrigger>
+				<TabsTrigger value="replace">Replace Book Name</TabsTrigger>
+				<TabsTrigger value="delete">Delete Entries</TabsTrigger>
+				<TabsTrigger value="group">Group Administration</TabsTrigger>
+				<TabsTrigger value="publish">Book Publishing</TabsTrigger>
+				<TabsTrigger value="history">History</TabsTrigger>
 			</TabsList>
 
 			<TabsContent value="upload">
@@ -105,7 +104,7 @@ export default function AdminPage() {
 						<CardTitle className="text-lg font-semibold">Change User Permissions</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<UserPerms />
+						<UserPerms changeTab={changeTab} />
 					</CardContent>
 				</Card>
 			</TabsContent>
