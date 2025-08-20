@@ -64,44 +64,117 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 	};
 
 	try {
-		// Get the shlokas before deletion for logging
-		const shlokasToDelete = await AHShloka.find(query);
+		console.log("Delete query:", query);
+		console.time("Total deletion time");
 
-		// Delete all entries matching the query
-		const result = await AHShloka.deleteMany(query);
+		// First, get a count to estimate the operation size
+		const count = await AHShloka.countDocuments(query);
+		console.log(`Found ${count} shlokas to delete`);
 
-		// Log the deletion of each shloka
-		for (const shloka of shlokasToDelete) {
-			await logHistory({
-				action: "delete",
-				modelType: "Shloka",
-				details: {
-					book: shloka.book,
-					part1: shloka.part1 || undefined,
-					part2: shloka.part2 || undefined,
-					chaptno: shloka.chaptno,
-					slokano: shloka.slokano,
-					changes: [
-						{
-							field: "deleted_shloka",
-							oldValue: {
-								slokano: shloka.slokano,
-								spart: shloka.spart,
-								status: {
-									locked: shloka.locked,
-									userPublished: shloka.userPublished,
-									groupPublished: shloka.groupPublished,
-								},
-							},
-							newValue: null,
-						},
-					],
-				},
-			});
+		if (count === 0) {
+			return NextResponse.json({ message: "No entries found to delete." }, { headers: corsHeaders() });
 		}
 
+		// For large deletions, skip detailed history logging to improve performance
+		const shouldSkipDetailedLogging = count > 100;
+
+		if (shouldSkipDetailedLogging) {
+			console.log("Large deletion detected, skipping detailed history logging for performance");
+		}
+
+		// Delete all entries matching the query first
+		console.time("Database deletion");
+		const result = await AHShloka.deleteMany(query);
+		console.timeEnd("Database deletion");
+		console.log(`Deleted ${result.deletedCount} shlokas`);
+
+		// Batch log the deletion instead of individual calls
+		if (result.deletedCount > 0) {
+			try {
+				console.time("History logging");
+
+				if (shouldSkipDetailedLogging) {
+					// For large deletions, create a simple summary log
+					await logHistory({
+						action: "delete",
+						modelType: "Shloka",
+						details: {
+							book,
+							part1: part1 !== "null" ? part1 : undefined,
+							part2: part2 !== "null" ? part2 : undefined,
+							chaptno,
+							slokano: "multiple",
+							changes: [
+								{
+									field: "deleted_shlokas_summary",
+									oldValue: {
+										count: result.deletedCount,
+										summary: `Bulk deletion of ${result.deletedCount} shlokas`,
+									},
+									newValue: null,
+								},
+							],
+						},
+					});
+				} else {
+					// For smaller deletions, get the details for logging
+					const shlokasToDelete = await AHShloka.find(query);
+
+					// Create a single batch history entry for all deleted shlokas
+					await logHistory({
+						action: "delete",
+						modelType: "Shloka",
+						details: {
+							book,
+							part1: part1 !== "null" ? part1 : undefined,
+							part2: part2 !== "null" ? part2 : undefined,
+							chaptno,
+							slokano: "multiple",
+							changes: [
+								{
+									field: "deleted_shlokas",
+									oldValue: {
+										count: shlokasToDelete.length,
+										shlokas: shlokasToDelete.map((shloka) => ({
+											slokano: shloka.slokano,
+											spart: shloka.spart,
+											status: {
+												locked: shloka.locked,
+												userPublished: shloka.userPublished,
+												groupPublished: shloka.groupPublished,
+											},
+										})),
+									},
+									newValue: null,
+								},
+							],
+						},
+					});
+				}
+
+				console.timeEnd("History logging");
+				console.log("History logged successfully");
+			} catch (historyError) {
+				console.error("History logging failed:", historyError);
+				// Don't fail the deletion if history logging fails
+			}
+		}
+
+		console.timeEnd("Total deletion time");
+
 		// Respond with the number of deleted entries
-		return NextResponse.json({ message: `Deleted ${result.deletedCount} entries successfully.` }, { headers: corsHeaders() });
+		return NextResponse.json(
+			{
+				message: `Deleted ${result.deletedCount} entries successfully.`,
+				deletedCount: result.deletedCount,
+				query,
+				performance: {
+					totalTime: "logged",
+					largeDeletion: shouldSkipDetailedLogging,
+				},
+			},
+			{ headers: corsHeaders() }
+		);
 	} catch (error) {
 		console.error("Error deleting entries:", error);
 		return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: corsHeaders() });

@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
 import { Providers } from "./providers";
 import { ThemeProvider } from "next-themes";
+import { Analytics } from "@vercel/analytics/next";
 
 // Initialize Inter font
 const inter = Inter({ subsets: ["latin"] });
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 						<Providers>{children}</Providers>
 					</ThemeProvider>
+					<Analytics />
 				</body>
 			</html>
 		</ClerkProvider>

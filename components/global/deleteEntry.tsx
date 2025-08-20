@@ -43,9 +43,16 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 	const deleteEntireBook = async () => {
 		if (!selectedBook) return;
 		setLoading(true);
+		setMessage("Deleting entire book...");
+
 		try {
+			// Create a timeout promise
+			const timeoutPromise = new Promise((_, reject) => {
+				setTimeout(() => reject(new Error("Request timeout - operation taking too long")), 20000); // 20 second timeout for book deletion
+			});
+
 			// Delete book entries
-			const bookResponse = await fetch(`/api/books?book=${selectedBook}`, {
+			const bookResponsePromise = fetch(`/api/books?book=${selectedBook}`, {
 				method: "DELETE",
 				headers: {
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
@@ -53,12 +60,26 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			});
 
 			// Delete corresponding analysis entries
-			const analysisResponse = await fetch(`/api/analysis/${selectedBook}`, {
+			const analysisResponsePromise = fetch(`/api/analysis/${selectedBook}`, {
 				method: "DELETE",
 				headers: {
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 				},
 			});
+
+			// Race between the operations and timeout
+			const [bookResponse, analysisResponse] = (await Promise.race([Promise.all([bookResponsePromise, analysisResponsePromise]), timeoutPromise])) as [
+				Response,
+				Response
+			];
+
+			if (!bookResponse.ok) {
+				throw new Error(`Book deletion failed: ${bookResponse.status} ${bookResponse.statusText}`);
+			}
+
+			if (!analysisResponse.ok) {
+				throw new Error(`Analysis deletion failed: ${analysisResponse.status} ${analysisResponse.statusText}`);
+			}
 
 			const bookData = await bookResponse.json();
 			const analysisData = await analysisResponse.json();
@@ -66,7 +87,12 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			setMessage(`${bookData.message} and ${analysisData.message}`);
 			router.refresh();
 		} catch (error) {
-			setMessage("Error occurred while deleting entries");
+			console.error("Delete book error:", error);
+			if (error instanceof Error && error.message.includes("timeout")) {
+				setMessage("Operation is taking longer than expected. Please check the server logs or try again later.");
+			} else {
+				setMessage(error instanceof Error ? error.message : "Error occurred while deleting entries");
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -75,9 +101,16 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 	const deleteChapter = async () => {
 		if (!selectedBook || !selectedChapter) return;
 		setLoading(true);
+		setMessage("Deleting chapter...");
+
 		try {
+			// Create a timeout promise
+			const timeoutPromise = new Promise((_, reject) => {
+				setTimeout(() => reject(new Error("Request timeout - operation taking too long")), 15000); // 15 second timeout
+			});
+
 			// Delete chapter entries
-			const bookResponse = await fetch(`/api/books/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
+			const bookResponsePromise = fetch(`/api/books/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
 				method: "DELETE",
 				headers: {
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
@@ -85,12 +118,26 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			});
 
 			// Delete corresponding analysis entries
-			const analysisResponse = await fetch(`/api/analysis/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
+			const analysisResponsePromise = fetch(`/api/analysis/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${selectedChapter}`, {
 				method: "DELETE",
 				headers: {
 					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 				},
 			});
+
+			// Race between the operations and timeout
+			const [bookResponse, analysisResponse] = (await Promise.race([Promise.all([bookResponsePromise, analysisResponsePromise]), timeoutPromise])) as [
+				Response,
+				Response
+			];
+
+			if (!bookResponse.ok) {
+				throw new Error(`Book deletion failed: ${bookResponse.status} ${bookResponse.statusText}`);
+			}
+
+			if (!analysisResponse.ok) {
+				throw new Error(`Analysis deletion failed: ${analysisResponse.status} ${analysisResponse.statusText}`);
+			}
 
 			const bookData = await bookResponse.json();
 			const analysisData = await analysisResponse.json();
@@ -98,7 +145,12 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			setMessage(`${bookData.message} and ${analysisData.message}`);
 			router.refresh();
 		} catch (error) {
-			setMessage("Error occurred while deleting chapter");
+			console.error("Delete chapter error:", error);
+			if (error instanceof Error && error.message.includes("timeout")) {
+				setMessage("Operation is taking longer than expected. Please check the server logs or try again later.");
+			} else {
+				setMessage(error instanceof Error ? error.message : "Error occurred while deleting chapter");
+			}
 		} finally {
 			setLoading(false);
 		}
