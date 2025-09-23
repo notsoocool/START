@@ -509,6 +509,9 @@ export default function AnalysisPage() {
 		"possible_relations",
 	]);
 
+	// Sorting preference for the combined sentence view
+	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">("poem");
+
 	// Toggle column visibility
 	const handleColumnSelect = (column: string) => {
 		setSelectedColumns((prevSelected) => (prevSelected.includes(column) ? prevSelected.filter((item) => item !== column) : [...prevSelected, column]));
@@ -1074,6 +1077,21 @@ export default function AnalysisPage() {
 			...prev,
 			[sentno]: DEFAULT_ZOOM,
 		}));
+	};
+
+	// Join words but if the previous token ends with '-' (e.g., 'आदि-'), don't add a space
+	const joinWordsWithHyphenRule = (tokens: string[]) => {
+		let output = "";
+		for (const token of tokens) {
+			const word = String(token || "").trim();
+			if (!word) continue;
+			if (output.endsWith("-")) {
+				output += word;
+			} else {
+				output += (output ? " " : "") + word;
+			}
+		}
+		return output;
 	};
 
 	// Add this function to handle saving all changes
@@ -1727,6 +1745,79 @@ export default function AnalysisPage() {
 				userGroups={userGroups}
 				bookAssignedGroup={bookAssignedGroup}
 			/>
+
+			{/* Combined sentence(s) from Word column */}
+			{(() => {
+				// Build sentences grouped by sentno, ordered by prose index (poem)
+				const grouped: { [key: string]: any[] } = {};
+				(updatedData || []).forEach((row) => {
+					if (!row) return;
+					const sentKey = String(row.sentno ?? "");
+					if (!sentKey) return;
+					if (!grouped[sentKey]) grouped[sentKey] = [];
+					grouped[sentKey].push(row);
+				});
+
+				const sentences = Object.keys(grouped)
+					.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0))
+					.map((sentno) => {
+						const rows = grouped[sentno]
+							.slice()
+							.sort((a, b) => {
+								if (sentenceSortBy === "poem") {
+									const ai = parseInt(a?.poem) || 0;
+									const bi = parseInt(b?.poem) || 0;
+									if (ai !== bi) return ai - bi;
+								}
+								// fallback or explicit anvaya sort
+								const [am, as] = String(a?.anvaya_no || "0.0").split(".").map(Number);
+								const [bm, bs] = String(b?.anvaya_no || "0.0").split(".").map(Number);
+								if (am !== bm) return am - bm;
+								return (as || 0) - (bs || 0);
+							});
+
+						const words = rows
+							.map((r) => String(r?.word || "").trim())
+							.filter((w) => w && w !== "-");
+						return { sentno, text: joinWordsWithHyphenRule(words) };
+					});
+
+				if (!sentences.length) return null;
+
+				return (
+					<Card className="border-dashed">
+						<CardHeader>
+							<div className="flex items-center justify-between">
+								<CardTitle className="text-base">Sentence(s) from Word column</CardTitle>
+								<div className="flex gap-2">
+									<Button
+										variant={sentenceSortBy === "poem" ? "default" : "outline"}
+										size="sm"
+										onClick={() => setSentenceSortBy("poem")}
+									>
+										Sort by Prose Index
+									</Button>
+									<Button
+										variant={sentenceSortBy === "anvaya" ? "default" : "outline"}
+										size="sm"
+										onClick={() => setSentenceSortBy("anvaya")}
+									>
+										Sort by Index
+									</Button>
+								</div>
+							</div>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{sentences.map((s) => (
+								<div key={s.sentno} className="text-sm">
+									<span className="font-medium mr-2">S{s.sentno}:</span>
+									<span>{s.text || "-"}</span>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				);
+			})()}
 
 			<div className="flex justify-end w-full gap-2">
 				{renderAddRowButton()}
