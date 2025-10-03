@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useBooks } from "@/lib/hooks/use-api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -219,7 +220,8 @@ export default function ShlokaPage() {
 	const [processedShlokas, setProcessedShlokas] = useState<any[]>([]);
 	const [analysisData, setAnalysisData] = useState<any[]>([]);
 	const [originalAnalysisData, setOriginalAnalysisData] = useState<any[]>([]);
-	const [permissions, setPermissions] = useState(null);
+	const [permissions, setPermissions] = useState<any>(null);
+	const [permsLoading, setPermsLoading] = useState<boolean>(true);
 	const [graphUrls, setGraphUrls] = useState<{ [key: string]: string }>({});
 	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
 	const [opacity, setOpacity] = useState(0.5); // Default opacity value
@@ -249,6 +251,23 @@ export default function ShlokaPage() {
 	const [isNewBook, setIsNewBook] = useState(false);
 	const [showSaveDialog, setShowSaveDialog] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+
+	// Fetch current user's permissions once
+	useEffect(() => {
+		const run = async () => {
+			try {
+				const res = await fetch("/api/getCurrentUser");
+				if (!res.ok) throw new Error("Not authenticated");
+				const data = await res.json();
+				setPermissions(data.perms);
+			} catch (e) {
+				setPermissions(null);
+			} finally {
+				setPermsLoading(false);
+			}
+		};
+		run();
+	}, []);
 
 	const columnOptions = [
 		{ id: "anvaya_no", label: "Index" },
@@ -802,6 +821,40 @@ export default function ShlokaPage() {
 			// setPageReady(true); // Removed as per edit hint
 		}
 	}, [booksLoading, booksError]);
+
+	// Block normal users from accessing add shloka
+	if (permsLoading) {
+		return (
+			<div className="container mx-auto p-6 space-y-8">
+				<Card>
+					<CardHeader>
+						<CardTitle>Loading</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="flex items-center gap-4">
+							<Skeleton className="h-5 w-40" />
+							<Skeleton className="h-5 w-24" />
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	if (permissions === "User") {
+		return (
+			<div className="container mx-auto p-6 space-y-8">
+				<Card>
+					<CardHeader>
+						<CardTitle>Access Restricted</CardTitle>
+					</CardHeader>
+					<CardContent>
+						You are not an annotator or editor. Kindly get assigned your roles from the admin.
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	return (
 		<div className="container mx-auto p-6 space-y-8">

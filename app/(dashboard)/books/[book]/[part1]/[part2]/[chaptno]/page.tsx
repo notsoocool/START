@@ -139,7 +139,7 @@ export default function Shlokas() {
 								ref={(el) => {
 									shlokaRefs.current[shloka._id] = el;
 								}}
-								className="group overflow-hidden hover:shadow-lg transition-all duration-500 border border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-700 bg-white/80 dark:bg-gray-900/80 transition-colors duration-500"
+								className="group overflow-hidden hover:shadow-lg transition-all duration-500 border border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-700 bg-white/80 dark:bg-gray-900/80"
 							>
 								<CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/90 dark:bg-gray-800/90">
 									<CardTitle className="flex justify-between text-gray-900 dark:text-gray-100">
