@@ -1795,14 +1795,14 @@ export default function AnalysisPage() {
 										size="sm"
 										onClick={() => setSentenceSortBy("poem")}
 									>
-										Sort by Prose Index
+										Show Anvaya
 									</Button>
 									<Button
 										variant={sentenceSortBy === "anvaya" ? "default" : "outline"}
 										size="sm"
 										onClick={() => setSentenceSortBy("anvaya")}
 									>
-										Sort by Index
+										Show Pada-pāṭha
 									</Button>
 								</div>
 							</div>
