@@ -406,8 +406,53 @@ export default function AnalysisPage() {
 
 	const handleSave = async (index: number, rowOverride?: any) => {
 		const currentData = rowOverride ?? updatedData[index];
+
+		// Validate required fields
+		const emptyFields = [];
+
+		// Check for required fields that cannot be empty
+		if (!currentData.word || currentData.word.trim() === "") {
+			emptyFields.push("Word");
+		}
+		if (!currentData.sentno || currentData.sentno.trim() === "") {
+			emptyFields.push("Sentence Number");
+		}
+		if (!currentData.anvaya_no || currentData.anvaya_no.trim() === "") {
+			emptyFields.push("Anvaya Number");
+		}
+		if (
+			!currentData.kaaraka_sambandha ||
+			currentData.kaaraka_sambandha.trim() === ""
+		) {
+			emptyFields.push("Kaaraka Relation");
+		}
+		if (
+			!currentData.morph_analysis ||
+			currentData.morph_analysis.trim() === ""
+		) {
+			emptyFields.push("Morph Analysis");
+		}
+		if (
+			!currentData.morph_in_context ||
+			currentData.morph_in_context.trim() === ""
+		) {
+			emptyFields.push("Morph In Context");
+		}
+		if (
+			!currentData.possible_relations ||
+			currentData.possible_relations.trim() === ""
+		) {
+			emptyFields.push("Possible Relations");
+		}
+		if (emptyFields.length > 0) {
+			toast.error(
+				`Kindly fill the following field(s): ${emptyFields.join(", ")}`
+			);
+			return;
+		}
+
 		try {
-			// Remove unnecessary fields and prepare data for update
+			// Fill empty fields with "-" to prevent server errors
 			const dataToUpdate = {
 				_id: currentData._id,
 				anvaya_no: currentData.anvaya_no,
@@ -1220,8 +1265,10 @@ export default function AnalysisPage() {
 							<Input
 								type="text"
 								value={
-									currentProcessedData?.anvaya_no ||
-									processed.anvaya_no
+									currentProcessedData?.anvaya_no !==
+									undefined
+										? currentProcessedData.anvaya_no
+										: processed.anvaya_no
 								}
 								onChange={(e) =>
 									handleValueChange(
@@ -1256,8 +1303,10 @@ export default function AnalysisPage() {
 											? deletedContent
 											: renderInput(
 													"word",
-													currentProcessedData?.word ||
-														processed.word,
+													currentProcessedData?.word !==
+														undefined
+														? currentProcessedData.word
+														: processed.word,
 													"w-[90px]",
 													"Enter Word"
 											  )}
