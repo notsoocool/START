@@ -614,7 +614,7 @@ export default function DataDownload() {
 						estimatedSize /
 						(1024 * 1024)
 					).toFixed(2)} MB. ` +
-						`Large downloads may take a while and could impact system performance. Do you want to continue?`
+						`Very large downloads may timeout (60 second limit). Consider selecting a smaller subset of data. Do you want to continue?`
 				);
 				if (!proceed) {
 					setIsDownloading(false);

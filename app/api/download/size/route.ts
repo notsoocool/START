@@ -3,8 +3,8 @@ import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
 
-// Increase timeout for large queries
-export const maxDuration = 60; // 1 minute
+// Maximum timeout allowed on Vercel hobby plan
+export const maxDuration = 60; // 60 seconds max
 
 export async function GET(request: NextRequest) {
 	try {
