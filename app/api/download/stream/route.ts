@@ -6,9 +6,12 @@ import Shloka from "@/lib/db/newShlokaModel";
 // Maximum timeout allowed on Vercel hobby plan
 export const maxDuration = 60; // 60 seconds max
 
+// Force dynamic route - required for API endpoints with query parameters
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
 	try {
-		const { searchParams } = new URL(request.url);
+		const { searchParams } = request.nextUrl;
 		const book = searchParams.get("book");
 		const part1 = searchParams.get("part1");
 		const part2 = searchParams.get("part2");

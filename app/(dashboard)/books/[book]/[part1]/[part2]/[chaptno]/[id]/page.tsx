@@ -158,14 +158,14 @@ export default function AnalysisPage() {
 		possible_relations: "",
 		bgcolor: "",
 		sentno: "",
-		name_classification: "-",
-		sarvanAma: "-",
-		prayoga: "-",
-		samAsa: "-",
-		english_meaning: "-",
-		sandhied_word: "-",
-		graph: "-",
-		hindi_meaning: "-",
+		name_classification: "",
+		sarvanAma: "",
+		prayoga: "",
+		samAsa: "",
+		english_meaning: "",
+		sandhied_word: "",
+		graph: "",
+		hindi_meaning: "",
 	});
 	const [shiftType, setShiftType] = useState<"main" | "sub" | "none">("main");
 	const [morphInContextChanges, setMorphInContextChanges] = useState<
@@ -1602,14 +1602,43 @@ export default function AnalysisPage() {
 	const handleAddRow = async () => {
 		try {
 			setAddRowLoading(true);
+
+			// Validate required fields
 			if (
 				!newRowData.anvaya_no ||
 				!newRowData.word ||
 				!newRowData.sentno
 			) {
-				toast.error("Please fill in all required fields");
+				toast.error("Please fill in all required fields (*)");
+				setAddRowLoading(false);
 				return;
 			}
+
+			// Fill all empty fields with "-" to prevent server errors
+			const processedData = {
+				anvaya_no: newRowData.anvaya_no,
+				word: newRowData.word,
+				poem: newRowData.poem || "-",
+				sandhied_word: newRowData.sandhied_word || "-",
+				morph_analysis: newRowData.morph_analysis || "-",
+				morph_in_context: newRowData.morph_in_context || "-",
+				kaaraka_sambandha: newRowData.kaaraka_sambandha || "-",
+				possible_relations: newRowData.possible_relations || "-",
+				hindi_meaning: newRowData.hindi_meaning || "-",
+				english_meaning: newRowData.english_meaning || "-",
+				samAsa: newRowData.samAsa || "-",
+				prayoga: newRowData.prayoga || "-",
+				sarvanAma: newRowData.sarvanAma || "-",
+				name_classification: newRowData.name_classification || "-",
+				bgcolor: newRowData.bgcolor || "-",
+				sentno: newRowData.sentno,
+				chaptno: decodedChaptno,
+				slokano: shloka?.slokano,
+				book: decodedBook,
+				part1: decodedPart1,
+				part2: decodedPart2,
+				graph: "-",
+			};
 
 			const currentResponse = await fetch(
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
@@ -1753,7 +1782,7 @@ export default function AnalysisPage() {
 						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 					},
 					body: JSON.stringify({
-						...newRowData,
+						...processedData,
 						shiftType,
 						updatedRows,
 						targetMain: newMain,
@@ -1778,14 +1807,14 @@ export default function AnalysisPage() {
 				possible_relations: "",
 				bgcolor: "",
 				sentno: "",
-				name_classification: "-",
-				sarvanAma: "-",
-				prayoga: "-",
-				samAsa: "-",
-				english_meaning: "-",
-				sandhied_word: "-",
-				graph: "-",
-				hindi_meaning: "-",
+				name_classification: "",
+				sarvanAma: "",
+				prayoga: "",
+				samAsa: "",
+				english_meaning: "",
+				sandhied_word: "",
+				graph: "",
+				hindi_meaning: "",
 			});
 
 			// Immediately fetch fresh data
@@ -1846,22 +1875,47 @@ export default function AnalysisPage() {
 			onOpenChange={(open) => {
 				if (!addRowLoading) {
 					// Only allow closing if not loading
+					if (!open) {
+						// Reset form when closing
+						setNewRowData({
+							anvaya_no: "",
+							word: "",
+							poem: "",
+							morph_analysis: "",
+							morph_in_context: "",
+							kaaraka_sambandha: "",
+							possible_relations: "",
+							bgcolor: "",
+							sentno: "",
+							name_classification: "",
+							sarvanAma: "",
+							prayoga: "",
+							samAsa: "",
+							english_meaning: "",
+							sandhied_word: "",
+							graph: "",
+							hindi_meaning: "",
+						});
+						setShiftType("main");
+					}
 					setOpenDialog(open ? "addRow" : null);
 				}
 			}}
 		>
-			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+			<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Add New Row</DialogTitle>
 					<DialogDescription>
-						Enter the details for the new row. Anvaya number, word,
-						and sentence number are required.
+						Enter the details for the new row. Fields marked with *
+						are required. All other fields will default to "-" if
+						left empty.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4">
 					<div className="grid grid-cols-2 gap-4">
+						{/* Required Fields */}
 						<div className="space-y-2">
-							<label>Anvaya Number*</label>
+							<label>Anvaya Number* (Index)</label>
 							<Input
 								value={newRowData.anvaya_no}
 								onChange={(e) =>
@@ -1871,6 +1925,32 @@ export default function AnalysisPage() {
 									}))
 								}
 								placeholder="e.g., 2.1"
+							/>
+						</div>
+						<div className="space-y-2">
+							<label>Word*</label>
+							<Input
+								value={newRowData.word}
+								onChange={(e) =>
+									setNewRowData((prev) => ({
+										...prev,
+										word: e.target.value,
+									}))
+								}
+								placeholder="Enter word"
+							/>
+						</div>
+						<div className="space-y-2">
+							<label>Sentence Number*</label>
+							<Input
+								value={newRowData.sentno}
+								onChange={(e) =>
+									setNewRowData((prev) => ({
+										...prev,
+										sentno: e.target.value,
+									}))
+								}
+								placeholder="e.g., 1"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -1897,31 +1977,8 @@ export default function AnalysisPage() {
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="space-y-2">
-							<label>Sentence Number*</label>
-							<Input
-								value={newRowData.sentno}
-								onChange={(e) =>
-									setNewRowData((prev) => ({
-										...prev,
-										sentno: e.target.value,
-									}))
-								}
-								placeholder="e.g., 1"
-							/>
-						</div>
-						<div className="space-y-2">
-							<label>Word*</label>
-							<Input
-								value={newRowData.word}
-								onChange={(e) =>
-									setNewRowData((prev) => ({
-										...prev,
-										word: e.target.value,
-									}))
-								}
-							/>
-						</div>
+
+						{/* Table Fields Only */}
 						<div className="space-y-2">
 							<label>Prose Index</label>
 							<Input
@@ -1932,6 +1989,20 @@ export default function AnalysisPage() {
 										poem: e.target.value,
 									}))
 								}
+								placeholder="Will default to - if empty"
+							/>
+						</div>
+						<div className="space-y-2">
+							<label>Sandhied Word</label>
+							<Input
+								value={newRowData.sandhied_word}
+								onChange={(e) =>
+									setNewRowData((prev) => ({
+										...prev,
+										sandhied_word: e.target.value,
+									}))
+								}
+								placeholder="Will default to - if empty"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -1944,6 +2015,7 @@ export default function AnalysisPage() {
 										morph_analysis: e.target.value,
 									}))
 								}
+								placeholder="Will default to - if empty"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -1956,6 +2028,7 @@ export default function AnalysisPage() {
 										morph_in_context: e.target.value,
 									}))
 								}
+								placeholder="Will default to - if empty"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -1968,6 +2041,7 @@ export default function AnalysisPage() {
 										kaaraka_sambandha: e.target.value,
 									}))
 								}
+								placeholder="Will default to - if empty"
 							/>
 						</div>
 						<div className="space-y-2">
@@ -1980,8 +2054,78 @@ export default function AnalysisPage() {
 										possible_relations: e.target.value,
 									}))
 								}
+								placeholder="Will default to - if empty"
 							/>
 						</div>
+						<div className="space-y-2">
+							<label>Hindi Meaning</label>
+							<Input
+								value={newRowData.hindi_meaning}
+								onChange={(e) =>
+									setNewRowData((prev) => ({
+										...prev,
+										hindi_meaning: e.target.value,
+									}))
+								}
+								placeholder="Will default to - if empty"
+							/>
+						</div>
+						<div className="space-y-2">
+							<label>Color Code</label>
+							<Select
+								value={newRowData.bgcolor}
+								onValueChange={(value) =>
+									setNewRowData((prev) => ({
+										...prev,
+										bgcolor: value,
+									}))
+								}
+							>
+								<SelectTrigger>
+									<span
+										style={{
+											backgroundColor:
+												newRowData.bgcolor ||
+												"transparent",
+											display: "inline-block",
+											width: "20px",
+											height: "20px",
+											marginRight: "8px",
+											borderRadius: "3px",
+										}}
+									></span>
+									{Object.entries(colors).find(
+										([key, value]) =>
+											value === newRowData.bgcolor
+									)?.[0] || "Select Color"}
+								</SelectTrigger>
+								<SelectContent>
+									{Object.entries(colors).map(
+										([key, color]) => (
+											<SelectItem key={key} value={color}>
+												<span
+													style={{
+														backgroundColor: color,
+														display: "inline-block",
+														width: "20px",
+														height: "20px",
+														marginRight: "8px",
+													}}
+												></span>
+												{key}
+											</SelectItem>
+										)
+									)}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+					<div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-md text-xs border border-blue-200 dark:border-blue-800">
+						<p className="text-blue-800 dark:text-blue-200">
+							<strong>Note:</strong> All fields except those
+							marked with * will automatically default to "-" if
+							left empty.
+						</p>
 					</div>
 					<div className="bg-muted p-4 rounded-md text-xs">
 						<h4 className="font-medium mb-2">
