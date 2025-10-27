@@ -510,7 +510,7 @@ export default function AnalysisPage() {
 	]);
 
 	// Sorting preference for the combined sentence view
-	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">("poem");
+	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">("anvaya");
 
 	// Toggle column visibility
 	const handleColumnSelect = (column: string) => {
@@ -1790,6 +1790,13 @@ export default function AnalysisPage() {
 							<div className="flex items-center justify-between">
 								<CardTitle className="text-base">Sentence(s) from Word column</CardTitle>
 								<div className="flex gap-2">
+                                    <Button
+										variant={sentenceSortBy === "anvaya" ? "default" : "outline"}
+										size="sm"
+										onClick={() => setSentenceSortBy("anvaya")}
+									>
+										Show Pada-cchedaḥ
+									</Button>
 									<Button
 										variant={sentenceSortBy === "poem" ? "default" : "outline"}
 										size="sm"
@@ -1797,13 +1804,7 @@ export default function AnalysisPage() {
 									>
 										Show Anvaya
 									</Button>
-									<Button
-										variant={sentenceSortBy === "anvaya" ? "default" : "outline"}
-										size="sm"
-										onClick={() => setSentenceSortBy("anvaya")}
-									>
-										Show Pada-pāṭha
-									</Button>
+									
 								</div>
 							</div>
 						</CardHeader>
