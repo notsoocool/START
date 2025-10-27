@@ -3,6 +3,9 @@ import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
 
+// Increase timeout for large queries
+export const maxDuration = 60; // 1 minute
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
@@ -11,8 +14,12 @@ export async function GET(request: NextRequest) {
 		const part2 = searchParams.get("part2");
 		const chapter = searchParams.get("chapter");
 		const slokano = searchParams.get("slokano");
-		const dataType = searchParams.get("dataType") as "analysis" | "shloka" | "both";
-		const analysisFields = searchParams.get("analysisFields")?.split(",") || [];
+		const dataType = searchParams.get("dataType") as
+			| "analysis"
+			| "shloka"
+			| "both";
+		const analysisFields =
+			searchParams.get("analysisFields")?.split(",") || [];
 		const shlokaFields = searchParams.get("shlokaFields")?.split(",") || [];
 
 		console.log("Size estimation request parameters:", {
@@ -28,7 +35,10 @@ export async function GET(request: NextRequest) {
 
 		// Validate required parameters
 		if (!book || !dataType) {
-			return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
+			return NextResponse.json(
+				{ error: "Missing required parameters" },
+				{ status: 400 }
+			);
 		}
 
 		await dbConnect();
@@ -142,7 +152,9 @@ export async function GET(request: NextRequest) {
 			analysisCount,
 			shlokaCount,
 			totalEstimatedSize,
-			totalEstimatedSizeMB: (totalEstimatedSize / (1024 * 1024)).toFixed(2),
+			totalEstimatedSizeMB: (totalEstimatedSize / (1024 * 1024)).toFixed(
+				2
+			),
 		});
 
 		return NextResponse.json({
@@ -153,6 +165,9 @@ export async function GET(request: NextRequest) {
 		});
 	} catch (error) {
 		console.error("Size estimation error:", error);
-		return NextResponse.json({ error: "Failed to estimate download size" }, { status: 500 });
+		return NextResponse.json(
+			{ error: "Failed to estimate download size" },
+			{ status: 500 }
+		);
 	}
 }

@@ -3,6 +3,9 @@ import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
 
+// Increase timeout for large downloads
+export const maxDuration = 300; // 5 minutes
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
@@ -14,7 +17,8 @@ export async function GET(request: NextRequest) {
 		const chapter = searchParams.get("chapter");
 		const slokano = searchParams.get("slokano");
 		const format = searchParams.get("format") || "json";
-		const analysisFields = searchParams.get("analysisFields")?.split(",") || [];
+		const analysisFields =
+			searchParams.get("analysisFields")?.split(",") || [];
 		const shlokaFields = searchParams.get("shlokaFields")?.split(",") || [];
 		const dataType = searchParams.get("dataType") || "analysis";
 
@@ -43,7 +47,10 @@ export async function GET(request: NextRequest) {
 
 		// Validate required parameters
 		if (!book) {
-			return NextResponse.json({ error: "Missing required parameter: book" }, { status: 400 });
+			return NextResponse.json(
+				{ error: "Missing required parameter: book" },
+				{ status: 400 }
+			);
 		}
 
 		// For "all" book selection, no other parameters are required
@@ -51,19 +58,28 @@ export async function GET(request: NextRequest) {
 		if (book !== "all") {
 			// part1 can be "all", empty string, or specific value
 			if (part1 === null || part1 === undefined) {
-				return NextResponse.json({ error: "Missing required parameter: part1" }, { status: 400 });
+				return NextResponse.json(
+					{ error: "Missing required parameter: part1" },
+					{ status: 400 }
+				);
 			}
 
 			// If part1 is not "all", check part2
 			if (part1 !== "all" && part1 !== "") {
 				if (part2 === null || part2 === undefined) {
-					return NextResponse.json({ error: "Missing required parameter: part2" }, { status: 400 });
+					return NextResponse.json(
+						{ error: "Missing required parameter: part2" },
+						{ status: 400 }
+					);
 				}
 
 				// If part2 is not "all", check chapter
 				if (part2 !== "all" && part2 !== "") {
 					if (chapter === null || chapter === undefined) {
-						return NextResponse.json({ error: "Missing required parameter: chapter" }, { status: 400 });
+						return NextResponse.json(
+							{ error: "Missing required parameter: chapter" },
+							{ status: 400 }
+						);
 					}
 				}
 			}
@@ -76,7 +92,10 @@ export async function GET(request: NextRequest) {
 		// Fetch analysis data if requested
 		if (dataType === "analysis" || dataType === "both") {
 			if (analysisFields.length === 0) {
-				return NextResponse.json({ error: "No analysis fields selected" }, { status: 400 });
+				return NextResponse.json(
+					{ error: "No analysis fields selected" },
+					{ status: 400 }
+				);
 			}
 
 			let analysisQuery: any = {};
@@ -120,14 +139,22 @@ export async function GET(request: NextRequest) {
 				analysisQuery.anvaya_no = { $exists: true };
 			}
 
-			console.log("Final Analysis query:", JSON.stringify(analysisQuery, null, 2));
+			console.log(
+				"Final Analysis query:",
+				JSON.stringify(analysisQuery, null, 2)
+			);
 			console.log("Query keys count:", Object.keys(analysisQuery).length);
 
 			// First check total count without field selection
 			const totalCount = await Analysis.countDocuments(analysisQuery);
-			console.log("Total documents matching query (before field selection):", totalCount);
+			console.log(
+				"Total documents matching query (before field selection):",
+				totalCount
+			);
 
-			const analysisData = await Analysis.find(analysisQuery).select(analysisFields.join(" "));
+			const analysisData = await Analysis.find(analysisQuery).select(
+				analysisFields.join(" ")
+			);
 			console.log("Analysis results count:", analysisData.length);
 			result.analysis = analysisData;
 		}
@@ -135,7 +162,10 @@ export async function GET(request: NextRequest) {
 		// Fetch shloka data if requested
 		if (dataType === "shloka" || dataType === "both") {
 			if (shlokaFields.length === 0) {
-				return NextResponse.json({ error: "No shloka fields selected" }, { status: 400 });
+				return NextResponse.json(
+					{ error: "No shloka fields selected" },
+					{ status: 400 }
+				);
 			}
 
 			let shlokaQuery: any = {};
@@ -179,25 +209,54 @@ export async function GET(request: NextRequest) {
 				shlokaQuery.slokano = { $exists: true };
 			}
 
-			console.log("Final Shloka query:", JSON.stringify(shlokaQuery, null, 2));
-			console.log("Shloka Query keys count:", Object.keys(shlokaQuery).length);
+			console.log(
+				"Final Shloka query:",
+				JSON.stringify(shlokaQuery, null, 2)
+			);
+			console.log(
+				"Shloka Query keys count:",
+				Object.keys(shlokaQuery).length
+			);
 
 			// First check total count without field selection
 			const totalShlokaCount = await Shloka.countDocuments(shlokaQuery);
-			console.log("Total shloka documents matching query (before field selection):", totalShlokaCount);
+			console.log(
+				"Total shloka documents matching query (before field selection):",
+				totalShlokaCount
+			);
 
-			const shlokaData = await Shloka.find(shlokaQuery).select(shlokaFields.join(" "));
+			const shlokaData = await Shloka.find(shlokaQuery).select(
+				shlokaFields.join(" ")
+			);
 			console.log("Shloka results count:", shlokaData.length);
 			result.shloka = shlokaData;
 		}
 
 		// Set response headers based on format
-		const safeBook = book === "all" ? "all_books" : (book || "").replace(/[^\x00-\x7F]/g, "_");
-		const safePart1 = part1 === "all" ? "all_parts" : part1 === "null" ? "null" : (part1 || "").replace(/[^\x00-\x7F]/g, "_");
-		const safePart2 = part2 === "all" ? "all_parts" : part2 === "null" ? "null" : (part2 || "").replace(/[^\x00-\x7F]/g, "_");
-		const safeChapter = chapter === "all" ? "all_chapters" : (chapter || "").replace(/[^\x00-\x7F]/g, "_");
+		const safeBook =
+			book === "all"
+				? "all_books"
+				: (book || "").replace(/[^\x00-\x7F]/g, "_");
+		const safePart1 =
+			part1 === "all"
+				? "all_parts"
+				: part1 === "null"
+				? "null"
+				: (part1 || "").replace(/[^\x00-\x7F]/g, "_");
+		const safePart2 =
+			part2 === "all"
+				? "all_parts"
+				: part2 === "null"
+				? "null"
+				: (part2 || "").replace(/[^\x00-\x7F]/g, "_");
+		const safeChapter =
+			chapter === "all"
+				? "all_chapters"
+				: (chapter || "").replace(/[^\x00-\x7F]/g, "_");
 
-		const filename = `data_${safeBook}_${safePart1}_${safePart2}_${safeChapter}${slokano ? `_${slokano}` : ""}.${format}`;
+		const filename = `data_${safeBook}_${safePart1}_${safePart2}_${safeChapter}${
+			slokano ? `_${slokano}` : ""
+		}.${format}`;
 
 		if (format === "csv") {
 			// Convert to CSV - handle different data structures
@@ -212,8 +271,14 @@ export async function GET(request: NextRequest) {
 
 			if (dataType === "both") {
 				// For "both" data type, create separate CSV sections
-				const analysisCSV = result.analysis && result.analysis.length > 0 ? convertToCSV(result.analysis) : "";
-				const shlokaCSV = result.shloka && result.shloka.length > 0 ? convertToCSV(result.shloka) : "";
+				const analysisCSV =
+					result.analysis && result.analysis.length > 0
+						? convertToCSV(result.analysis)
+						: "";
+				const shlokaCSV =
+					result.shloka && result.shloka.length > 0
+						? convertToCSV(result.shloka)
+						: "";
 
 				console.log("CSV conversion results:", {
 					analysisCSV: analysisCSV.length,
@@ -267,7 +332,10 @@ export async function GET(request: NextRequest) {
 		}
 	} catch (error) {
 		console.error("Download error:", error);
-		return NextResponse.json({ error: "Failed to generate download" }, { status: 500 });
+		return NextResponse.json(
+			{ error: "Failed to generate download" },
+			{ status: 500 }
+		);
 	}
 }
 
@@ -281,7 +349,10 @@ function convertToCSV(data: any[]): string {
 	const headers = Object.keys(data[0]);
 
 	// Debug: Log the first few records to see data structure
-	console.log("CSV conversion - First record sample:", JSON.stringify(data[0], null, 2));
+	console.log(
+		"CSV conversion - First record sample:",
+		JSON.stringify(data[0], null, 2)
+	);
 	console.log(
 		"CSV conversion - Data types:",
 		headers.map((header) => `${header}: ${typeof data[0][header]}`)
@@ -324,7 +395,11 @@ function convertToCSV(data: any[]): string {
 				}
 
 				// Handle values that might contain commas or quotes
-				if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+				if (
+					stringValue.includes(",") ||
+					stringValue.includes('"') ||
+					stringValue.includes("\n")
+				) {
 					return `"${stringValue.replace(/"/g, '""')}"`;
 				}
 				return `"${stringValue}"`;

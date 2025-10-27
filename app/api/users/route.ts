@@ -9,9 +9,10 @@ export async function GET(request: Request) {
 		const page = parseInt(searchParams.get("page") || "1", 10);
 		const limit = parseInt(searchParams.get("limit") || "10", 10);
 		const ids = searchParams.get("ids");
+		const search = searchParams.get("search") || "";
 		const skip = (page - 1) * limit;
 
-		let query = {};
+		let query: any = {};
 		let total;
 
 		// If specific IDs are requested, fetch only those users
@@ -29,9 +30,22 @@ export async function GET(request: Request) {
 			return NextResponse.json({ users: mappedUsers, total });
 		}
 
-		// Otherwise, fetch paginated users
-		total = await Perms.countDocuments();
-		const users = await Perms.find({}, "userID name perms").skip(skip).limit(limit);
+		// Add search functionality
+		if (search) {
+			query = {
+				$or: [
+					{ name: { $regex: search, $options: "i" } },
+					{ userID: { $regex: search, $options: "i" } },
+				],
+			};
+		}
+
+		// Fetch paginated users with optional search
+		total = await Perms.countDocuments(query);
+		const users = await Perms.find(query, "userID name perms")
+			.skip(skip)
+			.limit(limit)
+			.sort({ name: 1 });
 
 		const mappedUsers = users.map((user) => ({
 			...user.toObject(),
@@ -41,6 +55,9 @@ export async function GET(request: Request) {
 		return NextResponse.json({ users: mappedUsers, total });
 	} catch (error) {
 		console.error("Error fetching users:", error);
-		return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+		return NextResponse.json(
+			{ error: "Failed to fetch users" },
+			{ status: 500 }
+		);
 	}
 }

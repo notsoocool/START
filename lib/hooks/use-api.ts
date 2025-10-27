@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+	useQuery,
+	useMutation,
+	useQueryClient,
+	keepPreviousData,
+} from "@tanstack/react-query";
 
 // Types
 interface User {
@@ -65,7 +70,9 @@ const fetchCurrentUser = async (): Promise<User> => {
 	return response.json();
 };
 
-const fetchNotifications = async (page: number = 1): Promise<{ notifications: Notification[]; pagination: any }> => {
+const fetchNotifications = async (
+	page: number = 1
+): Promise<{ notifications: Notification[]; pagination: any }> => {
 	const response = await fetch(`/api/notifications/get?page=${page}`);
 	if (!response.ok) {
 		throw new Error("Failed to fetch notifications");
@@ -73,7 +80,9 @@ const fetchNotifications = async (page: number = 1): Promise<{ notifications: No
 	return response.json();
 };
 
-const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+const markNotificationAsRead = async (
+	notificationId: string
+): Promise<void> => {
 	const response = await fetch("/api/notifications/markRead", {
 		method: "POST",
 		headers: {
@@ -117,13 +126,21 @@ export function useMarkNotificationAsRead() {
 		mutationFn: markNotificationAsRead,
 		onSuccess: (_, notificationId) => {
 			// Update all notification queries in the cache
-			queryClient.setQueriesData({ queryKey: ["notifications"] }, (old: any) => {
-				if (!old) return old;
-				return {
-					...old,
-					notifications: old.notifications.map((n: Notification) => (n._id === notificationId ? { ...n, isRead: true } : n)),
-				};
-			});
+			queryClient.setQueriesData(
+				{ queryKey: ["notifications"] },
+				(old: any) => {
+					if (!old) return old;
+					return {
+						...old,
+						notifications: old.notifications.map(
+							(n: Notification) =>
+								n._id === notificationId
+									? { ...n, isRead: true }
+									: n
+						),
+					};
+				}
+			);
 		},
 	});
 }
@@ -157,7 +174,13 @@ export function useToggleBookmark() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async ({ shlokaId, analysisId }: { shlokaId: string; analysisId: string }) => {
+		mutationFn: async ({
+			shlokaId,
+			analysisId,
+		}: {
+			shlokaId: string;
+			analysisId: string;
+		}) => {
 			const response = await fetch("/api/bookmarks", {
 				method: "POST",
 				headers: {
@@ -175,11 +198,18 @@ export function useToggleBookmark() {
 	});
 }
 
-export function useShlokas(book: string, part1: string, part2: string, chaptno: string) {
+export function useShlokas(
+	book: string,
+	part1: string,
+	part2: string,
+	chaptno: string
+) {
 	return useQuery({
 		queryKey: ["shlokas", book, part1, part2, chaptno],
 		queryFn: async () => {
-			const response = await fetch(`/api/books/${book}/${part1}/${part2}/${chaptno}`);
+			const response = await fetch(
+				`/api/books/${book}/${part1}/${part2}/${chaptno}`
+			);
 			if (!response.ok) throw new Error("Failed to fetch shlokas");
 			return response.json();
 		},
@@ -189,12 +219,21 @@ export function useShlokas(book: string, part1: string, part2: string, chaptno: 
 }
 
 // 1. Analysis for a shloka
-export function useShlokaAnalysis(book: string, part1: string, part2: string, chaptno: string, slokano: string) {
+export function useShlokaAnalysis(
+	book: string,
+	part1: string,
+	part2: string,
+	chaptno: string,
+	slokano: string
+) {
 	return useQuery({
 		queryKey: ["shlokaAnalysis", book, part1, part2, chaptno, slokano],
 		queryFn: async () => {
-			const response = await fetch(`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${slokano}`);
-			if (!response.ok) throw new Error("Failed to fetch shloka analysis");
+			const response = await fetch(
+				`/api/analysis/${book}/${part1}/${part2}/${chaptno}/${slokano}`
+			);
+			if (!response.ok)
+				throw new Error("Failed to fetch shloka analysis");
 			return response.json();
 		},
 		enabled: !!(book && part1 && part2 && chaptno && slokano),
@@ -219,7 +258,9 @@ export function useDiscussions(shlokaId: string) {
 	return useQuery({
 		queryKey: ["discussions", shlokaId],
 		queryFn: async () => {
-			const response = await fetch(`/api/discussions?shlokaId=${shlokaId}`);
+			const response = await fetch(
+				`/api/discussions?shlokaId=${shlokaId}`
+			);
 			if (!response.ok) throw new Error("Failed to fetch discussions");
 			return response.json();
 		},
@@ -244,17 +285,28 @@ export function useAddDiscussion() {
 			return response.json();
 		},
 		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["discussions", variables.shlokaId] });
+			queryClient.invalidateQueries({
+				queryKey: ["discussions", variables.shlokaId],
+			});
 		},
 	});
 }
 
 // 4. User list/permissions
-export function useUsers(page: number = 1, limit: number = 10) {
+export function useUsers(
+	page: number = 1,
+	limit: number = 10,
+	search: string = ""
+) {
 	return useQuery({
-		queryKey: ["users", page, limit],
+		queryKey: ["users", page, limit, search],
 		queryFn: async () => {
-			const response = await fetch(`/api/users?page=${page}&limit=${limit}`);
+			const params = new URLSearchParams({
+				page: page.toString(),
+				limit: limit.toString(),
+			});
+			if (search) params.append("search", search);
+			const response = await fetch(`/api/users?${params.toString()}`);
 			if (!response.ok) throw new Error("Failed to fetch users");
 			return response.json();
 		},
@@ -268,7 +320,9 @@ export function useHistory(page: number = 1, limit: number = 20) {
 	return useQuery({
 		queryKey: ["history", page, limit],
 		queryFn: async () => {
-			const response = await fetch(`/api/history?page=${page}&limit=${limit}`);
+			const response = await fetch(
+				`/api/history?page=${page}&limit=${limit}`
+			);
 			if (!response.ok) throw new Error("Failed to fetch history");
 			return response.json();
 		},
@@ -322,17 +376,30 @@ export function useGroups() {
 export function usePublishShloka() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: async ({ shlokaId, field, value, groupId }: { shlokaId: string; field: string; value: boolean; groupId: string }) => {
+		mutationFn: async ({
+			shlokaId,
+			field,
+			value,
+			groupId,
+		}: {
+			shlokaId: string;
+			field: string;
+			value: boolean;
+			groupId: string;
+		}) => {
 			const response = await fetch("/api/shlokas/publish", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ shlokaId, field, value, groupId }),
 			});
-			if (!response.ok) throw new Error("Failed to update publish status");
+			if (!response.ok)
+				throw new Error("Failed to update publish status");
 			return response.json();
 		},
 		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: ["groupShlokas", variables.groupId] });
+			queryClient.invalidateQueries({
+				queryKey: ["groupShlokas", variables.groupId],
+			});
 		},
 	});
 }

@@ -4,8 +4,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter for navigation
 import { motion, AnimatePresence } from "framer-motion";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUsers } from "@/lib/hooks/use-api";
@@ -41,7 +54,12 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 
 	const [currentPage, setCurrentPage] = useState(1);
 	const [usersPerPage, setUsersPerPage] = useState(10);
-	const { data, isLoading, error, refetch } = useUsers(currentPage, usersPerPage) as {
+	const [searchTerm, setSearchTerm] = useState("");
+	const { data, isLoading, error, refetch } = useUsers(
+		currentPage,
+		usersPerPage,
+		searchTerm
+	) as {
 		data: UsersApiResponse;
 		isLoading: boolean;
 		error: any;
@@ -49,7 +67,6 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	};
 	const users = data?.users || [];
 	const total = data?.total || 0;
-	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 	const [currentUser, setCurrentUser] = useState<{
 		id: string;
 		firstName: string;
@@ -57,19 +74,15 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 		perms: User["perms"];
 	} | null>(null);
 	const [groups, setGroups] = useState<Group[]>([]);
-	const [userGroups, setUserGroups] = useState<{ [userId: string]: Group[] }>({});
+	const [userGroups, setUserGroups] = useState<{ [userId: string]: Group[] }>(
+		{}
+	);
 	const router = useRouter();
-	const [searchTerm, setSearchTerm] = useState("");
-	const [searchValue, setSearchValue] = useState("");
 
-	// Update filteredUsers when users or search changes
+	// Reset to page 1 when search term changes
 	useEffect(() => {
-		if (searchTerm) {
-			setFilteredUsers(users.filter((user: User) => user.name?.toLowerCase().includes(searchTerm.toLowerCase())));
-		} else {
-			setFilteredUsers(users);
-		}
-	}, [users, searchTerm]);
+		setCurrentPage(1);
+	}, [searchTerm]);
 
 	useEffect(() => {
 		const fetchCurrentUser = async () => {
@@ -96,7 +109,9 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 				// Map users to their groups
 				const userGroupMap: { [userId: string]: Group[] } = {};
 				users.forEach((user: User) => {
-					const userGroups = groupsData.filter((group: Group) => group.members.includes(user.userID));
+					const userGroups = groupsData.filter((group: Group) =>
+						group.members.includes(user.userID)
+					);
 					userGroupMap[user.userID] = userGroups;
 				});
 				setUserGroups(userGroupMap);
@@ -110,20 +125,20 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 		}
 	}, [users]);
 
-	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.value;
-		setSearchValue(value);
-		setSearchTerm(value);
-	};
-
-	const handlePermissionChange = async (userId: string, newPermission: User["perms"]) => {
+	const handlePermissionChange = async (
+		userId: string,
+		newPermission: User["perms"]
+	) => {
 		// Check if user belongs to any group
 		const userGroupsList = userGroups[userId] || [];
 
 		if (userGroupsList.length > 0) {
 			// User is in a group, permission change is blocked
 			// Navigate to group admin tab and highlight the group
-			window.sessionStorage.setItem("highlightGroup", userGroupsList[0]._id);
+			window.sessionStorage.setItem(
+				"highlightGroup",
+				userGroupsList[0]._id
+			);
 			changeTab("group");
 			toast.success("Navigated to Group Administration");
 			return;
@@ -153,21 +168,39 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	const Pagination = () => (
 		<div className="flex items-center justify-between px-4 py-3 sm:px-6">
 			<div className="flex flex-1 justify-between sm:hidden">
-				<Button onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} variant="outline">
+				<Button
+					onClick={() =>
+						setCurrentPage((prev) => Math.max(1, prev - 1))
+					}
+					disabled={currentPage === 1}
+					variant="outline"
+				>
 					Previous
 				</Button>
-				<Button onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} variant="outline">
+				<Button
+					onClick={() =>
+						setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+					}
+					disabled={currentPage === totalPages}
+					variant="outline"
+				>
 					Next
 				</Button>
 			</div>
 			<div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
 				<div>
 					<p className="text-sm text-gray-700">
-						Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
+						Page <span className="font-medium">{currentPage}</span>{" "}
+						of <span className="font-medium">{totalPages}</span>
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Select value={usersPerPage.toString()} onValueChange={(value) => setUsersPerPage(parseInt(value))}>
+					<Select
+						value={usersPerPage.toString()}
+						onValueChange={(value) =>
+							setUsersPerPage(parseInt(value))
+						}
+					>
 						<SelectTrigger className="w-[100px]">
 							<SelectValue placeholder="Per page" />
 						</SelectTrigger>
@@ -179,16 +212,38 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 						</SelectContent>
 					</Select>
 					<div className="flex gap-2">
-						<Button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} variant="outline">
+						<Button
+							onClick={() => setCurrentPage(1)}
+							disabled={currentPage === 1}
+							variant="outline"
+						>
 							First
 						</Button>
-						<Button onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} variant="outline">
+						<Button
+							onClick={() =>
+								setCurrentPage((prev) => Math.max(1, prev - 1))
+							}
+							disabled={currentPage === 1}
+							variant="outline"
+						>
 							Previous
 						</Button>
-						<Button onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} variant="outline">
+						<Button
+							onClick={() =>
+								setCurrentPage((prev) =>
+									Math.min(totalPages, prev + 1)
+								)
+							}
+							disabled={currentPage === totalPages}
+							variant="outline"
+						>
 							Next
 						</Button>
-						<Button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} variant="outline">
+						<Button
+							onClick={() => setCurrentPage(totalPages)}
+							disabled={currentPage === totalPages}
+							variant="outline"
+						>
 							Last
 						</Button>
 					</div>
@@ -211,7 +266,13 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	return (
 		<div className="container mx-auto py-10">
 			<div className="flex justify-between items-center mb-4">
-				<Input type="search" placeholder="Search users..." value={searchValue} onChange={handleSearchChange} className="max-w-sm" />
+				<Input
+					type="search"
+					placeholder="Search users..."
+					value={searchTerm}
+					onChange={(e) => setSearchTerm(e.target.value)}
+					className="max-w-sm"
+				/>
 				<Button onClick={() => refetch()} variant="outline" size="sm">
 					<Loader2 className="h-4 w-4 mr-2" />
 					Refresh
@@ -228,15 +289,21 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 				</TableHeader>
 				<TableBody>
 					<AnimatePresence mode="wait">
-						{filteredUsers.length === 0 ? (
+						{users.length === 0 ? (
 							<TableRow>
-								<TableCell colSpan={4} className="text-center py-4">
-									No users found
+								<TableCell
+									colSpan={4}
+									className="text-center py-4"
+								>
+									{searchTerm
+										? "No users found matching your search"
+										: "No users found"}
 								</TableCell>
 							</TableRow>
 						) : (
-							filteredUsers.map((user: User, index: number) => {
-								const userGroupsList = userGroups[user.userID] || [];
+							users.map((user: User, index: number) => {
+								const userGroupsList =
+									userGroups[user.userID] || [];
 								const isInGroup = userGroupsList.length > 0;
 
 								return (
@@ -251,58 +318,113 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 										}}
 									>
 										<TableCell>{user.name}</TableCell>
-										<TableCell>{user.perms === "Root" ? "Root" : user.perms}</TableCell>
+										<TableCell>
+											{user.perms === "Root"
+												? "Root"
+												: user.perms}
+										</TableCell>
 										<TableCell>
 											{isInGroup ? (
 												<div className="space-y-2">
 													<div
 														className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
 														onClick={() => {
-															console.log("Group status clicked, group ID:", userGroupsList[0]._id);
-															window.sessionStorage.setItem("highlightGroup", userGroupsList[0]._id);
-															console.log("changeTab function:", changeTab);
+															console.log(
+																"Group status clicked, group ID:",
+																userGroupsList[0]
+																	._id
+															);
+															window.sessionStorage.setItem(
+																"highlightGroup",
+																userGroupsList[0]
+																	._id
+															);
+															console.log(
+																"changeTab function:",
+																changeTab
+															);
 															changeTab("group");
-															console.log("changeTab called with 'group'");
+															console.log(
+																"changeTab called with 'group'"
+															);
 														}}
 														title="Click to go to Group Administration"
 													>
 														<Users className="h-4 w-4 text-blue-500" />
-														<span className="text-sm text-blue-600 hover:text-blue-700">In {userGroupsList.length} group(s)</span>
-														<span className="text-xs text-muted-foreground ml-1">(Click to manage)</span>
+														<span className="text-sm text-blue-600 hover:text-blue-700">
+															In{" "}
+															{
+																userGroupsList.length
+															}{" "}
+															group(s)
+														</span>
+														<span className="text-xs text-muted-foreground ml-1">
+															(Click to manage)
+														</span>
 													</div>
 
 													{/* Show specific group names */}
 													<div className="flex flex-wrap gap-1">
-														{userGroupsList.map((group, index) => (
-															<button
-																key={group._id}
-																onClick={() => {
-																	console.log("Group button clicked, group ID:", group._id);
-																	window.sessionStorage.setItem("highlightGroup", group._id);
-																	console.log("changeTab function:", changeTab);
-																	changeTab("group");
-																	console.log("changeTab called with 'group'");
-																}}
-																className="text-xs bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full cursor-pointer transition-colors"
-																title={`Click to manage ${group.name} group`}
-															>
-																{group.name}
-															</button>
-														))}
+														{userGroupsList.map(
+															(group, index) => (
+																<button
+																	key={
+																		group._id
+																	}
+																	onClick={() => {
+																		console.log(
+																			"Group button clicked, group ID:",
+																			group._id
+																		);
+																		window.sessionStorage.setItem(
+																			"highlightGroup",
+																			group._id
+																		);
+																		console.log(
+																			"changeTab function:",
+																			changeTab
+																		);
+																		changeTab(
+																			"group"
+																		);
+																		console.log(
+																			"changeTab called with 'group'"
+																		);
+																	}}
+																	className="text-xs bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full cursor-pointer transition-colors"
+																	title={`Click to manage ${group.name} group`}
+																>
+																	{group.name}
+																</button>
+															)
+														)}
 													</div>
 												</div>
 											) : (
-												<span className="text-sm text-gray-500">No group</span>
+												<span className="text-sm text-gray-500">
+													No group
+												</span>
 											)}
 										</TableCell>
 										<TableCell>
 											<Select
 												value={user.perms}
-												onValueChange={(value) => handlePermissionChange(user.userID, value as User["perms"])}
+												onValueChange={(value) =>
+													handlePermissionChange(
+														user.userID,
+														value as User["perms"]
+													)
+												}
 												disabled={
-													(user.perms === "Admin" && currentUser?.perms !== "Root") ||
-													(user.perms === "Root" && currentUser?.perms === "Root") ||
-													(user.perms === "Root" && currentUser?.perms === "Admin") ||
+													(user.perms === "Admin" &&
+														currentUser?.perms !==
+															"Root") ||
+													(user.perms === "Root" &&
+														currentUser?.perms ===
+															"Root") ||
+													(user.perms === "Root" &&
+														currentUser?.perms ===
+															"Admin") ||
 													isInGroup // Disable if user is in a group
 												}
 											>
@@ -310,18 +432,38 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 													<SelectValue placeholder="Select permission" />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem value="User">User</SelectItem>
-													<SelectItem value="Annotator">Annotator</SelectItem>
-													<SelectItem value="Editor">Editor</SelectItem>
-													<SelectItem value="Admin" disabled={currentUser?.perms !== "Root"}>
+													<SelectItem value="User">
+														User
+													</SelectItem>
+													<SelectItem value="Annotator">
+														Annotator
+													</SelectItem>
+													<SelectItem value="Editor">
+														Editor
+													</SelectItem>
+													<SelectItem
+														value="Admin"
+														disabled={
+															currentUser?.perms !==
+															"Root"
+														}
+													>
 														Admin
 													</SelectItem>
-													<SelectItem value="Root" disabled className="text-red-500">
+													<SelectItem
+														value="Root"
+														disabled
+														className="text-red-500"
+													>
 														Root
 													</SelectItem>
 												</SelectContent>
 											</Select>
-											{isInGroup && <p className="text-xs text-red-500 mt-1">Remove from group first</p>}
+											{isInGroup && (
+												<p className="text-xs text-red-500 mt-1">
+													Remove from group first
+												</p>
+											)}
 										</TableCell>
 									</motion.tr>
 								);
