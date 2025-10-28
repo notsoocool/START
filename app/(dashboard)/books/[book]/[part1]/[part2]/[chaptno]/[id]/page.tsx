@@ -16,9 +16,12 @@ import {
 	History,
 	Clock,
 	Undo2,
+	Split,
+	Merge,
 } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import {
 	Table,
@@ -154,7 +157,13 @@ export default function AnalysisPage() {
 		"asc" | "desc"
 	>("asc");
 	const [openDialog, setOpenDialog] = useState<
-		null | "addRow" | "deleteRow" | "meaning" | "deleteAnalysis"
+		| null
+		| "addRow"
+		| "deleteRow"
+		| "meaning"
+		| "deleteAnalysis"
+		| "splitSentence"
+		| "joinSentences"
 	>(null);
 	const [newRowData, setNewRowData] = useState({
 		anvaya_no: "",
@@ -186,6 +195,17 @@ export default function AnalysisPage() {
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 	const [addRowLoading, setAddRowLoading] = useState(false);
 	const [isDeletingRow, setIsDeletingRow] = useState(false);
+	// Split/Join sentence state
+	const [selectedRowsForSplit, setSelectedRowsForSplit] = useState<
+		Set<number>
+	>(new Set());
+	const [newSentnoForSplit, setNewSentnoForSplit] = useState("");
+	const [selectedSentnosForJoin, setSelectedSentnosForJoin] = useState<
+		string[]
+	>([]);
+	const [targetSentnoForJoin, setTargetSentnoForJoin] = useState("");
+	const [isSplitting, setIsSplitting] = useState(false);
+	const [isJoining, setIsJoining] = useState(false);
 	// Undo functionality state
 	const UNDO_TIME_LIMIT = 86400000; // 24 hours in milliseconds (can be changed to 15000 for 15 seconds)
 	const UNDO_STORAGE_KEY = `undo_history_${decodedBook}_${decodedPart1}_${decodedPart2}_${decodedChaptno}_${decodedId}`;
@@ -1241,6 +1261,146 @@ export default function AnalysisPage() {
 
 		return () => clearInterval(cleanupInterval);
 	}, [UNDO_TIME_LIMIT, UNDO_STORAGE_KEY]);
+
+	// Split Sentence - Move selected rows to a new sentence number
+	const handleSplitSentence = async () => {
+		if (selectedRowsForSplit.size === 0) {
+			toast.error("Please select at least one row to split");
+			return;
+		}
+		if (!newSentnoForSplit || newSentnoForSplit.trim() === "") {
+			toast.error("Please enter a new sentence number");
+			return;
+		}
+
+		setIsSplitting(true);
+		try {
+			const rowsToUpdate = Array.from(selectedRowsForSplit).map(
+				(idx) => ({
+					_id: updatedData[idx]._id,
+					oldSentno: updatedData[idx].sentno,
+					newSentno: newSentnoForSplit.trim(),
+					...updatedData[idx],
+				})
+			);
+
+			// Update each row's sentno
+			const updatePromises = rowsToUpdate.map((row) =>
+				fetch(
+					`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${row.slokano}`,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+							"DB-Access-Key":
+								process.env.NEXT_PUBLIC_DBI_KEY || "",
+						},
+						body: JSON.stringify({
+							...row,
+							sentno: row.newSentno,
+						}),
+					}
+				)
+			);
+
+			await Promise.all(updatePromises);
+
+			// Refresh data
+			const refreshResponse = await fetch(
+				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
+			);
+			const refreshedData = await refreshResponse.json();
+
+			setChapter(refreshedData);
+			setUpdatedData(refreshedData);
+			setOriginalData(refreshedData);
+
+			toast.success(
+				`Split ${rowsToUpdate.length} rows to sentence ${newSentnoForSplit}`
+			);
+			setOpenDialog(null);
+			setSelectedRowsForSplit(new Set());
+			setNewSentnoForSplit("");
+		} catch (error) {
+			console.error("Split sentence error:", error);
+			toast.error(
+				"Error splitting sentence: " + (error as Error).message
+			);
+		} finally {
+			setIsSplitting(false);
+		}
+	};
+
+	// Join Sentences - Merge two sentences into one
+	const handleJoinSentences = async () => {
+		if (selectedSentnosForJoin.length !== 2) {
+			toast.error("Please select exactly 2 sentences to join");
+			return;
+		}
+		if (!targetSentnoForJoin) {
+			toast.error("Please select target sentence number");
+			return;
+		}
+
+		setIsJoining(true);
+		try {
+			// Get all rows from the sentences to join
+			const rowsToUpdate = updatedData
+				.filter((row) =>
+					selectedSentnosForJoin.includes(String(row.sentno))
+				)
+				.map((row) => ({
+					...row,
+					oldSentno: row.sentno,
+					newSentno: targetSentnoForJoin,
+				}));
+
+			// Update each row's sentno
+			const updatePromises = rowsToUpdate.map((row) =>
+				fetch(
+					`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${row.slokano}`,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+							"DB-Access-Key":
+								process.env.NEXT_PUBLIC_DBI_KEY || "",
+						},
+						body: JSON.stringify({
+							...row,
+							sentno: row.newSentno,
+						}),
+					}
+				)
+			);
+
+			await Promise.all(updatePromises);
+
+			// Refresh data
+			const refreshResponse = await fetch(
+				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
+			);
+			const refreshedData = await refreshResponse.json();
+
+			setChapter(refreshedData);
+			setUpdatedData(refreshedData);
+			setOriginalData(refreshedData);
+
+			toast.success(
+				`Joined sentences ${selectedSentnosForJoin.join(
+					" & "
+				)} into sentence ${targetSentnoForJoin}`
+			);
+			setOpenDialog(null);
+			setSelectedSentnosForJoin([]);
+			setTargetSentnoForJoin("");
+		} catch (error) {
+			console.error("Join sentences error:", error);
+			toast.error("Error joining sentences: " + (error as Error).message);
+		} finally {
+			setIsJoining(false);
+		}
+	};
 
 	// Helper function to determine if a field is editable based on permissions and group membership
 	const isFieldEditable = (field: string) => {
@@ -3111,6 +3271,29 @@ export default function AnalysisPage() {
 						Sort by Prose Index{" "}
 						{sortDirection === "asc" ? "↑" : "↓"}
 					</Button>
+
+					{/* Split and Join Sentence Buttons */}
+					{isFieldEditable("word") && (
+						<>
+							<Button
+								onClick={() => setOpenDialog("splitSentence")}
+								className="justify-center"
+								variant="outline"
+							>
+								<Split className="size-4 mr-2" />
+								Split Sentence
+							</Button>
+							<Button
+								onClick={() => setOpenDialog("joinSentences")}
+								className="justify-center"
+								variant="outline"
+							>
+								<Merge className="size-4 mr-2" />
+								Join Sentences
+							</Button>
+						</>
+					)}
+
 					{changedRows.size > 1 && (
 						<Button
 							onClick={handleSaveAll}
@@ -3242,6 +3425,298 @@ export default function AnalysisPage() {
 				</Dialog>
 
 				{renderDeleteAnalysisDialog()}
+
+				{/* Split Sentence Dialog */}
+				<Dialog
+					open={openDialog === "splitSentence"}
+					onOpenChange={(open) => {
+						if (!open) {
+							setSelectedRowsForSplit(new Set());
+							setNewSentnoForSplit("");
+						}
+						setOpenDialog(open ? "splitSentence" : null);
+					}}
+				>
+					<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+						<DialogHeader>
+							<DialogTitle>Split Sentence</DialogTitle>
+							<DialogDescription>
+								Select rows to move to a new sentence number
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-4">
+							<div className="space-y-2">
+								<label className="text-sm font-medium">
+									New Sentence Number *
+								</label>
+								<Input
+									type="text"
+									value={newSentnoForSplit}
+									onChange={(e) =>
+										setNewSentnoForSplit(e.target.value)
+									}
+									placeholder="e.g., 3"
+								/>
+							</div>
+
+							<div className="border rounded-lg max-h-96 overflow-y-auto">
+								<div className="p-3 bg-muted font-semibold sticky top-0">
+									Select Rows to Split
+								</div>
+								{Object.entries(
+									updatedData.reduce((acc: any, row, idx) => {
+										const sentno = String(row.sentno);
+										if (!acc[sentno]) acc[sentno] = [];
+										acc[sentno].push({ row, idx });
+										return acc;
+									}, {})
+								).map(([sentno, rows]: [string, any]) => (
+									<div key={sentno} className="border-t">
+										<div className="p-2 bg-muted/50 font-medium text-sm">
+											Sentence #{sentno}
+										</div>
+										{rows.map(({ row, idx }: any) => (
+											<div
+												key={idx}
+												className="flex items-center gap-3 p-2 hover:bg-muted/30"
+											>
+												<Checkbox
+													checked={selectedRowsForSplit.has(
+														idx
+													)}
+													onCheckedChange={(
+														checked
+													) => {
+														setSelectedRowsForSplit(
+															(prev) => {
+																const newSet =
+																	new Set(
+																		prev
+																	);
+																if (checked) {
+																	newSet.add(
+																		idx
+																	);
+																} else {
+																	newSet.delete(
+																		idx
+																	);
+																}
+																return newSet;
+															}
+														);
+													}}
+												/>
+												<div className="flex-1 text-sm">
+													<span className="font-medium">
+														{row.anvaya_no}
+													</span>
+													{" - "}
+													<span>{row.word}</span>{" "}
+													<span className="text-muted-foreground">
+														({row.morph_in_context})
+													</span>
+												</div>
+											</div>
+										))}
+									</div>
+								))}
+							</div>
+
+							<div className="text-sm text-muted-foreground">
+								Selected: {selectedRowsForSplit.size} row(s)
+							</div>
+						</div>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setOpenDialog(null)}
+								disabled={isSplitting}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleSplitSentence}
+								disabled={
+									isSplitting ||
+									selectedRowsForSplit.size === 0
+								}
+							>
+								{isSplitting ? (
+									<>
+										<Loader2 className="size-4 animate-spin mr-2" />
+										Splitting...
+									</>
+								) : (
+									<>
+										<Split className="size-4 mr-2" />
+										Split Sentence
+									</>
+								)}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* Join Sentences Dialog */}
+				<Dialog
+					open={openDialog === "joinSentences"}
+					onOpenChange={(open) => {
+						if (!open) {
+							setSelectedSentnosForJoin([]);
+							setTargetSentnoForJoin("");
+						}
+						setOpenDialog(open ? "joinSentences" : null);
+					}}
+				>
+					<DialogContent className="max-w-2xl">
+						<DialogHeader>
+							<DialogTitle>Join Sentences</DialogTitle>
+							<DialogDescription>
+								Select 2 sentences to merge into one
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-4">
+							<div className="border rounded-lg max-h-96 overflow-y-auto">
+								<div className="p-3 bg-muted font-semibold sticky top-0">
+									Select Sentences to Join (select exactly 2)
+								</div>
+								{Object.entries(
+									updatedData.reduce((acc: any, row) => {
+										const sentno = String(row.sentno);
+										if (!acc[sentno]) {
+											acc[sentno] = {
+												count: 0,
+												words: [],
+											};
+										}
+										acc[sentno].count++;
+										if (acc[sentno].words.length < 5) {
+											acc[sentno].words.push(row.word);
+										}
+										return acc;
+									}, {})
+								).map(([sentno, data]: [string, any]) => (
+									<div
+										key={sentno}
+										className="flex items-center gap-3 p-3 hover:bg-muted/30 border-t"
+									>
+										<Checkbox
+											checked={selectedSentnosForJoin.includes(
+												sentno
+											)}
+											onCheckedChange={(checked) => {
+												setSelectedSentnosForJoin(
+													(prev) => {
+														if (checked) {
+															if (
+																prev.length < 2
+															) {
+																return [
+																	...prev,
+																	sentno,
+																];
+															}
+															return prev;
+														} else {
+															return prev.filter(
+																(s) =>
+																	s !== sentno
+															);
+														}
+													}
+												);
+											}}
+											disabled={
+												selectedSentnosForJoin.length >=
+													2 &&
+												!selectedSentnosForJoin.includes(
+													sentno
+												)
+											}
+										/>
+										<div className="flex-1">
+											<div className="font-medium">
+												Sentence #{sentno}
+											</div>
+											<div className="text-sm text-muted-foreground">
+												{data.count} rows:{" "}
+												{data.words.join(" ")}
+												{data.count > 5 && "..."}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+
+							{selectedSentnosForJoin.length === 2 && (
+								<div className="space-y-2">
+									<label className="text-sm font-medium">
+										Target Sentence Number *
+									</label>
+									<Select
+										value={targetSentnoForJoin}
+										onValueChange={setTargetSentnoForJoin}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select target sentence" />
+										</SelectTrigger>
+										<SelectContent>
+											{selectedSentnosForJoin.map(
+												(sentno) => (
+													<SelectItem
+														key={sentno}
+														value={sentno}
+													>
+														Sentence #{sentno}
+													</SelectItem>
+												)
+											)}
+										</SelectContent>
+									</Select>
+									<p className="text-xs text-muted-foreground">
+										All rows will be moved to this sentence
+										number
+									</p>
+								</div>
+							)}
+
+							<div className="text-sm text-muted-foreground">
+								Selected: {selectedSentnosForJoin.length} / 2
+								sentences
+							</div>
+						</div>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setOpenDialog(null)}
+								disabled={isJoining}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleJoinSentences}
+								disabled={
+									isJoining ||
+									selectedSentnosForJoin.length !== 2 ||
+									!targetSentnoForJoin
+								}
+							>
+								{isJoining ? (
+									<>
+										<Loader2 className="size-4 animate-spin mr-2" />
+										Joining...
+									</>
+								) : (
+									<>
+										<Merge className="size-4 mr-2" />
+										Join Sentences
+									</>
+								)}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 
 				<Card className="mt-8" id="discussions">
 					<CardHeader>
