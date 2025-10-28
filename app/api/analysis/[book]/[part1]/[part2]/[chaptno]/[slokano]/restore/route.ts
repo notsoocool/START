@@ -71,9 +71,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
 		const savedRow = await restoredRow.save();
 
-		// Log the restoration
+		// Log the restoration as a create action (since we're recreating the deleted row)
 		await logHistory({
-			action: "restore",
+			action: "create",
 			modelType: "Analysis",
 			details: {
 				book,
@@ -111,4 +111,3 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		);
 	}
 }
-
