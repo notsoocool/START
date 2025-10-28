@@ -13,6 +13,9 @@ import {
 	PlusCircle,
 	ChevronLeft,
 	ChevronRight,
+	History,
+	Clock,
+	Undo2,
 } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
@@ -42,6 +45,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 
 import {
 	Dialog,
@@ -178,6 +186,61 @@ export default function AnalysisPage() {
 	const [selectedWordMeaning, setSelectedWordMeaning] = useState<string>("");
 	const [addRowLoading, setAddRowLoading] = useState(false);
 	const [isDeletingRow, setIsDeletingRow] = useState(false);
+	// Undo functionality state
+	const UNDO_TIME_LIMIT = 86400000; // 24 hours in milliseconds (can be changed to 15000 for 15 seconds)
+	const UNDO_STORAGE_KEY = `undo_history_${decodedBook}_${decodedPart1}_${decodedPart2}_${decodedChaptno}_${decodedId}`;
+
+	const [deletedRowsHistory, setDeletedRowsHistory] = useState<
+		Array<{
+			deletedRow: any;
+			timestamp: number;
+			originalData: any[];
+			affectedRows?: any[];
+			currentAnvayaNo?: string;
+			currentSentno?: string;
+			toastId?: string | number;
+		}>
+	>([]);
+
+	// Load undo history from localStorage on mount
+	useEffect(() => {
+		try {
+			const stored = localStorage.getItem(UNDO_STORAGE_KEY);
+			if (stored) {
+				const parsed = JSON.parse(stored);
+				// Filter out expired entries
+				const now = Date.now();
+				const validEntries = parsed.filter(
+					(entry: any) => now - entry.timestamp < UNDO_TIME_LIMIT
+				);
+				if (validEntries.length > 0) {
+					setDeletedRowsHistory(validEntries);
+				} else {
+					// Clean up if all expired
+					localStorage.removeItem(UNDO_STORAGE_KEY);
+				}
+			}
+		} catch (error) {
+			console.error("Error loading undo history:", error);
+		}
+	}, [UNDO_STORAGE_KEY, UNDO_TIME_LIMIT]);
+
+	// Save undo history to localStorage whenever it changes
+	useEffect(() => {
+		try {
+			if (deletedRowsHistory.length > 0) {
+				// Don't store toastId (it's not valid after refresh anyway)
+				const toStore = deletedRowsHistory.map(
+					({ toastId, ...entry }) => entry
+				);
+				localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(toStore));
+			} else {
+				localStorage.removeItem(UNDO_STORAGE_KEY);
+			}
+		} catch (error) {
+			console.error("Error saving undo history:", error);
+		}
+	}, [deletedRowsHistory, UNDO_STORAGE_KEY]);
 
 	useEffect(() => {
 		if (!decodedId) return;
@@ -827,10 +890,17 @@ export default function AnalysisPage() {
 		try {
 			const currentData = updatedData[pendingDeleteIndex];
 			const currentAnvayaNo = currentData.anvaya_no;
-			const currentSentno = currentData.sentno;
+			// Ensure sentno is always a trimmed string for consistent comparison
+			const currentSentno = String(currentData.sentno).trim();
 			const [currentMain, currentSub] = currentAnvayaNo.split(".");
 			const currentMainNum = parseInt(currentMain);
 			const currentSubNum = parseInt(currentSub);
+
+			// Store original data before deletion for undo
+			const originalDataBeforeDelete = [...updatedData];
+
+			// Store all rows that will be affected by renumbering
+			const affectedRowIds: string[] = [];
 
 			const response = await fetch(
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`,
@@ -841,27 +911,32 @@ export default function AnalysisPage() {
 						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 					},
 					body: JSON.stringify({
-						anvaya_no: currentAnvayaNo,
-						sentno: currentData.sentno,
+						_id: currentData._id, // Send the exact document ID
+						anvaya_no: String(currentAnvayaNo).trim(),
+						sentno: currentSentno,
 					}),
 				}
 			);
 
 			if (response.ok) {
+				const result = await response.json();
+				const deletedRowData = result.deletedRow;
 				// Track changed rows
 				const changedRows: number[] = [];
 				const updateStateData = (prevData: any[]) => {
 					const isOnlyItemInGroup = !prevData.some((item) => {
 						const [itemMain] = item.anvaya_no.split(".");
+						const itemSentno = String(item.sentno).trim();
 						return (
 							parseInt(itemMain) === currentMainNum &&
 							item.anvaya_no !== currentAnvayaNo &&
-							item.sentno === currentSentno
+							itemSentno === currentSentno
 						);
 					});
 					const anvayaMapping: { [key: string]: string } = {};
 					prevData.forEach((item) => {
-						if (item.sentno !== currentSentno) return;
+						const itemSentno = String(item.sentno).trim();
+						if (itemSentno !== currentSentno) return;
 						const [itemMain, itemSub] = item.anvaya_no.split(".");
 						const itemMainNum = parseInt(itemMain);
 						const itemSubNum = parseInt(itemSub);
@@ -904,11 +979,13 @@ export default function AnalysisPage() {
 							.join("#");
 					};
 					return prevData.map((item, index) => {
-						if (item.sentno !== currentSentno) return item;
+						const itemSentno = String(item.sentno).trim();
+						if (itemSentno !== currentSentno) return item;
 						const [itemMain, itemSub] = item.anvaya_no.split(".");
 						const itemMainNum = parseInt(itemMain);
 						const itemSubNum = parseInt(itemSub);
-						if (item.anvaya_no === currentAnvayaNo) {
+						// Compare by _id to ensure we only delete the EXACT row
+						if (item._id === currentData._id) {
 							changedRows.push(index);
 							return {
 								...item,
@@ -968,9 +1045,39 @@ export default function AnalysisPage() {
 					if (newData[idx].deleted) continue;
 					await handleSave(idx, newData[idx]);
 				}
-				toast.success(
-					"Row deleted and relations updated successfully!"
-				);
+
+				// Collect all affected rows for complete undo
+				const affectedRows = changedRows.map((idx) => ({
+					index: idx,
+					original: originalDataBeforeDelete[idx],
+					updated: newData[idx],
+				}));
+
+				// Add to undo history with complete state
+				const undoEntry = {
+					deletedRow: deletedRowData,
+					timestamp: Date.now(),
+					originalData: originalDataBeforeDelete,
+					affectedRows: affectedRows, // Store what changed
+					currentAnvayaNo,
+					currentSentno,
+				};
+
+				// Show success toast with undo button (5 seconds display)
+				const toastId = toast.success("Row deleted successfully!", {
+					duration: 5000, // Toast disappears after 5 seconds
+					action: {
+						label: "Undo",
+						onClick: () => handleUndoDelete(undoEntry),
+					},
+				});
+
+				// Store with toast ID for later dismissal
+				setDeletedRowsHistory((prev) => [
+					...prev,
+					{ ...undoEntry, toastId },
+				]);
+
 				setOpenDialog(null);
 				setPendingDeleteIndex(null);
 			}
@@ -983,6 +1090,157 @@ export default function AnalysisPage() {
 			setIsDeletingRow(false);
 		}
 	};
+
+	// Undo delete functionality - restores deleted row AND all affected rows
+	const handleUndoDelete = async (undoEntry: {
+		deletedRow: any;
+		timestamp: number;
+		originalData: any[];
+		affectedRows?: any[];
+		currentAnvayaNo?: string;
+		currentSentno?: string;
+		toastId?: string | number;
+	}) => {
+		try {
+			// Check if undo time limit has expired
+			const timeElapsed = Date.now() - undoEntry.timestamp;
+			if (timeElapsed > UNDO_TIME_LIMIT) {
+				toast.error("Undo time limit expired");
+				return;
+			}
+
+			// Show loading toast
+			const loadingToast = toast.loading("Restoring all changes...");
+
+			// Step 1: Restore the deleted row
+			const restoreResponse = await fetch(
+				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${undoEntry.deletedRow.slokano}/restore`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+					},
+					body: JSON.stringify({
+						deletedRow: undoEntry.deletedRow,
+					}),
+				}
+			);
+
+			if (!restoreResponse.ok) {
+				const error = await restoreResponse.json();
+				toast.dismiss(loadingToast);
+				toast.error("Failed to restore row: " + error.message);
+				return;
+			}
+
+			// Step 2: Restore all affected rows to their original state
+			if (undoEntry.affectedRows && undoEntry.affectedRows.length > 0) {
+				const updatePromises = undoEntry.affectedRows.map(
+					async (affected) => {
+						if (!affected.original || affected.original.deleted)
+							return;
+
+						// Restore original anvaya_no, kaaraka_sambandha, and possible_relations
+						return fetch(
+							`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${affected.original.slokano}`,
+							{
+								method: "PUT",
+								headers: {
+									"Content-Type": "application/json",
+									"DB-Access-Key":
+										process.env.NEXT_PUBLIC_DBI_KEY || "",
+								},
+								body: JSON.stringify({
+									_id: affected.original._id,
+									anvaya_no: affected.original.anvaya_no,
+									kaaraka_sambandha:
+										affected.original.kaaraka_sambandha,
+									possible_relations:
+										affected.original.possible_relations,
+									word: affected.original.word,
+									poem: affected.original.poem,
+									sandhied_word:
+										affected.original.sandhied_word,
+									morph_analysis:
+										affected.original.morph_analysis,
+									morph_in_context:
+										affected.original.morph_in_context,
+									hindi_meaning:
+										affected.original.hindi_meaning,
+									english_meaning:
+										affected.original.english_meaning,
+									samAsa: affected.original.samAsa,
+									prayoga: affected.original.prayoga,
+									sarvanAma: affected.original.sarvanAma,
+									name_classification:
+										affected.original.name_classification,
+									bgcolor: affected.original.bgcolor,
+									sentno: affected.original.sentno,
+									chaptno: affected.original.chaptno,
+									slokano: affected.original.slokano,
+									book: affected.original.book,
+									part1: affected.original.part1,
+									part2: affected.original.part2,
+								}),
+							}
+						);
+					}
+				);
+
+				await Promise.all(updatePromises);
+			}
+
+			toast.dismiss(loadingToast);
+
+			// Step 3: Refresh data to get the complete restored state
+			const refreshResponse = await fetch(
+				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
+			);
+			const refreshedData = await refreshResponse.json();
+
+			// Update all relevant state with fresh data
+			setChapter(refreshedData);
+			setUpdatedData(refreshedData);
+			setOriginalData(refreshedData);
+
+			// Remove from undo history
+			setDeletedRowsHistory((prev) =>
+				prev.filter((entry) => entry.timestamp !== undoEntry.timestamp)
+			);
+
+			// Dismiss the original delete toast if it has a toastId
+			if (undoEntry.toastId) {
+				toast.dismiss(undoEntry.toastId);
+			}
+
+			toast.success("All changes restored successfully!");
+		} catch (error) {
+			console.error("Undo error:", error);
+			toast.error("Error restoring: " + (error as Error).message);
+		}
+	};
+
+	// Cleanup expired undo history (both in state and localStorage)
+	useEffect(() => {
+		const cleanupInterval = setInterval(() => {
+			const now = Date.now();
+			setDeletedRowsHistory((prev) => {
+				const validEntries = prev.filter(
+					(entry) => now - entry.timestamp < UNDO_TIME_LIMIT
+				);
+
+				// Also update localStorage
+				if (validEntries.length === 0) {
+					localStorage.removeItem(UNDO_STORAGE_KEY);
+				}
+
+				return validEntries;
+			});
+		}, 60000); // Check every minute
+
+		return () => clearInterval(cleanupInterval);
+	}, [UNDO_TIME_LIMIT, UNDO_STORAGE_KEY]);
 
 	// Helper function to determine if a field is editable based on permissions and group membership
 	const isFieldEditable = (field: string) => {
@@ -2694,6 +2952,142 @@ export default function AnalysisPage() {
 
 				<div className="flex justify-end w-full gap-2">
 					{renderAddRowButton()}
+
+					{/* Undo History Button */}
+					{deletedRowsHistory.length > 0 && (
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="outline" className="relative">
+									<History className="size-4 mr-2" />
+									Undo History
+									<span className="ml-2 bg-primary text-primary-foreground rounded-full size-5 text-xs flex items-center justify-center">
+										{deletedRowsHistory.length}
+									</span>
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-96">
+								<div className="space-y-2">
+									<h4 className="font-semibold text-sm flex items-center gap-2">
+										<Clock className="size-4" />
+										Recent Deletions (24h window)
+									</h4>
+									<div className="max-h-96 overflow-y-auto space-y-2">
+										{deletedRowsHistory.map(
+											(entry, idx) => {
+												const timeAgo = Math.floor(
+													(Date.now() -
+														entry.timestamp) /
+														1000
+												);
+												const timeRemaining =
+													Math.floor(
+														(UNDO_TIME_LIMIT -
+															(Date.now() -
+																entry.timestamp)) /
+															1000
+													);
+
+												return (
+													<div
+														key={entry.timestamp}
+														className="p-3 border rounded-md bg-muted/50 space-y-2"
+													>
+														<div className="flex justify-between items-start">
+															<div className="text-sm space-y-1">
+																<div className="font-medium">
+																	Row{" "}
+																	{
+																		entry
+																			.deletedRow
+																			?.anvaya_no
+																	}{" "}
+																	- "
+																	{
+																		entry
+																			.deletedRow
+																			?.word
+																	}
+																	"
+																</div>
+																<div className="text-xs text-muted-foreground">
+																	Sentence #
+																	{
+																		entry
+																			.deletedRow
+																			?.sentno
+																	}
+																</div>
+																<div className="text-xs text-muted-foreground">
+																	{timeAgo <
+																	60
+																		? `${timeAgo}s ago`
+																		: timeAgo <
+																		  3600
+																		? `${Math.floor(
+																				timeAgo /
+																					60
+																		  )}m ago`
+																		: `${Math.floor(
+																				timeAgo /
+																					3600
+																		  )}h ago`}
+																	{entry.affectedRows &&
+																		entry
+																			.affectedRows
+																			.length >
+																			0 && (
+																			<span className="ml-2">
+																				(+
+																				{
+																					entry
+																						.affectedRows
+																						.length
+																				}{" "}
+																				rows
+																				affected)
+																			</span>
+																		)}
+																</div>
+															</div>
+															<Button
+																size="sm"
+																variant="default"
+																onClick={() =>
+																	handleUndoDelete(
+																		entry
+																	)
+																}
+																className="shrink-0"
+															>
+																<Undo2 className="size-3 mr-1" />
+																Undo
+															</Button>
+														</div>
+														<div className="text-xs text-muted-foreground">
+															Expires in:{" "}
+															{timeRemaining < 60
+																? `${timeRemaining}s`
+																: timeRemaining <
+																  3600
+																? `${Math.floor(
+																		timeRemaining /
+																			60
+																  )}m`
+																: `${Math.floor(
+																		timeRemaining /
+																			3600
+																  )}h`}
+														</div>
+													</div>
+												);
+											}
+										)}
+									</div>
+								</div>
+							</PopoverContent>
+						</Popover>
+					)}
+
 					<Button
 						onClick={handleRefresh}
 						className="justify-center"

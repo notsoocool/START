@@ -56,8 +56,10 @@ interface Change {
 function corsHeaders() {
 	return {
 		"Access-Control-Allow-Origin": "*",
-		"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, Authorization, DB-Access-Key",
+		"Access-Control-Allow-Methods":
+			"GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		"Access-Control-Allow-Headers":
+			"Content-Type, Authorization, DB-Access-Key",
 	};
 }
 
@@ -105,13 +107,19 @@ export async function GET(req: Request, { params }: { params: Params }) {
 			});
 		} else {
 			console.log("No matching analysis found");
-			return NextResponse.json({ message: "Analysis not found" }, { status: 404, headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: "Analysis not found" },
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
 		return NextResponse.json(analysis, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error fetching analysis:", error);
-		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{ message: "Internal Server Error" },
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -131,7 +139,10 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 		const originalDoc = await Analysis.findById(data._id);
 		if (!originalDoc) {
 			console.error("Row not found:", data._id);
-			return NextResponse.json({ message: `Row with id ${data._id} not found` }, { status: 404, headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: `Row with id ${data._id} not found` },
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
 		// Update the document
@@ -150,7 +161,11 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 
 		// Compare and log changes
 		const changes = Object.entries(data)
-			.filter(([key, value]) => key !== "_id" && JSON.stringify(originalDoc[key]) !== JSON.stringify(value))
+			.filter(
+				([key, value]) =>
+					key !== "_id" &&
+					JSON.stringify(originalDoc[key]) !== JSON.stringify(value)
+			)
 			.map(([field, newValue]) => ({
 				field,
 				oldValue: originalDoc[field],
@@ -172,10 +187,19 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 			});
 		}
 
-		return NextResponse.json({ message: "Update successful", updatedRow: updatedDoc }, { headers: corsHeaders() });
+		return NextResponse.json(
+			{ message: "Update successful", updatedRow: updatedDoc },
+			{ headers: corsHeaders() }
+		);
 	} catch (error) {
 		console.error("Error updating row:", error);
-		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{
+				message: "Internal Server Error",
+				error: (error as Error).message,
+			},
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -187,13 +211,74 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		return authResponse;
 	}
 
-	const { anvaya_no, sentno } = await req.json();
+	const { _id, anvaya_no, sentno } = await req.json();
 
-	console.log("Delete request received for:", { book, part1, part2, chaptno, slokano, anvaya_no, sentno }); // Log incoming request parameters
+	console.log("Delete request received for:", {
+		book,
+		part1,
+		part2,
+		chaptno,
+		slokano,
+		_id,
+		anvaya_no,
+		sentno,
+	}); // Log incoming request parameters
 
 	await dbConnect(); // Connect to the database
 
 	try {
+		// If _id is provided, use it for deletion (most reliable)
+		if (_id) {
+			console.log("Deleting by _id:", _id);
+			const deletedRow = await Analysis.findByIdAndDelete(_id);
+			
+			if (!deletedRow) {
+				console.warn("Row not found for deletion by _id:", _id);
+				return NextResponse.json(
+					{ message: "Row not found" },
+					{ status: 404, headers: corsHeaders() }
+				);
+			}
+
+			// Log the deletion
+			await logHistory({
+				action: "delete",
+				modelType: "Analysis",
+				details: {
+					book,
+					part1: part1 !== "null" ? part1 : undefined,
+					part2: part2 !== "null" ? part2 : undefined,
+					chaptno,
+					slokano,
+					changes: [
+						{
+							field: "deleted_analysis",
+							oldValue: {
+								_id: deletedRow._id,
+								anvaya_no: deletedRow.anvaya_no,
+								word: deletedRow.word,
+								sentno: deletedRow.sentno,
+							},
+							newValue: null,
+						},
+					],
+				},
+			});
+
+			console.log("Row deleted successfully by _id:", deletedRow);
+			return NextResponse.json(
+				{
+					message: "Row deleted successfully",
+					deletedRow: deletedRow,
+				},
+				{ headers: corsHeaders() }
+			);
+		}
+
+		// Fallback: Use anvaya_no and sentno if no _id provided
+		const sentnoString = String(sentno).trim();
+		const anvayaNoString = String(anvaya_no).trim();
+
 		// Construct query to find the row by all relevant fields
 		const query = {
 			book,
@@ -201,21 +286,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 			part2: part2 !== "null" ? part2 : null,
 			chaptno,
 			slokano,
-			anvaya_no,
-			sentno,
+			anvaya_no: anvayaNoString,
+			sentno: sentnoString,
 		};
 
-		console.log("Query for deletion:", query); // Log the query being executed
+		console.log("Query for deletion (fallback):", query);
 
 		// Get the row before deletion for logging
 		const rowToDelete = await Analysis.findOne(query);
 		if (!rowToDelete) {
-			console.warn("Row not found for deletion:", query); // Log if no row was found
-			return NextResponse.json({ message: "Row not found" }, { status: 404, headers: corsHeaders() });
+			console.warn("Row not found for deletion:", query);
+			return NextResponse.json(
+				{ message: "Row not found" },
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
-		// Delete the row
-		const deletedRow = await Analysis.findOneAndDelete(query);
+		// Delete the row - use findByIdAndDelete for absolute certainty
+		const deletedRow = await Analysis.findByIdAndDelete(rowToDelete._id);
 
 		// Log the deletion
 		await logHistory({
@@ -231,6 +319,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 					{
 						field: "deleted_analysis",
 						oldValue: {
+							_id: deletedRow._id,
 							anvaya_no: deletedRow.anvaya_no,
 							word: deletedRow.word,
 							sentno: deletedRow.sentno,
@@ -242,10 +331,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		});
 
 		console.log("Row deleted successfully:", deletedRow); // Log the deleted row
-		return NextResponse.json({ message: "Row deleted successfully" }, { headers: corsHeaders() });
+		// Return the deleted row data to support undo functionality
+		return NextResponse.json(
+			{
+				message: "Row deleted successfully",
+				deletedRow: deletedRow,
+			},
+			{ headers: corsHeaders() }
+		);
 	} catch (error) {
 		console.error("Error deleting row:", error); // Log any errors
-		return NextResponse.json({ message: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{ message: "Internal Server Error" },
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -263,7 +362,10 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 	try {
 		// Validate required fields
 		if (!data.anvaya_no || !data.word || !data.sentno) {
-			return NextResponse.json({ message: "Missing required fields" }, { status: 400, headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: "Missing required fields" },
+				{ status: 400, headers: corsHeaders() }
+			);
 		}
 
 		// Create and save new row
@@ -314,7 +416,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
 		// Update all rows that were modified
 		if (updatedRows && Array.isArray(updatedRows)) {
-			console.log(`Updating ${updatedRows.length} rows with new anvaya numbers and relations`);
+			console.log(
+				`Updating ${updatedRows.length} rows with new anvaya numbers and relations`
+			);
 
 			const updatePromises = updatedRows.map(async (row) => {
 				// Find the existing row by its original _id
@@ -331,7 +435,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 					existingRow.possible_relations !== row.possible_relations;
 
 				if (hasChanges) {
-					console.log(`Updating row ${existingRow.anvaya_no} -> ${row.anvaya_no}`);
+					console.log(
+						`Updating row ${existingRow.anvaya_no} -> ${row.anvaya_no}`
+					);
 
 					// Update the row
 					const updatedRow = await Analysis.findByIdAndUpdate(
@@ -359,7 +465,8 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 							kaaraka_sambandha: existingRow.kaaraka_sambandha,
 							possible_relations: existingRow.possible_relations,
 							bgcolor: existingRow.bgcolor,
-							name_classification: existingRow.name_classification,
+							name_classification:
+								existingRow.name_classification,
 							sarvanAma: existingRow.sarvanAma,
 							prayoga: existingRow.prayoga,
 							samAsa: existingRow.samAsa,
@@ -424,7 +531,13 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		);
 	} catch (error) {
 		console.error("Error creating new row:", error);
-		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{
+				message: "Internal Server Error",
+				error: (error as Error).message,
+			},
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -443,7 +556,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
 
 		// Validate new slokano
 		if (!newSlokano) {
-			return NextResponse.json({ message: "New slokano is required" }, { status: 400, headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: "New slokano is required" },
+				{ status: 400, headers: corsHeaders() }
+			);
 		}
 
 		// Get all analysis entries for the current shloka
@@ -457,7 +573,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
 
 		const analysisEntries = await Analysis.find(query);
 		if (!analysisEntries || analysisEntries.length === 0) {
-			return NextResponse.json({ message: "No analysis entries found" }, { status: 404, headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: "No analysis entries found" },
+				{ status: 404, headers: corsHeaders() }
+			);
 		}
 
 		// Update all entries with the new slokano
@@ -495,9 +614,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
 			slokano: newSlokano,
 		}).sort({ sentno: 1, anvaya_no: 1 });
 
-		return NextResponse.json({ message: "Analysis entries updated successfully", updatedEntries }, { headers: corsHeaders() });
+		return NextResponse.json(
+			{
+				message: "Analysis entries updated successfully",
+				updatedEntries,
+			},
+			{ headers: corsHeaders() }
+		);
 	} catch (error) {
 		console.error("Error updating analysis entries:", error);
-		return NextResponse.json({ message: "Internal Server Error", error: (error as Error).message }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{
+				message: "Internal Server Error",
+				error: (error as Error).message,
+			},
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
