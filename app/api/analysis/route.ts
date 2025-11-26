@@ -24,30 +24,39 @@ export async function POST(req: NextRequest) {
 		// If data is an array, handle multiple entries
 		if (Array.isArray(data)) {
 			// Ensure all required fields are present with defaults
-			const formattedData = data.map((item) => ({
-				chaptno: item.chaptno,
-				slokano: item.slokano,
-				sentno: item.sentno || "1",
-				bgcolor: item.bgcolor || "transparent",
-				graph: item.graph || "-",
-				anvaya_no: item.anvaya_no || "-",
-				word: item.word || "-",
-				poem: item.poem || "-",
-				sandhied_word: item.sandhied_word || "-",
-				morph_analysis: item.morph_analysis || "-",
-				morph_in_context: item.morph_in_context || "-",
-				kaaraka_sambandha: item.kaaraka_sambandha || "-",
-				possible_relations: item.possible_relations || "-",
-				hindi_meaning: item.hindi_meaning || "-",
-				english_meaning: item.english_meaning || "-",
-				samAsa: item.samAsa || "-",
-				prayoga: item.prayoga || "-",
-				sarvanAma: item.sarvanAma || "-",
-				name_classification: item.name_classification || "-",
-				book: item.book,
-				part1: item.part1 || null,
-				part2: item.part2 || null,
-			}));
+			const formattedData = data.map((item) => {
+				// Convert meanings object to Map format if provided
+				let meaningsMap = new Map();
+				if (item.meanings && typeof item.meanings === 'object' && !(item.meanings instanceof Map)) {
+					meaningsMap = new Map(Object.entries(item.meanings));
+				}
+
+				return {
+					chaptno: item.chaptno,
+					slokano: item.slokano,
+					sentno: item.sentno || "1",
+					bgcolor: item.bgcolor || "transparent",
+					graph: item.graph || "-",
+					anvaya_no: item.anvaya_no || "-",
+					word: item.word || "-",
+					poem: item.poem || "-",
+					sandhied_word: item.sandhied_word || "-",
+					morph_analysis: item.morph_analysis || "-",
+					morph_in_context: item.morph_in_context || "-",
+					kaaraka_sambandha: item.kaaraka_sambandha || "-",
+					possible_relations: item.possible_relations || "-",
+					hindi_meaning: item.hindi_meaning || "-",
+					english_meaning: item.english_meaning || "-",
+					samAsa: item.samAsa || "-",
+					prayoga: item.prayoga || "-",
+					sarvanAma: item.sarvanAma || "-",
+					name_classification: item.name_classification || "-",
+					book: item.book,
+					part1: item.part1 || null,
+					part2: item.part2 || null,
+					meanings: meaningsMap.size > 0 ? meaningsMap : undefined,
+				};
+			});
 
 			const result = await Analysis.insertMany(formattedData);
 
@@ -80,6 +89,12 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ success: true, data: result }, { headers: corsHeaders });
 		} else {
 			// Handle single entry
+			// Convert meanings object to Map format if provided
+			let meaningsMap = new Map();
+			if (data.meanings && typeof data.meanings === 'object' && !(data.meanings instanceof Map)) {
+				meaningsMap = new Map(Object.entries(data.meanings));
+			}
+
 			const formattedData = {
 				...data,
 				sentno: data.sentno || "1",
@@ -101,6 +116,7 @@ export async function POST(req: NextRequest) {
 				name_classification: data.name_classification || "-",
 				part1: data.part1 || null,
 				part2: data.part2 || null,
+				meanings: meaningsMap.size > 0 ? meaningsMap : undefined,
 			};
 
 			const result = await Analysis.create(formattedData);

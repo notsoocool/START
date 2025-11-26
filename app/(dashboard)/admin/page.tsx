@@ -11,6 +11,7 @@ import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
 import HistoryPage from "@/components/global/history";
 import DataDownload from "@/components/global/dataDownload";
+import LanguageManagement from "@/components/global/languageManagement";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
@@ -77,14 +78,21 @@ export default function AdminPage() {
 	}, [activeTab]);
 
 	return (
-		<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 mx-4 my-4">
+		<Tabs
+			value={activeTab}
+			onValueChange={setActiveTab}
+			className="space-y-4 mx-4 my-4"
+		>
 			<TabsList>
 				<TabsTrigger value="upload">Upload JSON</TabsTrigger>
-				<TabsTrigger value="permissions">Change User Permissions</TabsTrigger>
+				<TabsTrigger value="permissions">
+					Change User Permissions
+				</TabsTrigger>
 				<TabsTrigger value="replace">Replace Book Name</TabsTrigger>
 				<TabsTrigger value="delete">Delete Entries</TabsTrigger>
 				<TabsTrigger value="group">Group Administration</TabsTrigger>
 				<TabsTrigger value="publish">Book Publishing</TabsTrigger>
+				<TabsTrigger value="languages">Language Management</TabsTrigger>
 				<TabsTrigger value="history">History</TabsTrigger>
 				<TabsTrigger value="download">Data Download</TabsTrigger>
 			</TabsList>
@@ -92,7 +100,9 @@ export default function AdminPage() {
 			<TabsContent value="upload">
 				<Card className="mt-4">
 					<CardHeader>
-						<CardTitle className="text-lg font-semibold">Upload JSON</CardTitle>
+						<CardTitle className="text-lg font-semibold">
+							Upload JSON
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<UploadJsonPage />
@@ -103,7 +113,9 @@ export default function AdminPage() {
 			<TabsContent value="permissions">
 				<Card className="mt-4">
 					<CardHeader>
-						<CardTitle className="text-lg font-semibold">Change User Permissions</CardTitle>
+						<CardTitle className="text-lg font-semibold">
+							Change User Permissions
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<UserPerms changeTab={changeTab} />
@@ -114,7 +126,9 @@ export default function AdminPage() {
 			<TabsContent value="replace">
 				<Card className="mt-4">
 					<CardHeader>
-						<CardTitle className="text-lg font-semibold">Replace Book Name</CardTitle>
+						<CardTitle className="text-lg font-semibold">
+							Replace Book Name
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<ReplaceBook />
@@ -125,7 +139,9 @@ export default function AdminPage() {
 			<TabsContent value="delete">
 				<Card className="mt-4">
 					<CardHeader>
-						<CardTitle className="text-lg font-semibold">Delete Entries</CardTitle>
+						<CardTitle className="text-lg font-semibold">
+							Delete Entries
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<DeleteEntry treeData={treeData} />
@@ -149,13 +165,28 @@ export default function AdminPage() {
 				</Card>
 			</TabsContent>
 
+			<TabsContent value="languages">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Language Management
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<LanguageManagement />
+					</CardContent>
+				</Card>
+			</TabsContent>
+
 			<TabsContent value="history">
 				<HistoryPage />
 			</TabsContent>
 			<TabsContent value="download">
 				<Card className="mt-4">
 					<CardHeader>
-						<CardTitle className="text-lg font-semibold">Data Download</CardTitle>
+						<CardTitle className="text-lg font-semibold">
+							Data Download
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<DataDownload />

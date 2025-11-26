@@ -46,8 +46,9 @@ Provides detailed linguistic analysis of Sanskrit verses:
   morph_in_context: string; // Contextual morphology
   kaaraka_sambandha: string;// Syntactic relations
   possible_relations: string;// Possible semantic relations
-  hindi_meaning?: string;   // Hindi translation
-  english_meaning: string;  // English translation
+  meanings: Map<string, string>; // Multi-language meanings dictionary (key: language code, value: meaning)
+  hindi_meaning?: string;   // @deprecated - Use meanings.get('hi') instead
+  english_meaning?: string; // @deprecated - Use meanings.get('en') instead
   samAsa: string;          // Compound analysis
   prayoga: string;         // Usage type
   sarvanAma: string;       // Pronoun information
@@ -57,6 +58,41 @@ Provides detailed linguistic analysis of Sanskrit verses:
   part2?: string;          // Book part 2
 }
 ```
+
+##### Multi-Language Meanings
+
+The `meanings` field is a Map that stores translations in multiple languages dynamically. This allows admins to add new languages without database schema changes.
+
+**Usage Examples:**
+
+```typescript
+// Set a meaning for a language
+analysis.meanings.set('en', 'English meaning');
+analysis.meanings.set('hi', 'Hindi meaning');
+analysis.meanings.set('sa', 'Sanskrit meaning');
+
+// Get a meaning for a specific language
+const englishMeaning = analysis.meanings.get('en');
+const hindiMeaning = analysis.meanings.get('hi');
+
+// Check if a language exists
+if (analysis.meanings.has('fr')) {
+  const frenchMeaning = analysis.meanings.get('fr');
+}
+
+// Get all available languages
+const languages = Array.from(analysis.meanings.keys()); // ['en', 'hi', 'sa']
+
+// Get all meanings as an object (useful for API responses)
+const meaningsObj = Object.fromEntries(analysis.meanings); // { en: '...', hi: '...' }
+
+// Remove a language
+analysis.meanings.delete('fr');
+```
+
+**Note:** When serialized to JSON (e.g., in API responses), Mongoose automatically converts the Map to a plain object: `{ meanings: { en: "...", hi: "..." } }`
+
+**Language Codes:** Use ISO 639-1 language codes (e.g., 'en' for English, 'hi' for Hindi, 'sa' for Sanskrit, 'fr' for French, etc.)
 
 #### 3. Permissions Model
 

@@ -145,12 +145,20 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 			);
 		}
 
+		// Convert meanings object to Map format if provided
+		const updateData = { ...data };
+		if (updateData.meanings && typeof updateData.meanings === 'object' && !(updateData.meanings instanceof Map)) {
+			// Convert plain object to Map for Mongoose
+			const meaningsMap = new Map(Object.entries(updateData.meanings));
+			updateData.meanings = meaningsMap;
+		}
+
 		// Update the document
 		const updatedDoc = await Analysis.findByIdAndUpdate(
 			data._id,
 			{
 				$set: {
-					...data,
+					...updateData,
 				},
 			},
 			{
@@ -368,6 +376,12 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 			);
 		}
 
+		// Convert meanings object to Map format if provided
+		let meaningsMap = new Map();
+		if (data.meanings && typeof data.meanings === 'object' && !(data.meanings instanceof Map)) {
+			meaningsMap = new Map(Object.entries(data.meanings));
+		}
+
 		// Create and save new row
 		const newRow = new Analysis({
 			...data,
@@ -384,6 +398,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 			sandhied_word: data.sandhied_word || "-",
 			graph: data.graph || "-",
 			hindi_meaning: data.hindi_meaning || "-",
+			meanings: meaningsMap.size > 0 ? meaningsMap : undefined,
 		});
 
 		const savedRow = await newRow.save();

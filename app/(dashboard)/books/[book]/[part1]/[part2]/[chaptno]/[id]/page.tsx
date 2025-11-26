@@ -125,7 +125,12 @@ export default function AnalysisPage() {
 	);
 	const [isGroupCheckLoading, setIsGroupCheckLoading] = useState(true);
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-	const columnOptions = [
+	const [availableLanguages, setAvailableLanguages] = useState<
+		{ code: string; name: string }[]
+	>([]);
+	// Base column options including static columns and dynamic language columns
+	// Only add languages that are NOT 'hi' (Hindi) or 'en' (English) since those have dedicated columns
+	const baseColumnOptions = [
 		{ id: "index", label: "Index" },
 		{ id: "word", label: "Word" },
 		{ id: "poem", label: "Prose Index" },
@@ -135,8 +140,18 @@ export default function AnalysisPage() {
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
 		{ id: "possible_relations", label: "Possible Relations" },
 		{ id: "hindi_meaning", label: "Hindi Meaning" },
+		{ id: "english_meaning", label: "English Meaning" },
 		{ id: "bgcolor", label: "Color Code" },
+		// Add dynamic language columns (excluding 'hi' and 'en' which have dedicated columns)
+		...availableLanguages
+			.filter((lang) => lang.code !== "hi" && lang.code !== "en")
+			.map((lang) => ({
+				id: `meaning_${lang.code}`,
+				label: `${lang.name} Meaning`,
+			})),
 	];
+	// Column options is the same as baseColumnOptions now
+	const columnOptions = baseColumnOptions;
 	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
 	const DEFAULT_ZOOM = 1;
 	const MIN_ZOOM = 0.5;
@@ -165,7 +180,26 @@ export default function AnalysisPage() {
 		| "splitSentence"
 		| "joinSentences"
 	>(null);
-	const [newRowData, setNewRowData] = useState({
+	const [newRowData, setNewRowData] = useState<{
+		anvaya_no: string;
+		word: string;
+		poem: string;
+		morph_analysis: string;
+		morph_in_context: string;
+		kaaraka_sambandha: string;
+		possible_relations: string;
+		hindi_meaning: string;
+		english_meaning: string;
+		samAsa: string;
+		prayoga: string;
+		sarvanAma: string;
+		name_classification: string;
+		bgcolor: string;
+		sentno: string;
+		sandhied_word: string;
+		graph: string;
+		meanings?: { [key: string]: string };
+	}>({
 		anvaya_no: "",
 		word: "",
 		poem: "",
@@ -183,6 +217,7 @@ export default function AnalysisPage() {
 		sandhied_word: "",
 		graph: "",
 		hindi_meaning: "",
+		meanings: {},
 	});
 	const [shiftType, setShiftType] = useState<"main" | "sub" | "none">("main");
 	const [morphInContextChanges, setMorphInContextChanges] = useState<
@@ -386,9 +421,25 @@ export default function AnalysisPage() {
 				}
 
 				setChapter(chapterData);
-				const mappedData = chapterData.map((item: any) => ({
-					...item,
-				}));
+				// Convert meanings Map to object for easier handling in React
+				const mappedData = chapterData.map((item: any) => {
+					const meanings = item.meanings;
+					let meaningsObj = {};
+					if (meanings) {
+						if (meanings instanceof Map) {
+							meaningsObj = Object.fromEntries(meanings);
+						} else if (
+							typeof meanings === "object" &&
+							!Array.isArray(meanings)
+						) {
+							meaningsObj = meanings;
+						}
+					}
+					return {
+						...item,
+						meanings: meaningsObj,
+					};
+				});
 				setUpdatedData(mappedData);
 				setOriginalData(mappedData);
 
@@ -466,15 +517,32 @@ export default function AnalysisPage() {
 		field: string,
 		value: string
 	) => {
-		// Update the updatedData state
-		setUpdatedData((prevData) => {
-			const newData = [...prevData];
-			newData[procIndex] = {
-				...newData[procIndex],
-				[field]: value,
-			};
-			return newData;
-		});
+		// Handle language meaning fields (format: meaning_<code>)
+		if (field.startsWith("meaning_")) {
+			const langCode = field.replace("meaning_", "");
+			setUpdatedData((prevData) => {
+				const newData = [...prevData];
+				const currentMeanings = newData[procIndex]?.meanings || {};
+				newData[procIndex] = {
+					...newData[procIndex],
+					meanings: {
+						...currentMeanings,
+						[langCode]: value,
+					},
+				};
+				return newData;
+			});
+		} else {
+			// Update the updatedData state for regular fields
+			setUpdatedData((prevData) => {
+				const newData = [...prevData];
+				newData[procIndex] = {
+					...newData[procIndex],
+					[field]: value,
+				};
+				return newData;
+			});
+		}
 
 		// Track specific field changes separately
 		if (field === "morph_in_context") {
@@ -535,6 +603,17 @@ export default function AnalysisPage() {
 		}
 
 		try {
+			// Convert meanings object to Map format for Mongoose
+			let meaningsMap = {};
+			if (
+				currentData.meanings &&
+				typeof currentData.meanings === "object"
+			) {
+				meaningsMap = currentData.meanings;
+			} else if (currentData.meanings instanceof Map) {
+				meaningsMap = Object.fromEntries(currentData.meanings);
+			}
+
 			// Fill empty fields with "-" to prevent server errors
 			const dataToUpdate = {
 				_id: currentData._id,
@@ -548,6 +627,7 @@ export default function AnalysisPage() {
 				possible_relations: currentData.possible_relations,
 				hindi_meaning: currentData.hindi_meaning,
 				english_meaning: currentData.english_meaning,
+				meanings: meaningsMap, // Include meanings field
 				samAsa: currentData.samAsa,
 				prayoga: currentData.prayoga,
 				sarvanAma: currentData.sarvanAma,
@@ -754,6 +834,7 @@ export default function AnalysisPage() {
 	}, [graphUrls]); // Re-run the effect when graphUrls change
 
 	// Handle node toggling directly inside the SVG
+	// Initialize with base columns, language columns will be added dynamically
 	const [selectedColumns, setSelectedColumns] = useState<string[]>([
 		"index",
 		"word",
@@ -763,6 +844,9 @@ export default function AnalysisPage() {
 		"kaaraka_sambandha",
 		"possible_relations",
 	]);
+
+	// Language columns are available in baseColumnOptions but not auto-selected
+	// Users can manually select them from the customize column options
 
 	// Sorting preference for the combined sentence view
 	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">(
@@ -821,6 +905,30 @@ export default function AnalysisPage() {
 			}));
 		}
 	};
+
+	// Fetch available languages
+	useEffect(() => {
+		const fetchLanguages = async () => {
+			try {
+				const response = await fetch("/api/languages");
+				if (response.ok) {
+					const data = await response.json();
+					const fetchedLanguages = data.languages || [];
+					console.log("Fetched languages:", fetchedLanguages);
+					setAvailableLanguages(fetchedLanguages);
+				} else {
+					console.error(
+						"Failed to fetch languages:",
+						response.status,
+						response.statusText
+					);
+				}
+			} catch (error) {
+				console.error("Error fetching languages:", error);
+			}
+		};
+		fetchLanguages();
+	}, []);
 
 	// Fetch permissions and group information - CONSOLIDATED INTO ONE useEffect
 	useEffect(() => {
@@ -1831,6 +1939,40 @@ export default function AnalysisPage() {
 							"Enter Hindi Meaning"
 						)
 					)}
+				{selectedColumns.includes("english_meaning") &&
+					renderCell(
+						"english_meaning",
+						renderInput(
+							"english_meaning",
+							currentProcessedData?.english_meaning,
+							"w-[180px]",
+							"Enter English Meaning"
+						)
+					)}
+				{/* Render dynamic language columns */}
+				{availableLanguages.map((lang) => {
+					const columnId = `meaning_${lang.code}`;
+					if (!selectedColumns.includes(columnId)) return null;
+
+					const meanings =
+						currentProcessedData?.meanings ||
+						processed?.meanings ||
+						{};
+					const meaningValue =
+						typeof meanings === "object" && !Array.isArray(meanings)
+							? meanings[lang.code] || ""
+							: "";
+
+					return renderCell(
+						`meaning_${lang.code}`,
+						renderInput(
+							`meaning_${lang.code}`,
+							meaningValue,
+							"w-[180px]",
+							`Enter ${lang.name} Meaning`
+						)
+					);
+				})}
 				{selectedColumns.includes("bgcolor") && renderBgColor()}
 				{isFieldEditable("word") && (
 					<TableCell
@@ -2082,6 +2224,7 @@ export default function AnalysisPage() {
 			}
 
 			// Fill all empty fields with "-" to prevent server errors
+			// Initialize meanings as empty object for new rows
 			const processedData = {
 				anvaya_no: newRowData.anvaya_no,
 				word: newRowData.word,
@@ -2105,6 +2248,7 @@ export default function AnalysisPage() {
 				part1: decodedPart1,
 				part2: decodedPart2,
 				graph: "-",
+				meanings: newRowData.meanings || {},
 			};
 
 			const currentResponse = await fetch(
@@ -3337,6 +3481,20 @@ export default function AnalysisPage() {
 								{selectedColumns.includes("hindi_meaning") && (
 									<TableHead>Hindi Meaning</TableHead>
 								)}
+								{selectedColumns.includes(
+									"english_meaning"
+								) && <TableHead>English Meaning</TableHead>}
+								{/* Render dynamic language column headers */}
+								{availableLanguages.map((lang) => {
+									const columnId = `meaning_${lang.code}`;
+									if (!selectedColumns.includes(columnId))
+										return null;
+									return (
+										<TableHead key={columnId}>
+											{lang.name} Meaning
+										</TableHead>
+									);
+								})}
 								{selectedColumns.includes("bgcolor") && (
 									<TableHead>Color Code</TableHead>
 								)}

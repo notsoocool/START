@@ -13,9 +13,10 @@ export interface Analysis extends Document {
 	morph_analysis: string;
 	morph_in_context: string;
 	kaaraka_sambandha: string;
-    possible_relations: string;
-	hindi_meaning?: string; // Optional field
-	english_meaning: string;
+	possible_relations: string;
+	meanings: Map<string, string>; // Dictionary to store meanings in multiple languages (key: language code, value: meaning)
+	hindi_meaning?: string; // @deprecated - Use meanings.get('hi') instead. Kept for backward compatibility
+	english_meaning?: string; // @deprecated - Use meanings.get('en') instead. Kept for backward compatibility
 	samAsa: string;
 	prayoga: string;
 	sarvanAma: string;
@@ -74,17 +75,23 @@ const AnalysisSchema: Schema = new Schema({
 		type: String,
 		required: true,
 	},
-    possible_relations: {
-        type: String,
-        required: true,
-    },
+	possible_relations: {
+		type: String,
+		required: true,
+	},
+	meanings: {
+		type: Map,
+		of: String,
+		required: false,
+		default: () => new Map(),
+	},
 	hindi_meaning: {
 		type: String,
 		required: false,
 	},
 	english_meaning: {
 		type: String,
-		required: true,
+		required: false,
 	},
 	samAsa: {
 		type: String,

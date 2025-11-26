@@ -6,17 +6,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
 import { GraphDisplay } from "@/components/global/GraphDisplay";
 import { SliderIcon } from "@radix-ui/react-icons";
 import axios from "axios";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
-import { colorMapping } from "@/lib/constants";
+import { colorMapping, colors } from "@/lib/constants";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { useBooks } from "@/lib/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -34,7 +57,12 @@ const jsonToTsv = (data: any[]): string => {
 // Add the hexToRgb helper function
 const hexToRgb = (hex: string) => {
 	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-	return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : "0, 0, 0";
+	return result
+		? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(
+				result[3],
+				16
+		  )}`
+		: "0, 0, 0";
 };
 
 interface BookData {
@@ -104,7 +132,10 @@ const SaveDialog = ({
 					<Label>Book</Label>
 					{!isNewBook ? (
 						<>
-							<Select onValueChange={setSelectedBook} value={selectedBook}>
+							<Select
+								onValueChange={setSelectedBook}
+								value={selectedBook}
+							>
 								<SelectTrigger>
 									<SelectValue placeholder="Select existing book" />
 								</SelectTrigger>
@@ -114,14 +145,24 @@ const SaveDialog = ({
 											{book}
 										</SelectItem>
 									))}
-									<SelectItem value="new">Add New Book</SelectItem>
+									<SelectItem value="new">
+										Add New Book
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</>
 					) : (
-						<Input placeholder="Enter new book name" value={selectedBook} onChange={(e) => setSelectedBook(e.target.value)} />
+						<Input
+							placeholder="Enter new book name"
+							value={selectedBook}
+							onChange={(e) => setSelectedBook(e.target.value)}
+						/>
 					)}
-					<Button variant="outline" onClick={() => setIsNewBook(!isNewBook)} className="mt-2">
+					<Button
+						variant="outline"
+						onClick={() => setIsNewBook(!isNewBook)}
+						className="mt-2"
+					>
 						{isNewBook ? "Select Existing Book" : "Add New Book"}
 					</Button>
 				</div>
@@ -131,7 +172,10 @@ const SaveDialog = ({
 						<div className="grid gap-2">
 							<Label>Part 1 (Optional)</Label>
 							{!isNewBook && availablePart1s.length > 0 ? (
-								<Select onValueChange={setSelectedPart1} value={selectedPart1}>
+								<Select
+									onValueChange={setSelectedPart1}
+									value={selectedPart1}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select part 1" />
 									</SelectTrigger>
@@ -144,14 +188,23 @@ const SaveDialog = ({
 									</SelectContent>
 								</Select>
 							) : (
-								<Input placeholder="Enter part 1 (optional)" value={selectedPart1} onChange={(e) => setSelectedPart1(e.target.value)} />
+								<Input
+									placeholder="Enter part 1 (optional)"
+									value={selectedPart1}
+									onChange={(e) =>
+										setSelectedPart1(e.target.value)
+									}
+								/>
 							)}
 						</div>
 
 						<div className="grid gap-2">
 							<Label>Part 2 (Optional)</Label>
 							{!isNewBook && availablePart2s.length > 0 ? (
-								<Select onValueChange={setSelectedPart2} value={selectedPart2}>
+								<Select
+									onValueChange={setSelectedPart2}
+									value={selectedPart2}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select part 2" />
 									</SelectTrigger>
@@ -164,39 +217,66 @@ const SaveDialog = ({
 									</SelectContent>
 								</Select>
 							) : (
-								<Input placeholder="Enter part 2 (optional)" value={selectedPart2} onChange={(e) => setSelectedPart2(e.target.value)} />
+								<Input
+									placeholder="Enter part 2 (optional)"
+									value={selectedPart2}
+									onChange={(e) =>
+										setSelectedPart2(e.target.value)
+									}
+								/>
 							)}
 						</div>
 
 						<div className="grid gap-2">
 							<Label>Chapter Number</Label>
 							{!isNewBook && availableChapters.length > 0 ? (
-								<Select onValueChange={setChaptno} value={chaptno}>
+								<Select
+									onValueChange={setChaptno}
+									value={chaptno}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select chapter" />
 									</SelectTrigger>
 									<SelectContent>
 										{availableChapters.map((chapter) => (
-											<SelectItem key={chapter} value={chapter}>
+											<SelectItem
+												key={chapter}
+												value={chapter}
+											>
 												{chapter}
 											</SelectItem>
 										))}
 									</SelectContent>
 								</Select>
 							) : (
-								<Input placeholder="Enter chapter number" value={chaptno} onChange={(e) => setChaptno(e.target.value)} required />
+								<Input
+									placeholder="Enter chapter number"
+									value={chaptno}
+									onChange={(e) => setChaptno(e.target.value)}
+									required
+								/>
 							)}
 						</div>
 
 						<div className="grid gap-2">
 							<Label>Shloka Number</Label>
-							<Input type="text" placeholder="Enter shloka number" value={slokano} onChange={(e) => setSlokano(e.target.value)} required />
+							<Input
+								type="text"
+								placeholder="Enter shloka number"
+								value={slokano}
+								onChange={(e) => setSlokano(e.target.value)}
+								required
+							/>
 						</div>
 					</>
 				)}
 			</div>
 			<div className="flex justify-end gap-4">
-				<Button variant="outline" onClick={() => setShowSaveDialog(false)} disabled={isSaving}>
+				<Button
+					variant="outline"
+					onClick={() => setShowSaveDialog(false)}
+					disabled={isSaving}
+				>
 					Cancel
 				</Button>
 				<Button onClick={handleSave} disabled={isSaving}>
@@ -239,10 +319,19 @@ export default function ShlokaPage() {
 		"hindi_meaning",
 	]);
 	const [showSandhiEdit, setShowSandhiEdit] = useState(false);
-	const [editableSandhiResults, setEditableSandhiResults] = useState<string[]>([]);
-	const [originalSandhiResults, setOriginalSandhiResults] = useState<any[]>([]);
-	const [analysisProcessing, setAnalysisProcessing] = useState<boolean>(false);
-	const { data: booksData, isLoading: booksLoading, error: booksError } = useBooks();
+	const [editableSandhiResults, setEditableSandhiResults] = useState<
+		string[]
+	>([]);
+	const [originalSandhiResults, setOriginalSandhiResults] = useState<any[]>(
+		[]
+	);
+	const [analysisProcessing, setAnalysisProcessing] =
+		useState<boolean>(false);
+	const {
+		data: booksData,
+		isLoading: booksLoading,
+		error: booksError,
+	} = useBooks();
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const [selectedPart1, setSelectedPart1] = useState<string>("");
 	const [selectedPart2, setSelectedPart2] = useState<string>("");
@@ -251,6 +340,9 @@ export default function ShlokaPage() {
 	const [isNewBook, setIsNewBook] = useState(false);
 	const [showSaveDialog, setShowSaveDialog] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	const [availableLanguages, setAvailableLanguages] = useState<
+		{ code: string; name: string }[]
+	>([]);
 
 	// Fetch current user's permissions once
 	useEffect(() => {
@@ -269,7 +361,23 @@ export default function ShlokaPage() {
 		run();
 	}, []);
 
-	const columnOptions = [
+	// Fetch available languages
+	useEffect(() => {
+		const fetchLanguages = async () => {
+			try {
+				const response = await fetch("/api/languages");
+				if (response.ok) {
+					const data = await response.json();
+					setAvailableLanguages(data.languages || []);
+				}
+			} catch (error) {
+				console.error("Error fetching languages:", error);
+			}
+		};
+		fetchLanguages();
+	}, []);
+
+	const baseColumnOptions = [
 		{ id: "anvaya_no", label: "Index" },
 		{ id: "word", label: "Word" },
 		{ id: "poem", label: "Prose Index" },
@@ -279,17 +387,39 @@ export default function ShlokaPage() {
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
 		{ id: "possible_relations", label: "Possible Relations" },
 		{ id: "hindi_meaning", label: "Hindi Meaning" },
+		{ id: "english_meaning", label: "English Meaning" },
 		{ id: "bgcolor", label: "Color Code" },
+		// Add dynamic language columns (excluding 'hi' and 'en' which have dedicated columns)
+		...availableLanguages
+			.filter((lang) => lang.code !== "hi" && lang.code !== "en")
+			.map((lang) => ({
+				id: `meaning_${lang.code}`,
+				label: `${lang.name} Meaning`,
+			})),
 	];
+	const columnOptions = baseColumnOptions;
 
 	const handleColumnSelect = (column: string) => {
-		setSelectedColumns((prevSelected) => (prevSelected.includes(column) ? prevSelected.filter((item) => item !== column) : [...prevSelected, column]));
+		setSelectedColumns((prevSelected) =>
+			prevSelected.includes(column)
+				? prevSelected.filter((item) => item !== column)
+				: [...prevSelected, column]
+		);
 	};
 
 	const ColumnSelector = () => (
 		<div className="flex flex-wrap gap-2 mb-4">
 			{columnOptions.map((option) => (
-				<Button key={option.id} variant={selectedColumns.includes(option.id) ? "default" : "outline"} onClick={() => handleColumnSelect(option.id)} size="sm">
+				<Button
+					key={option.id}
+					variant={
+						selectedColumns.includes(option.id)
+							? "default"
+							: "outline"
+					}
+					onClick={() => handleColumnSelect(option.id)}
+					size="sm"
+				>
 					{option.label}
 				</Button>
 			))}
@@ -332,7 +462,9 @@ export default function ShlokaPage() {
 			setOriginalSandhiResults(processedResults);
 
 			// Set editable results as joined strings
-			setEditableSandhiResults(processedResults.map((result) => result.split.join(" ")));
+			setEditableSandhiResults(
+				processedResults.map((result) => result.split.join(" "))
+			);
 
 			// Show the edit interface
 			setShowSandhiEdit(true);
@@ -340,7 +472,9 @@ export default function ShlokaPage() {
 			toast.success("Sandhi split completed. Please review the results.");
 		} catch (error) {
 			console.error("Error processing shlokas:", error);
-			toast.error("Error processing shlokas: " + (error as Error).message);
+			toast.error(
+				"Error processing shlokas: " + (error as Error).message
+			);
 			setShlokaProcessing(false);
 		}
 	};
@@ -351,31 +485,44 @@ export default function ShlokaPage() {
 		try {
 			// Process analysis for each edited sandhi split
 			const analysisResults = await Promise.all(
-				editableSandhiResults.map(async (splitSentence, shlokaIndex) => {
-					console.log("Sending split sentence for analysis:", splitSentence);
-
-					const response = await fetch(
-						`https://scl.samsaadhanii.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&compound_analysis=YES&text=${encodeURIComponent(
+				editableSandhiResults.map(
+					async (splitSentence, shlokaIndex) => {
+						console.log(
+							"Sending split sentence for analysis:",
 							splitSentence
-						)}`
-					);
+						);
 
-					const responseText = await response.text();
+						const response = await fetch(
+							`https://scl.samsaadhanii.in/cgi-bin/scl/MT/anusaaraka.cgi?encoding=Unicode&out_encoding=Devanagari&splitter=None&parse=FULL&tlang=Hindi&text_type=Sloka&mode=json&compound_analysis=YES&text=${encodeURIComponent(
+								splitSentence
+							)}`
+						);
 
-					try {
-						const data = JSON.parse(responseText);
-						if (data && Array.isArray(data) && data[0] && data[0].sent) {
-							return data[0].sent.map((item: any) => ({
-								...item,
-								sentno: (shlokaIndex + 1).toString(),
-							}));
+						const responseText = await response.text();
+
+						try {
+							const data = JSON.parse(responseText);
+							if (
+								data &&
+								Array.isArray(data) &&
+								data[0] &&
+								data[0].sent
+							) {
+								return data[0].sent.map((item: any) => ({
+									...item,
+									sentno: (shlokaIndex + 1).toString(),
+								}));
+							}
+							return [];
+						} catch (parseError) {
+							console.error(
+								"Error parsing analysis response:",
+								parseError
+							);
+							return [];
 						}
-						return [];
-					} catch (parseError) {
-						console.error("Error parsing analysis response:", parseError);
-						return [];
 					}
-				})
+				)
 			);
 
 			// Format the analysis data as before
@@ -391,7 +538,8 @@ export default function ShlokaPage() {
 					morph_in_context: item.morph_in_context || "-",
 					kaaraka_sambandha: item.kaaraka_sambandha || "-",
 					possible_relations: item.possible_relations || "-",
-					hindi_meaning: item.hindi_meaning_active || item.hindi_meaning || "-",
+					hindi_meaning:
+						item.hindi_meaning_active || item.hindi_meaning || "-",
 					word: item.word || "-",
 					sandhied_word: item.sandhied_word || "-",
 				}));
@@ -422,9 +570,24 @@ export default function ShlokaPage() {
 		setOriginalAnalysisData(newData);
 	};
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, index: number, field: string) => {
+	const handleInputChange = (
+		e: React.ChangeEvent<HTMLInputElement>,
+		index: number,
+		field: string
+	) => {
 		const updatedData = [...analysisData];
-		updatedData[index][field] = e.target.value;
+
+		// Handle language meaning fields (format: meaning_<code>)
+		if (field.startsWith("meaning_")) {
+			const langCode = field.replace("meaning_", "");
+			if (!updatedData[index].meanings) {
+				updatedData[index].meanings = {};
+			}
+			updatedData[index].meanings[langCode] = e.target.value;
+		} else {
+			updatedData[index][field] = e.target.value;
+		}
+
 		setAnalysisData(updatedData);
 	};
 
@@ -442,56 +605,264 @@ export default function ShlokaPage() {
 							onMouseLeave={() => setHoveredRowIndex(null)}
 							style={{
 								backgroundColor: processed.bgcolor
-									? `rgba(${hexToRgb(processed.bgcolor)}, ${isHovered ? Math.min(opacity + 0.1, 1) : opacity})`
+									? `rgba(${hexToRgb(processed.bgcolor)}, ${
+											isHovered
+												? Math.min(opacity + 0.1, 1)
+												: opacity
+									  })`
 									: "transparent",
 							}}
 						>
 							{selectedColumns.includes("anvaya_no") && (
 								<TableCell>
-									<Input value={processed.anvaya_no} onChange={(e) => handleInputChange(e, procIndex, "anvaya_no")} />
+									<Input
+										value={processed.anvaya_no}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"anvaya_no"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("word") && (
 								<TableCell>
-									<Input value={processed.word} onChange={(e) => handleInputChange(e, procIndex, "word")} />
+									<Input
+										value={processed.word}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"word"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("poem") && (
 								<TableCell>
-									<Input value={processed.poem} onChange={(e) => handleInputChange(e, procIndex, "poem")} />
+									<Input
+										value={processed.poem}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"poem"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("sandhied_word") && (
 								<TableCell>
-									<Input value={processed.sandhied_word} onChange={(e) => handleInputChange(e, procIndex, "sandhied_word")} />
+									<Input
+										value={processed.sandhied_word}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"sandhied_word"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("morph_analysis") && (
 								<TableCell>
-									<Input value={processed.morph_analysis} onChange={(e) => handleInputChange(e, procIndex, "morph_analysis")} />
+									<Input
+										value={processed.morph_analysis}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"morph_analysis"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("morph_in_context") && (
 								<TableCell>
-									<Input value={processed.morph_in_context} onChange={(e) => handleInputChange(e, procIndex, "morph_in_context")} />
+									<Input
+										value={processed.morph_in_context}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"morph_in_context"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("kaaraka_sambandha") && (
 								<TableCell>
-									<Input value={processed.kaaraka_sambandha} onChange={(e) => handleInputChange(e, procIndex, "kaaraka_sambandha")} />
+									<Input
+										value={processed.kaaraka_sambandha}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"kaaraka_sambandha"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("possible_relations") && (
 								<TableCell>
-									<Input value={processed.possible_relations} onChange={(e) => handleInputChange(e, procIndex, "possible_relations")} />
+									<Input
+										value={processed.possible_relations}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"possible_relations"
+											)
+										}
+									/>
 								</TableCell>
 							)}
 							{selectedColumns.includes("hindi_meaning") && (
 								<TableCell>
-									<Input value={processed.hindi_meaning} onChange={(e) => handleInputChange(e, procIndex, "hindi_meaning")} />
+									<Input
+										value={processed.hindi_meaning}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"hindi_meaning"
+											)
+										}
+									/>
 								</TableCell>
 							)}
-							{permissions !== "User" && <TableCell>{/* Add edit/save buttons here */}</TableCell>}
+							{selectedColumns.includes("english_meaning") && (
+								<TableCell>
+									<Input
+										value={processed.english_meaning || ""}
+										onChange={(e) =>
+											handleInputChange(
+												e,
+												procIndex,
+												"english_meaning"
+											)
+										}
+									/>
+								</TableCell>
+							)}
+							{/* Render dynamic language columns */}
+							{availableLanguages
+								.filter(
+									(lang) =>
+										lang.code !== "hi" && lang.code !== "en"
+								)
+								.map((lang) => {
+									const columnId = `meaning_${lang.code}`;
+									if (!selectedColumns.includes(columnId))
+										return null;
+
+									const meanings = processed.meanings || {};
+									const meaningValue =
+										meanings[lang.code] || "";
+
+									return (
+										<TableCell key={columnId}>
+											<Input
+												value={meaningValue}
+												onChange={(e) =>
+													handleInputChange(
+														e,
+														procIndex,
+														columnId
+													)
+												}
+												placeholder={`Enter ${lang.name} Meaning`}
+											/>
+										</TableCell>
+									);
+								})}
+							{selectedColumns.includes("bgcolor") && (
+								<TableCell>
+									<Select
+										value={
+											processed.bgcolor || "transparent"
+										}
+										onValueChange={(value) => {
+											const updatedData = [
+												...analysisData,
+											];
+											updatedData[procIndex].bgcolor =
+												value === "transparent"
+													? ""
+													: value;
+											setAnalysisData(updatedData);
+										}}
+									>
+										<SelectTrigger className="w-[180px]">
+											<span
+												style={{
+													backgroundColor:
+														processed.bgcolor ||
+														"transparent",
+													display: "inline-block",
+													width: "20px",
+													height: "20px",
+													marginRight: "8px",
+													borderRadius: "3px",
+													border: "1px solid #ccc",
+												}}
+											></span>
+											{Object.entries(colors).find(
+												([key, value]) =>
+													value === processed.bgcolor
+											)?.[0] || "Select Color"}
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="transparent">
+												<span
+													style={{
+														backgroundColor:
+															"transparent",
+														display: "inline-block",
+														width: "20px",
+														height: "20px",
+														marginRight: "8px",
+														border: "1px solid #ccc",
+													}}
+												></span>
+												No Color
+											</SelectItem>
+											{Object.entries(colors).map(
+												([key, color]) => (
+													<SelectItem
+														key={key}
+														value={color}
+													>
+														<span
+															style={{
+																backgroundColor:
+																	color,
+																display:
+																	"inline-block",
+																width: "20px",
+																height: "20px",
+																marginRight:
+																	"8px",
+																borderRadius:
+																	"3px",
+															}}
+														></span>
+														{key}
+													</SelectItem>
+												)
+											)}
+										</SelectContent>
+									</Select>
+								</TableCell>
+							)}
 						</TableRow>
 					);
 				})}
@@ -542,16 +913,21 @@ export default function ShlokaPage() {
 
 				// Update the `kaaraka_sambandha` to include the sentence number
 				if (filteredItem.kaaraka_sambandha && sentno) {
-					const kaarakaEntries = filteredItem.kaaraka_sambandha.split(";");
+					const kaarakaEntries =
+						filteredItem.kaaraka_sambandha.split(";");
 
-					const modifiedKaaraka = kaarakaEntries.map((entry: { split: (arg0: string) => [any, any] }) => {
-						const [relation, sentenceNumber] = entry.split(",");
-						if (sentenceNumber) {
-							const parts = sentenceNumber.split(".");
-							return `${relation},S${sentno}.${parts.join(".")}`;
+					const modifiedKaaraka = kaarakaEntries.map(
+						(entry: { split: (arg0: string) => [any, any] }) => {
+							const [relation, sentenceNumber] = entry.split(",");
+							if (sentenceNumber) {
+								const parts = sentenceNumber.split(".");
+								return `${relation},S${sentno}.${parts.join(
+									"."
+								)}`;
+							}
+							return entry;
 						}
-						return entry;
-					});
+					);
 
 					filteredItem.kaaraka_sambandha = modifiedKaaraka.join(";");
 				}
@@ -573,7 +949,9 @@ export default function ShlokaPage() {
 						[sentno]: svgContent || "",
 					}));
 				} catch (error) {
-					setErrorMessage(`Error generating graph for sentno: ${sentno}`);
+					setErrorMessage(
+						`Error generating graph for sentno: ${sentno}`
+					);
 				}
 			}
 
@@ -583,7 +961,9 @@ export default function ShlokaPage() {
 
 			// Scroll to graphs section
 			setTimeout(() => {
-				const graphsSection = document.querySelector("[data-graphs-section]");
+				const graphsSection = document.querySelector(
+					"[data-graphs-section]"
+				);
 				if (graphsSection) {
 					graphsSection.scrollIntoView({ behavior: "smooth" });
 				}
@@ -600,13 +980,18 @@ export default function ShlokaPage() {
 		formData.append("tsv", tsvData);
 
 		try {
-			const response = await fetch("https://scl.samsaadhanii.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi", {
-				method: "POST",
-				body: formData,
-			});
+			const response = await fetch(
+				"https://scl.samsaadhanii.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi",
+				{
+					method: "POST",
+					body: formData,
+				}
+			);
 
 			if (!response.ok) {
-				throw new Error("Error uploading TSV data: " + response.statusText);
+				throw new Error(
+					"Error uploading TSV data: " + response.statusText
+				);
 			}
 
 			const result = await response.text();
@@ -615,12 +1000,16 @@ export default function ShlokaPage() {
 			// Extract image URL from response
 			return result;
 		} catch (error) {
-			setErrorMessage("Error uploading TSV data: " + (error as Error).message);
+			setErrorMessage(
+				"Error uploading TSV data: " + (error as Error).message
+			);
 			return null;
 		}
 	};
 
-	const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+	const svgContainerRefs = useRef<{ [key: string]: HTMLDivElement | null }>(
+		{}
+	);
 
 	useEffect(() => {
 		// Iterate over each SVG container and run the script within that container
@@ -647,14 +1036,20 @@ export default function ShlokaPage() {
 	const handleZoomIn = (sentno: string) => {
 		setZoomLevels((prev) => ({
 			...prev,
-			[sentno]: Math.min(MAX_ZOOM, (prev[sentno] || DEFAULT_ZOOM) + ZOOM_STEP),
+			[sentno]: Math.min(
+				MAX_ZOOM,
+				(prev[sentno] || DEFAULT_ZOOM) + ZOOM_STEP
+			),
 		}));
 	};
 
 	const handleZoomOut = (sentno: string) => {
 		setZoomLevels((prev) => ({
 			...prev,
-			[sentno]: Math.max(MIN_ZOOM, (prev[sentno] || DEFAULT_ZOOM) - ZOOM_STEP),
+			[sentno]: Math.max(
+				MIN_ZOOM,
+				(prev[sentno] || DEFAULT_ZOOM) - ZOOM_STEP
+			),
 		}));
 	};
 
@@ -666,29 +1061,61 @@ export default function ShlokaPage() {
 	};
 
 	// Get unique book names from the data
-	const existingBooks = useMemo(() => (booksData ?? []).map((item: BookData) => item.book), [booksData]);
+	const existingBooks = useMemo(
+		() => (booksData ?? []).map((item: BookData) => item.book),
+		[booksData]
+	);
 
 	// Get available part1 options for selected book
 	const availablePart1s = useMemo(() => {
-		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
+		const book = (booksData ?? []).find(
+			(b: BookData) => b.book === selectedBook
+		);
 		return (
-			book?.part1.map((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part).filter((p: string | null) => p !== null) ||
-			[]
+			book?.part1
+				.map(
+					(p: {
+						part: string | null;
+						part2: { part: string | null; chapters: string[] }[];
+					}) => p.part
+				)
+				.filter((p: string | null) => p !== null) || []
 		);
 	}, [booksData, selectedBook]);
 
 	// Get available part2 options for selected book and part1
 	const availablePart2s = useMemo(() => {
-		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
-		const part1Data = book?.part1.find((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part === selectedPart1);
-		return part1Data?.part2.map((p: { part: string | null; chapters: string[] }) => p.part).filter((p: string | null) => p !== null) || [];
+		const book = (booksData ?? []).find(
+			(b: BookData) => b.book === selectedBook
+		);
+		const part1Data = book?.part1.find(
+			(p: {
+				part: string | null;
+				part2: { part: string | null; chapters: string[] }[];
+			}) => p.part === selectedPart1
+		);
+		return (
+			part1Data?.part2
+				.map((p: { part: string | null; chapters: string[] }) => p.part)
+				.filter((p: string | null) => p !== null) || []
+		);
 	}, [booksData, selectedBook, selectedPart1]);
 
 	// Get available chapters for selected combination
 	const availableChapters = useMemo(() => {
-		const book = (booksData ?? []).find((b: BookData) => b.book === selectedBook);
-		const part1Data = book?.part1.find((p: { part: string | null; part2: { part: string | null; chapters: string[] }[] }) => p.part === selectedPart1);
-		const part2Data = part1Data?.part2.find((p: { part: string | null; chapters: string[] }) => p.part === selectedPart2);
+		const book = (booksData ?? []).find(
+			(b: BookData) => b.book === selectedBook
+		);
+		const part1Data = book?.part1.find(
+			(p: {
+				part: string | null;
+				part2: { part: string | null; chapters: string[] }[];
+			}) => p.part === selectedPart1
+		);
+		const part2Data = part1Data?.part2.find(
+			(p: { part: string | null; chapters: string[] }) =>
+				p.part === selectedPart2
+		);
 		return part2Data?.chapters || [];
 	}, [booksData, selectedBook, selectedPart1, selectedPart2]);
 
@@ -736,7 +1163,9 @@ export default function ShlokaPage() {
 				return;
 			}
 
-			toast.loading("Saving shloka and analysis...", { id: loadingToast });
+			toast.loading("Saving shloka and analysis...", {
+				id: loadingToast,
+			});
 
 			// If no duplicate found, proceed with saving
 			// First, save the shloka
@@ -749,40 +1178,60 @@ export default function ShlokaPage() {
 				spart: shlokaInput,
 			};
 
-			const shlokaResponse = await fetch(`/api/books/${selectedBook}/${selectedPart1 || "null"}/${selectedPart2 || "null"}/${chaptno}`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(shlokaData),
-			});
+			const shlokaResponse = await fetch(
+				`/api/books/${selectedBook}/${selectedPart1 || "null"}/${
+					selectedPart2 || "null"
+				}/${chaptno}`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(shlokaData),
+				}
+			);
 
 			if (!shlokaResponse.ok) throw new Error("Failed to save shloka");
 			const shlokaResult = await shlokaResponse.json();
 
 			// Then, save the analysis data
-			const formattedAnalysisData = analysisData.map((item) => ({
-				book: selectedBook,
-				part1: selectedPart1 || null,
-				part2: selectedPart2 || null,
-				chaptno,
-				slokano,
-				sentno: item.sentno || "1",
-				bgcolor: item.bgcolor || "transparent",
-				graph: item.graph || "-",
-				anvaya_no: item.anvaya_no || "-",
-				word: item.word || "-",
-				poem: item.poem || "-",
-				sandhied_word: item.sandhied_word || "-",
-				morph_analysis: item.morph_analysis || "-",
-				morph_in_context: item.morph_in_context || "-",
-				kaaraka_sambandha: item.kaaraka_sambandha || "-",
-				possible_relations: item.possible_relations || "-",
-				hindi_meaning: item.hindi_meaning || "-",
-				english_meaning: "-",
-				samAsa: "-",
-				praayoga: "-",
-				sarvanAma: "-",
-				name_classification: "-",
-			}));
+			const formattedAnalysisData = analysisData.map((item) => {
+				// Build meanings object from language inputs
+				const meanings: { [key: string]: string } = {};
+				availableLanguages
+					.filter((lang) => lang.code !== "hi" && lang.code !== "en")
+					.forEach((lang) => {
+						const langCode = lang.code;
+						if (item.meanings && item.meanings[langCode]) {
+							meanings[langCode] = item.meanings[langCode];
+						}
+					});
+
+				return {
+					book: selectedBook,
+					part1: selectedPart1 || null,
+					part2: selectedPart2 || null,
+					chaptno,
+					slokano,
+					sentno: item.sentno || "1",
+					bgcolor: item.bgcolor || "transparent",
+					graph: item.graph || "-",
+					anvaya_no: item.anvaya_no || "-",
+					word: item.word || "-",
+					poem: item.poem || "-",
+					sandhied_word: item.sandhied_word || "-",
+					morph_analysis: item.morph_analysis || "-",
+					morph_in_context: item.morph_in_context || "-",
+					kaaraka_sambandha: item.kaaraka_sambandha || "-",
+					possible_relations: item.possible_relations || "-",
+					hindi_meaning: item.hindi_meaning || "-",
+					english_meaning: item.english_meaning || "-",
+					samAsa: "-",
+					praayoga: "-",
+					sarvanAma: "-",
+					name_classification: "-",
+					meanings:
+						Object.keys(meanings).length > 0 ? meanings : undefined,
+				};
+			});
 
 			const analysisResponse = await fetch("/api/analysis", {
 				method: "POST",
@@ -849,7 +1298,8 @@ export default function ShlokaPage() {
 						<CardTitle>Access Restricted</CardTitle>
 					</CardHeader>
 					<CardContent>
-						You are not an annotator or editor. Kindly get assigned your roles from the admin.
+						You are not an annotator or editor. Kindly get assigned
+						your roles from the admin.
 					</CardContent>
 				</Card>
 			</div>
@@ -865,7 +1315,10 @@ export default function ShlokaPage() {
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
 						<div>
-							<label className="block mb-2">Enter Shlokas (separate multiple shlokas with #):</label>
+							<label className="block mb-2">
+								Enter Shlokas (separate multiple shlokas with
+								#):
+							</label>
 							<Input
 								value={shlokaInput}
 								onChange={(e) => setShlokaInput(e.target.value)}
@@ -897,7 +1350,9 @@ export default function ShlokaPage() {
 					<CardContent>
 						{processedShlokas.map((result, index) => (
 							<div key={index} className="mb-4">
-								<h3 className="font-semibold">Original Shloka {index + 1}:</h3>
+								<h3 className="font-semibold">
+									Original Shloka {index + 1}:
+								</h3>
 								<p>{result.original}</p>
 								<h4 className="mt-2">Split Result:</h4>
 								<p>{result.split.join(" ")}</p>
@@ -919,12 +1374,20 @@ export default function ShlokaPage() {
 								<Button
 									variant="outline"
 									onClick={() => {
-										setEditableSandhiResults(originalSandhiResults.map((result) => result.split.join(" ")));
+										setEditableSandhiResults(
+											originalSandhiResults.map(
+												(result) =>
+													result.split.join(" ")
+											)
+										);
 									}}
 								>
 									Reset to Original
 								</Button>
-								<Button onClick={handleProcessAnalysis} disabled={analysisProcessing}>
+								<Button
+									onClick={handleProcessAnalysis}
+									disabled={analysisProcessing}
+								>
 									{analysisProcessing ? (
 										<>
 											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -937,16 +1400,27 @@ export default function ShlokaPage() {
 							</div>
 							{editableSandhiResults.map((result, index) => (
 								<div key={index} className="space-y-2">
-									<label className="block text-sm font-medium">Shloka {index + 1} Split Result</label>
+									<label className="block text-sm font-medium">
+										Shloka {index + 1} Split Result
+									</label>
 									<Input
 										value={result}
 										onChange={(e) => {
-											const newResults = [...editableSandhiResults];
+											const newResults = [
+												...editableSandhiResults,
+											];
 											newResults[index] = e.target.value;
-											setEditableSandhiResults(newResults);
+											setEditableSandhiResults(
+												newResults
+											);
 										}}
 									/>
-									<div className="text-sm text-muted-foreground">Original: {originalSandhiResults[index]?.split.join(" ")}</div>
+									<div className="text-sm text-muted-foreground">
+										Original:{" "}
+										{originalSandhiResults[
+											index
+										]?.split.join(" ")}
+									</div>
 								</div>
 							))}
 						</div>
@@ -970,8 +1444,13 @@ export default function ShlokaPage() {
 								</PopoverTrigger>
 								<PopoverContent className="w-80">
 									<div className="space-y-2">
-										<h4 className="font-medium leading-none">Background Opacity</h4>
-										<p className="text-sm text-muted-foreground">Adjust the opacity of color highlighting</p>
+										<h4 className="font-medium leading-none">
+											Background Opacity
+										</h4>
+										<p className="text-sm text-muted-foreground">
+											Adjust the opacity of color
+											highlighting
+										</p>
 										<Slider
 											defaultValue={[opacity * 100]}
 											max={100}
@@ -992,13 +1471,25 @@ export default function ShlokaPage() {
 								</PopoverTrigger>
 								<PopoverContent className="w-80">
 									<div className="space-y-2">
-										<h4 className="font-medium leading-none mb-3">Visible Columns</h4>
+										<h4 className="font-medium leading-none mb-3">
+											Visible Columns
+										</h4>
 										<div className="grid grid-cols-2 gap-2">
 											{columnOptions.map((option) => (
 												<Button
 													key={option.id}
-													variant={selectedColumns.includes(option.id) ? "default" : "outline"}
-													onClick={() => handleColumnSelect(option.id)}
+													variant={
+														selectedColumns.includes(
+															option.id
+														)
+															? "default"
+															: "outline"
+													}
+													onClick={() =>
+														handleColumnSelect(
+															option.id
+														)
+													}
 													size="sm"
 												>
 													{option.label}
@@ -1010,11 +1501,18 @@ export default function ShlokaPage() {
 							</Popover>
 
 							{/* Generate Graph Button */}
-							<Button onClick={handleGenerateGraph} size="sm" disabled={analysisData.length === 0}>
+							<Button
+								onClick={handleGenerateGraph}
+								size="sm"
+								disabled={analysisData.length === 0}
+							>
 								Generate Graph
 							</Button>
 
-							<Button onClick={() => setShowSaveDialog(true)} size="sm">
+							<Button
+								onClick={() => setShowSaveDialog(true)}
+								size="sm"
+							>
 								Save
 							</Button>
 						</div>
@@ -1025,16 +1523,84 @@ export default function ShlokaPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										{selectedColumns.includes("anvaya_no") && <TableHead>Index</TableHead>}
-										{selectedColumns.includes("word") && <TableHead>Word</TableHead>}
-										{selectedColumns.includes("poem") && <TableHead>Prose Index</TableHead>}
-										{selectedColumns.includes("sandhied_word") && <TableHead>Sandhied Word</TableHead>}
-										{selectedColumns.includes("morph_analysis") && <TableHead>Morph Analysis</TableHead>}
-										{selectedColumns.includes("morph_in_context") && <TableHead>Morph In Context</TableHead>}
-										{selectedColumns.includes("kaaraka_sambandha") && <TableHead>Kaaraka Relation</TableHead>}
-										{selectedColumns.includes("possible_relations") && <TableHead>Possible Relations</TableHead>}
-										{selectedColumns.includes("hindi_meaning") && <TableHead>Hindi Meaning</TableHead>}
-										{permissions !== "User" && <TableHead>Actions</TableHead>}
+										{selectedColumns.includes(
+											"anvaya_no"
+										) && <TableHead>Index</TableHead>}
+										{selectedColumns.includes("word") && (
+											<TableHead>Word</TableHead>
+										)}
+										{selectedColumns.includes("poem") && (
+											<TableHead>Prose Index</TableHead>
+										)}
+										{selectedColumns.includes(
+											"sandhied_word"
+										) && (
+											<TableHead>Sandhied Word</TableHead>
+										)}
+										{selectedColumns.includes(
+											"morph_analysis"
+										) && (
+											<TableHead>
+												Morph Analysis
+											</TableHead>
+										)}
+										{selectedColumns.includes(
+											"morph_in_context"
+										) && (
+											<TableHead>
+												Morph In Context
+											</TableHead>
+										)}
+										{selectedColumns.includes(
+											"kaaraka_sambandha"
+										) && (
+											<TableHead>
+												Kaaraka Relation
+											</TableHead>
+										)}
+										{selectedColumns.includes(
+											"possible_relations"
+										) && (
+											<TableHead>
+												Possible Relations
+											</TableHead>
+										)}
+										{selectedColumns.includes(
+											"hindi_meaning"
+										) && (
+											<TableHead>Hindi Meaning</TableHead>
+										)}
+										{selectedColumns.includes(
+											"english_meaning"
+										) && (
+											<TableHead>
+												English Meaning
+											</TableHead>
+										)}
+										{/* Render dynamic language column headers */}
+										{availableLanguages
+											.filter(
+												(lang) =>
+													lang.code !== "hi" &&
+													lang.code !== "en"
+											)
+											.map((lang) => {
+												const columnId = `meaning_${lang.code}`;
+												if (
+													!selectedColumns.includes(
+														columnId
+													)
+												)
+													return null;
+												return (
+													<TableHead key={columnId}>
+														{lang.name} Meaning
+													</TableHead>
+												);
+											})}
+										{selectedColumns.includes(
+											"bgcolor"
+										) && <TableHead>Color Code</TableHead>}
 									</TableRow>
 								</TableHeader>
 								{renderTableContent()}
