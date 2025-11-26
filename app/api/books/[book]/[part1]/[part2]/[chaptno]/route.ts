@@ -47,7 +47,10 @@ export async function GET(request: Request, { params }: { params: Params }) {
 	return NextResponse.json({ shlokas }, { headers: corsHeaders() });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Params }) {
+export async function DELETE(
+	request: NextRequest,
+	{ params }: { params: Params }
+) {
 	await dbConnect();
 	const { book, part1, part2, chaptno } = params;
 	const authResponse = await verifyDBAccess(request);
@@ -72,14 +75,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 		console.log(`Found ${count} shlokas to delete`);
 
 		if (count === 0) {
-			return NextResponse.json({ message: "No entries found to delete." }, { headers: corsHeaders() });
+			return NextResponse.json(
+				{ message: "No entries found to delete." },
+				{ headers: corsHeaders() }
+			);
 		}
 
 		// For large deletions, skip detailed history logging to improve performance
 		const shouldSkipDetailedLogging = count > 100;
 
 		if (shouldSkipDetailedLogging) {
-			console.log("Large deletion detected, skipping detailed history logging for performance");
+			console.log(
+				"Large deletion detected, skipping detailed history logging for performance"
+			);
 		}
 
 		// Delete all entries matching the query first
@@ -135,15 +143,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 									field: "deleted_shlokas",
 									oldValue: {
 										count: shlokasToDelete.length,
-										shlokas: shlokasToDelete.map((shloka) => ({
-											slokano: shloka.slokano,
-											spart: shloka.spart,
-											status: {
-												locked: shloka.locked,
-												userPublished: shloka.userPublished,
-												groupPublished: shloka.groupPublished,
-											},
-										})),
+										shlokas: shlokasToDelete.map(
+											(shloka) => ({
+												slokano: shloka.slokano,
+												spart: shloka.spart,
+												status: {
+													locked: shloka.locked,
+													userPublished:
+														shloka.userPublished,
+													groupPublished:
+														shloka.groupPublished,
+												},
+											})
+										),
 									},
 									newValue: null,
 								},
@@ -177,7 +189,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Params 
 		);
 	} catch (error) {
 		console.error("Error deleting entries:", error);
-		return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{ error: "Internal Server Error" },
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }
 
@@ -190,7 +205,31 @@ export async function POST(request: Request, { params }: { params: Params }) {
 		// Get current user from Clerk
 		const user = await currentUser();
 		if (!user) {
-			return NextResponse.json({ error: "User not authenticated" }, { status: 401, headers: corsHeaders() });
+			return NextResponse.json(
+				{ error: "User not authenticated" },
+				{ status: 401, headers: corsHeaders() }
+			);
+		}
+
+		// Check if the book exists by finding any existing shloka with this book name
+		const existingShloka = await AHShloka.findOne({ book });
+
+		let userPublished = false;
+		let groupPublished = false;
+		let owner: string | null = null;
+
+		if (existingShloka) {
+			// Book exists - use the same publishing status as the book
+			userPublished = existingShloka.userPublished || false;
+			groupPublished = existingShloka.groupPublished || false;
+			// Use the existing owner if it exists, otherwise set current user as owner
+			owner = existingShloka.owner || user.id;
+		} else {
+			// Book is new - set owner to current user and keep publishing status as false
+			// This ensures only the owner, root, and admin can see it
+			owner = user.id;
+			userPublished = false;
+			groupPublished = false;
 		}
 
 		// Create new shloka
@@ -201,10 +240,10 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			chaptno,
 			slokano: data.slokano,
 			spart: data.spart,
-			userPublished: false,
-			groupPublished: false,
+			userPublished,
+			groupPublished,
 			locked: false,
-			owner: user.id,
+			owner,
 		});
 
 		// Log the creation
@@ -233,6 +272,9 @@ export async function POST(request: Request, { params }: { params: Params }) {
 		return NextResponse.json(shloka, { headers: corsHeaders() });
 	} catch (error) {
 		console.error("Error creating shloka:", error);
-		return NextResponse.json({ error: "Failed to create shloka" }, { status: 500, headers: corsHeaders() });
+		return NextResponse.json(
+			{ error: "Failed to create shloka" },
+			{ status: 500, headers: corsHeaders() }
+		);
 	}
 }

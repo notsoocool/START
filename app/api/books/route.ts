@@ -32,22 +32,39 @@ export async function GET(request: NextRequest) {
 		if (!user) {
 			// For unauthenticated users, show only user-published books that are not locked
 			matchCondition = {
-				$and: [{ userPublished: true }, { $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] }],
+				$and: [
+					{ userPublished: true },
+					{
+						$or: [
+							{ locked: { $ne: true } },
+							{ locked: { $exists: false } },
+						],
+					},
+				],
 			};
 		} else {
 			// Get user permissions
 			userPermissions = await Perms.findOne({ userID: user.id });
 			if (!userPermissions) {
-				return NextResponse.json({ error: "User permissions not found" }, { status: 404, headers: { ...corsHeaders } });
+				return NextResponse.json(
+					{ error: "User permissions not found" },
+					{ status: 404, headers: { ...corsHeaders } }
+				);
 			}
 
 			// Get user's groups and their assigned books
 			const userGroups = await Group.find({ members: user.id });
-			const userGroupIds = userGroups.map((group) => group._id.toString());
-			const parentGroupIds = userGroups.filter((group) => group.parentGroup).map((group) => group.parentGroup);
+			const userGroupIds = userGroups.map((group) =>
+				group._id.toString()
+			);
+			const parentGroupIds = userGroups
+				.filter((group) => group.parentGroup)
+				.map((group) => group.parentGroup);
 
 			// Get all books assigned to user's groups
-			const assignedBooks = userGroups.flatMap((group) => group.assignedBooks || []);
+			const assignedBooks = userGroups.flatMap(
+				(group) => group.assignedBooks || []
+			);
 			const parentGroupBooks = await Group.find({
 				_id: { $in: parentGroupIds },
 			}).distinct("assignedBooks");
@@ -66,14 +83,25 @@ export async function GET(request: NextRequest) {
 								{ userPublished: true },
 								{ owner: user.id },
 								{
-									$and: [{ groupPublished: true }, { book: { $in: allAssignedBooks } }],
+									$and: [
+										{ groupPublished: true },
+										{ book: { $in: allAssignedBooks } },
+									],
 								},
 							],
 						},
-						{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
+						{
+							$or: [
+								{ locked: { $ne: true } },
+								{ locked: { $exists: false } },
+							],
+						},
 					],
 				};
-			} else if (userPermissions.perms === "Annotator" || userPermissions.perms === "Editor") {
+			} else if (
+				userPermissions.perms === "Annotator" ||
+				userPermissions.perms === "Editor"
+			) {
 				// Annotators and Editors can see:
 				// 1. User-published books (regardless of owner/group)
 				// 2. Group-published books from their assigned groups
@@ -86,14 +114,25 @@ export async function GET(request: NextRequest) {
 								{ userPublished: true },
 								{ owner: user.id },
 								{
-									$and: [{ groupPublished: true }, { book: { $in: allAssignedBooks } }],
+									$and: [
+										{ groupPublished: true },
+										{ book: { $in: allAssignedBooks } },
+									],
 								},
 							],
 						},
-						{ $or: [{ locked: { $ne: true } }, { locked: { $exists: false } }] },
+						{
+							$or: [
+								{ locked: { $ne: true } },
+								{ locked: { $exists: false } },
+							],
+						},
 					],
 				};
-			} else if (userPermissions.perms === "Admin" || userPermissions.perms === "Root") {
+			} else if (
+				userPermissions.perms === "Admin" ||
+				userPermissions.perms === "Root"
+			) {
 				// Admins and Root can see everything, including locked books
 				matchCondition = {};
 			}
@@ -104,12 +143,19 @@ export async function GET(request: NextRequest) {
 			{
 				$match: matchCondition,
 			},
-			// Filter to only show chapters that are individually published (but not for Admin/Root)
-			...(userPermissions && userPermissions.perms !== "Admin" && userPermissions.perms !== "Root"
+			// Filter to only show chapters that are individually published OR owned by the user (but not for Admin/Root)
+			...(userPermissions &&
+			userPermissions.perms !== "Admin" &&
+			userPermissions.perms !== "Root" &&
+			user
 				? [
 						{
 							$match: {
-								$or: [{ userPublished: true }, { groupPublished: true }],
+								$or: [
+									{ userPublished: true },
+									{ groupPublished: true },
+									{ owner: user.id },
+								],
 							},
 						},
 				  ]
@@ -136,6 +182,7 @@ export async function GET(request: NextRequest) {
 							locked: "$locked",
 							userPublished: "$userPublished",
 							groupPublished: "$groupPublished",
+							owner: "$owner",
 						},
 					},
 				},
