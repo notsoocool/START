@@ -1,8 +1,45 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 import { LoaderFive } from "./loader";
+import { useState, useEffect } from "react";
 
-export const LoadingScreen = ({ text = "Loading Analysis...", loadingExit = false }: { text?: string; loadingExit?: boolean }) => {
+const sanskritFacts = [
+	"Sanskrit is considered the 'mother of all languages' and is one of the oldest languages in the world, dating back over 3,500 years.",
+	"The word 'Sanskrit' means 'refined' or 'perfected', reflecting its highly structured and systematic nature.",
+	"Sanskrit has the largest vocabulary of any language, with over 100,000 words in its classical form.",
+	"Panini's 'Ashtadhyayi', written around 500 BCE, is one of the most comprehensive grammar texts ever created for any language.",
+	"Sanskrit is written in the Devanagari script, which is also used for Hindi, Marathi, and Nepali.",
+	"Many modern Indian languages, including Hindi, Bengali, and Telugu, have evolved from Sanskrit.",
+	"The Rigveda, composed in Sanskrit around 1500 BCE, is one of the oldest known texts in any Indo-European language.",
+	"Sanskrit has 8 cases, 3 numbers, and 3 genders, making it one of the most grammatically complex languages.",
+	"NASA has recognized Sanskrit as the most suitable language for computer programming due to its logical structure.",
+	"Sanskrit literature includes epic poems like the Mahabharata (100,000 verses) and Ramayana (24,000 verses).",
+	"The Sanskrit alphabet has 13 vowels and 33 consonants, each with a specific pronunciation.",
+	"Sanskrit is still used as a ceremonial language in Hindu rituals and Buddhist chants.",
+	"Many English words like 'yoga', 'karma', 'nirvana', 'mantra', and 'guru' are derived from Sanskrit.",
+	"Sanskrit poetry follows strict metrical rules, with over 100 different meters (chandas) defined.",
+	"The concept of zero (shunya) was first described in Sanskrit mathematical texts.",
+	"Sanskrit has influenced languages as far as Indonesia, Cambodia, and Thailand through ancient trade routes.",
+	"Classical Sanskrit is considered 'frozen' - it hasn't changed significantly in over 2,000 years.",
+	"Sanskrit texts cover diverse subjects including mathematics, astronomy, medicine, philosophy, and politics.",
+	"The Sanskrit word 'namaste' literally means 'I bow to you' and represents respect and greeting.",
+	"Sanskrit's precise grammar allows for complex ideas to be expressed with remarkable clarity and brevity.",
+];
+
+export const LoadingScreen = ({
+	text = "Loading Analysis...",
+	loadingExit = false,
+}: {
+	text?: string;
+	loadingExit?: boolean;
+}) => {
+	const [randomFact, setRandomFact] = useState(sanskritFacts[0]);
+
+	useEffect(() => {
+		// Select a random fact when component mounts
+		const randomIndex = Math.floor(Math.random() * sanskritFacts.length);
+		setRandomFact(sanskritFacts[randomIndex]);
+	}, []);
 	return (
 		<AnimatePresence mode="wait">
 			{!loadingExit && (
@@ -108,7 +145,11 @@ export const LoadingScreen = ({ text = "Loading Analysis...", loadingExit = fals
 
 						{/* Loading text with animation */}
 						<div className="space-y-4">
-							<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.5, delay: 0.4 }}
+							>
 								<LoaderFive text={text} />
 							</motion.div>
 
@@ -140,12 +181,13 @@ export const LoadingScreen = ({ text = "Loading Analysis...", loadingExit = fals
 
 						{/* Fun facts or tips */}
 						<motion.div
-							className="max-w-md mx-auto text-sm text-gray-600 dark:text-gray-400"
+							className="max-w-md mx-auto text-sm text-gray-600 dark:text-gray-400 px-4"
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							transition={{ delay: 1, duration: 0.5 }}
 						>
 							<motion.p
+								key={randomFact}
 								animate={{
 									opacity: [0.5, 1, 0.5],
 								}}
@@ -154,8 +196,9 @@ export const LoadingScreen = ({ text = "Loading Analysis...", loadingExit = fals
 									repeat: Infinity,
 									ease: "easeInOut",
 								}}
+								className="italic"
 							>
-								"Sanskrit is the language of the gods, containing the wisdom of millennia..."
+								"{randomFact}"
 							</motion.p>
 						</motion.div>
 					</motion.div>
