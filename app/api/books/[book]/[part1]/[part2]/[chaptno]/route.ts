@@ -58,11 +58,11 @@ export async function DELETE(
 		return authResponse;
 	}
 
-	// Build the query dynamically, excluding null values
+	// Build the query, explicitly including null values when params are "null"
 	const query = {
-		...(book !== "null" && { book }),
-		...(part1 !== "null" && { part1 }),
-		...(part2 !== "null" && { part2 }),
+		book,
+		part1: part1 !== "null" ? part1 : null,
+		part2: part2 !== "null" ? part2 : null,
 		chaptno,
 	};
 
