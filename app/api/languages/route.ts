@@ -138,7 +138,11 @@ export async function GET() {
 		// Merge manually added languages with discovered languages
 		const languageMap = new Map<string, string>();
 
-		// First, add manually added languages (they have custom names)
+		// First, add static default languages (English and Hindi) - always present
+		languageMap.set("en", LANGUAGE_NAMES["en"] || "English");
+		languageMap.set("hi", LANGUAGE_NAMES["hi"] || "Hindi");
+
+		// Then, add manually added languages (they have custom names)
 		languages.forEach((lang: any) => {
 			languageMap.set(lang.code.toLowerCase(), lang.name);
 		});
@@ -158,12 +162,16 @@ export async function GET() {
 			languages.map((lang: any) => lang.code.toLowerCase())
 		);
 
+		// Mark static languages (en, hi) as not manually added (they're always present)
+		const staticLanguages = new Set(["en", "hi"]);
+
 		// Convert to array and sort, marking which are manually added
 		const allLanguages = Array.from(languageMap.entries())
 			.map(([code, name]) => ({
 				code,
 				name,
-				isManuallyAdded: manuallyAddedCodes.has(code),
+				isManuallyAdded:
+					manuallyAddedCodes.has(code) && !staticLanguages.has(code),
 			}))
 			.sort((a, b) => a.code.localeCompare(b.code));
 
