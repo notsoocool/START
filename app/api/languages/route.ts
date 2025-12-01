@@ -3,44 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db/connect";
 import Perms from "@/lib/db/permissionsModel";
 import Analysis from "@/lib/db/newAnalysisModel";
-import { promises as fs } from "fs";
-import path from "path";
-
-// Path to the JSON file for persistence
-const LANGUAGES_FILE_PATH = path.join(process.cwd(), "data", "languages.json");
-
-// Helper function to load languages from file
-async function loadLanguages(): Promise<{ code: string; name: string }[]> {
-	try {
-		await fs.mkdir(path.dirname(LANGUAGES_FILE_PATH), { recursive: true });
-		const fileContent = await fs.readFile(LANGUAGES_FILE_PATH, "utf-8");
-		return JSON.parse(fileContent);
-	} catch (error: any) {
-		// File doesn't exist yet, start with empty array
-		if (error.code === "ENOENT") {
-			return [];
-		}
-		console.error("Error loading languages from file:", error);
-		return [];
-	}
-}
-
-// Helper function to save languages to file
-async function saveLanguages(
-	languages: { code: string; name: string }[]
-): Promise<void> {
-	try {
-		await fs.mkdir(path.dirname(LANGUAGES_FILE_PATH), { recursive: true });
-		await fs.writeFile(
-			LANGUAGES_FILE_PATH,
-			JSON.stringify(languages, null, 2),
-			"utf-8"
-		);
-	} catch (error) {
-		console.error("Error saving languages to file:", error);
-		throw error;
-	}
-}
+import Language from "@/lib/db/languageModel";
 
 // Common language code to name mapping
 const LANGUAGE_NAMES: { [key: string]: string } = {
@@ -83,8 +46,8 @@ export async function GET() {
 			);
 		}
 
-		// Load manually added languages from file
-		const languages = await loadLanguages();
+		// Load manually added languages from database
+		const languages = await Language.find({}).select("code name").lean();
 
 		// Discover languages from the database by checking meanings field
 		const discoveredCodes = new Set<string>();
@@ -176,7 +139,7 @@ export async function GET() {
 		const languageMap = new Map<string, string>();
 
 		// First, add manually added languages (they have custom names)
-		languages.forEach((lang) => {
+		languages.forEach((lang: any) => {
 			languageMap.set(lang.code.toLowerCase(), lang.name);
 		});
 
@@ -192,7 +155,7 @@ export async function GET() {
 
 		// Create a set of manually added language codes for reference
 		const manuallyAddedCodes = new Set(
-			languages.map((lang) => lang.code.toLowerCase())
+			languages.map((lang: any) => lang.code.toLowerCase())
 		);
 
 		// Convert to array and sort, marking which are manually added
@@ -264,23 +227,28 @@ export async function POST(req: NextRequest) {
 
 		const normalizedCode = code.toLowerCase();
 
-		// Load existing languages
-		const languages = await loadLanguages();
-
-		// Check if language already exists
-		if (languages.some((lang) => lang.code === normalizedCode)) {
+		// Check if language already exists in database
+		const existingLanguage = await Language.findOne({
+			code: normalizedCode,
+		});
+		if (existingLanguage) {
 			return NextResponse.json(
 				{ error: "Language already exists" },
 				{ status: 400 }
 			);
 		}
 
-		// Add new language
-		languages.push({ code: normalizedCode, name });
-		languages.sort((a, b) => a.code.localeCompare(b.code));
+		// Create new language in database
+		const newLanguage = await Language.create({
+			code: normalizedCode,
+			name,
+		});
 
-		// Save to file
-		await saveLanguages(languages);
+		// Fetch all languages for response
+		const languages = await Language.find({})
+			.select("code name")
+			.sort({ code: 1 })
+			.lean();
 
 		return NextResponse.json({
 			success: true,
@@ -340,15 +308,12 @@ export async function DELETE(req: NextRequest) {
 			);
 		}
 
-		// Load existing languages
-		const languages = await loadLanguages();
+		// Find and delete the language from database
+		const removedLanguage = await Language.findOneAndDelete({
+			code: normalizedCode,
+		});
 
-		// Only remove manually added languages (not discovered ones)
-		// Discovered languages exist in the database and cannot be deleted via this endpoint
-		const index = languages.findIndex(
-			(lang) => lang.code === normalizedCode
-		);
-		if (index === -1) {
+		if (!removedLanguage) {
 			return NextResponse.json(
 				{
 					error: "Language not found in manually added languages. Discovered languages from the database cannot be deleted. Remove the language data from analysis records first.",
@@ -357,11 +322,11 @@ export async function DELETE(req: NextRequest) {
 			);
 		}
 
-		const removedLanguage = languages[index];
-		languages.splice(index, 1);
-
-		// Save to file
-		await saveLanguages(languages);
+		// Fetch all remaining languages for response
+		const languages = await Language.find({})
+			.select("code name")
+			.sort({ code: 1 })
+			.lean();
 
 		return NextResponse.json({
 			success: true,
