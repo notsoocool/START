@@ -3,19 +3,44 @@ import { currentUser } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db/connect";
 import Perms from "@/lib/db/permissionsModel";
 import Analysis from "@/lib/db/newAnalysisModel";
+import { promises as fs } from "fs";
+import path from "path";
 
-// Use global variable to persist across module reloads (similar to undo cache pattern)
-declare global {
-	var languagesCache: { code: string; name: string }[] | undefined;
+// Path to the JSON file for persistence
+const LANGUAGES_FILE_PATH = path.join(process.cwd(), "data", "languages.json");
+
+// Helper function to load languages from file
+async function loadLanguages(): Promise<{ code: string; name: string }[]> {
+	try {
+		await fs.mkdir(path.dirname(LANGUAGES_FILE_PATH), { recursive: true });
+		const fileContent = await fs.readFile(LANGUAGES_FILE_PATH, "utf-8");
+		return JSON.parse(fileContent);
+	} catch (error: any) {
+		// File doesn't exist yet, start with empty array
+		if (error.code === "ENOENT") {
+			return [];
+		}
+		console.error("Error loading languages from file:", error);
+		return [];
+	}
 }
 
-// Store languages in global cache (persists across hot reloads in dev, but resets on server restart)
-const getLanguagesCache = (): { code: string; name: string }[] => {
-	if (!global.languagesCache) {
-		global.languagesCache = [];
+// Helper function to save languages to file
+async function saveLanguages(
+	languages: { code: string; name: string }[]
+): Promise<void> {
+	try {
+		await fs.mkdir(path.dirname(LANGUAGES_FILE_PATH), { recursive: true });
+		await fs.writeFile(
+			LANGUAGES_FILE_PATH,
+			JSON.stringify(languages, null, 2),
+			"utf-8"
+		);
+	} catch (error) {
+		console.error("Error saving languages to file:", error);
+		throw error;
 	}
-	return global.languagesCache;
-};
+}
 
 // Common language code to name mapping
 const LANGUAGE_NAMES: { [key: string]: string } = {
@@ -58,8 +83,8 @@ export async function GET() {
 			);
 		}
 
-		// Get languages from cache
-		const languages = getLanguagesCache();
+		// Load manually added languages from file
+		const languages = await loadLanguages();
 
 		// Discover languages from the database by checking meanings field
 		const discoveredCodes = new Set<string>();
@@ -239,8 +264,8 @@ export async function POST(req: NextRequest) {
 
 		const normalizedCode = code.toLowerCase();
 
-		// Get languages from cache
-		const languages = getLanguagesCache();
+		// Load existing languages
+		const languages = await loadLanguages();
 
 		// Check if language already exists
 		if (languages.some((lang) => lang.code === normalizedCode)) {
@@ -253,6 +278,9 @@ export async function POST(req: NextRequest) {
 		// Add new language
 		languages.push({ code: normalizedCode, name });
 		languages.sort((a, b) => a.code.localeCompare(b.code));
+
+		// Save to file
+		await saveLanguages(languages);
 
 		return NextResponse.json({
 			success: true,
@@ -312,8 +340,8 @@ export async function DELETE(req: NextRequest) {
 			);
 		}
 
-		// Get languages from cache
-		const languages = getLanguagesCache();
+		// Load existing languages
+		const languages = await loadLanguages();
 
 		// Only remove manually added languages (not discovered ones)
 		// Discovered languages exist in the database and cannot be deleted via this endpoint
@@ -331,6 +359,9 @@ export async function DELETE(req: NextRequest) {
 
 		const removedLanguage = languages[index];
 		languages.splice(index, 1);
+
+		// Save to file
+		await saveLanguages(languages);
 
 		return NextResponse.json({
 			success: true,
