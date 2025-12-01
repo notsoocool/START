@@ -4,10 +4,18 @@ import dbConnect from "@/lib/db/connect";
 import Perms from "@/lib/db/permissionsModel";
 import Analysis from "@/lib/db/newAnalysisModel";
 
-// Store languages in memory (in production, you might want to use a database)
-// Default languages
+// Use global variable to persist across module reloads (similar to undo cache pattern)
+declare global {
+	var languagesCache: { code: string; name: string }[] | undefined;
+}
 
-let languages: { code: string; name: string }[] = [];
+// Store languages in global cache (persists across hot reloads in dev, but resets on server restart)
+const getLanguagesCache = (): { code: string; name: string }[] => {
+	if (!global.languagesCache) {
+		global.languagesCache = [];
+	}
+	return global.languagesCache;
+};
 
 // Common language code to name mapping
 const LANGUAGE_NAMES: { [key: string]: string } = {
@@ -49,6 +57,9 @@ export async function GET() {
 				{ status: 401 }
 			);
 		}
+
+		// Get languages from cache
+		const languages = getLanguagesCache();
 
 		// Discover languages from the database by checking meanings field
 		const discoveredCodes = new Set<string>();
@@ -228,6 +239,9 @@ export async function POST(req: NextRequest) {
 
 		const normalizedCode = code.toLowerCase();
 
+		// Get languages from cache
+		const languages = getLanguagesCache();
+
 		// Check if language already exists
 		if (languages.some((lang) => lang.code === normalizedCode)) {
 			return NextResponse.json(
@@ -297,6 +311,9 @@ export async function DELETE(req: NextRequest) {
 				{ status: 400 }
 			);
 		}
+
+		// Get languages from cache
+		const languages = getLanguagesCache();
 
 		// Only remove manually added languages (not discovered ones)
 		// Discovered languages exist in the database and cannot be deleted via this endpoint
