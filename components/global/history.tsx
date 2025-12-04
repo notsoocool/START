@@ -196,7 +196,9 @@ export default function HistoryPage() {
 	return (
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
-				<CardTitle>History of Changes</CardTitle>
+				<CardTitle className="text-lg font-semibold">
+					History of Changes
+				</CardTitle>
 				<Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
 					<RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 				</Button>

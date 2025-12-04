@@ -253,36 +253,87 @@ const UploadJsonPage = () => {
 	}
 
 	return (
-		<div className="w-full p-8">
-			<form onSubmit={handleSubmit} className="space-y-4 grid">
-				<div>
-					<label htmlFor="title" className="block text-sm font-medium text-muted-foreground/80">
-						Book:
+		<div className="w-full space-y-6">
+			<form
+				onSubmit={handleSubmit}
+				className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+			>
+				<div className="space-y-1.5">
+					<label
+						htmlFor="book"
+						className="block text-sm font-medium text-muted-foreground/80"
+					>
+						Book
 					</label>
-					<Input id="title" type="text" value={book} onChange={(e) => setBook(e.target.value)} required className="mt-1  max-w-[15vw]" />
+					<Input
+						id="book"
+						type="text"
+						value={book}
+						onChange={(e) => setBook(e.target.value)}
+						required
+						className="mt-1 max-w-xs"
+						placeholder="e.g. Bhagavad Gita"
+					/>
 				</div>
-				<div>
-					<label htmlFor="title" className="block text-sm font-medium text-muted-foreground/80">
-						Part 1:
+				<div className="space-y-1.5">
+					<label
+						htmlFor="part1"
+						className="block text-sm font-medium text-muted-foreground/80"
+					>
+						Part 1
 					</label>
-					<Input id="title" type="text" value={part1} onChange={(e) => setPart1(e.target.value)} className="mt-1  max-w-[15vw]" />
+					<Input
+						id="part1"
+						type="text"
+						value={part1}
+						onChange={(e) => setPart1(e.target.value)}
+						className="mt-1 max-w-xs"
+						placeholder="Optional"
+					/>
 				</div>
-				<div>
-					<label htmlFor="title" className="block text-sm font-medium text-muted-foreground/80">
-						Part 2:
+				<div className="space-y-1.5">
+					<label
+						htmlFor="part2"
+						className="block text-sm font-medium text-muted-foreground/80"
+					>
+						Part 2
 					</label>
-					<Input id="title" type="text" value={part2} onChange={(e) => setPart2(e.target.value)} className="mt-1  max-w-[15vw]" />
+					<Input
+						id="part2"
+						type="text"
+						value={part2}
+						onChange={(e) => setPart2(e.target.value)}
+						className="mt-1 max-w-xs"
+						placeholder="Optional"
+					/>
 				</div>
+			</form>
+
+			<form onSubmit={handleSubmit} className="space-y-6">
 				<div>
-					<label htmlFor="shlokaData" className="block text-sm font-medium text-muted-foreground/80">
-						Shloka Data (JSON):
+					<label
+						htmlFor="shlokaData"
+						className="block text-sm font-medium text-muted-foreground/80"
+					>
+						Shloka Data (JSON)
 					</label>
 					<div className="space-y-2">
 						<div className="flex items-center gap-2">
-							<Button type="button" variant="outline" className="w-32" onClick={() => document.getElementById("shlokaFile")?.click()}>
+							<Button
+								type="button"
+								variant="outline"
+								className="w-32"
+								onClick={() =>
+									document
+										.getElementById("shlokaFile")
+										?.click()
+								}
+							>
 								Upload JSON
 							</Button>
-							<span className="text-sm text-muted-foreground">{shlokaFileName || "No file chosen"}</span>
+							<span className="text-sm text-muted-foreground">
+								{shlokaFileName || "No file chosen"}
+							</span>
 							<input
 								id="shlokaFile"
 								type="file"
@@ -290,33 +341,62 @@ const UploadJsonPage = () => {
 								className="hidden"
 								onChange={(e) => {
 									const file = e.target.files?.[0];
-									if (file) handleFileUpload(file, setShlokaData, setShlokaFileName);
+									if (file)
+										handleFileUpload(
+											file,
+											setShlokaData,
+											setShlokaFileName
+										);
 								}}
 							/>
 						</div>
-						<Textarea value={shlokaData} onChange={(e) => setShlokaData(e.target.value)} required rows={5} placeholder="Or paste JSON here" />
+						<Textarea
+							value={shlokaData}
+							onChange={(e) =>
+								setShlokaData(e.target.value)
+							}
+							required
+							rows={5}
+							placeholder="Or paste JSON here"
+						/>
 						{validationErrors.shloka.length > 0 && (
-							<div className="text-red-500 text-sm mt-1">
+							<div className="mt-1 text-sm text-red-500">
 								<strong>Validation Errors:</strong>
 								<ul className="list-disc pl-5">
-									{validationErrors.shloka.map((error, index) => (
-										<li key={index}>{error}</li>
-									))}
+									{validationErrors.shloka.map(
+										(error, index) => (
+											<li key={index}>{error}</li>
+										)
+									)}
 								</ul>
 							</div>
 						)}
 					</div>
 				</div>
 				<div>
-					<label htmlFor="analysisData" className="block text-sm font-medium text-muted-foreground/80">
-						Analysis Data (JSON):
+					<label
+						htmlFor="analysisData"
+						className="block text-sm font-medium text-muted-foreground/80"
+					>
+						Analysis Data (JSON)
 					</label>
 					<div className="space-y-2">
 						<div className="flex items-center gap-2">
-							<Button type="button" variant="outline" className="w-32" onClick={() => document.getElementById("analysisFile")?.click()}>
+							<Button
+								type="button"
+								variant="outline"
+								className="w-32"
+								onClick={() =>
+									document
+										.getElementById("analysisFile")
+										?.click()
+								}
+							>
 								Upload JSON
 							</Button>
-							<span className="text-sm text-muted-foreground">{analysisFileName || "No file chosen"}</span>
+							<span className="text-sm text-muted-foreground">
+								{analysisFileName || "No file chosen"}
+							</span>
 							<input
 								id="analysisFile"
 								type="file"
@@ -324,25 +404,44 @@ const UploadJsonPage = () => {
 								className="hidden"
 								onChange={(e) => {
 									const file = e.target.files?.[0];
-									if (file) handleFileUpload(file, setAnalysisData, setAnalysisFileName);
+									if (file)
+										handleFileUpload(
+											file,
+											setAnalysisData,
+											setAnalysisFileName
+										);
 								}}
 							/>
 						</div>
-						<Textarea value={analysisData} onChange={(e) => setAnalysisData(e.target.value)} required rows={5} placeholder="Or paste JSON here" />
+						<Textarea
+							value={analysisData}
+							onChange={(e) =>
+								setAnalysisData(e.target.value)
+							}
+							required
+							rows={5}
+							placeholder="Or paste JSON here"
+						/>
 						{validationErrors.analysis.length > 0 && (
-							<div className="text-red-500 text-sm mt-1">
+							<div className="mt-1 text-sm text-red-500">
 								<strong>Validation Errors:</strong>
 								<ul className="list-disc pl-5">
-									{validationErrors.analysis.map((error, index) => (
-										<li key={index}>{error}</li>
-									))}
+									{validationErrors.analysis.map(
+										(error, index) => (
+											<li key={index}>{error}</li>
+										)
+									)}
 								</ul>
 							</div>
 						)}
 					</div>
 				</div>
-				<div className="flex w-full justify-end pt-5">
-					<Button className="w-24" type="submit" disabled={isUploading || !isValid}>
+				<div className="flex w-full justify-end pt-3">
+					<Button
+						className="w-32"
+						type="submit"
+						disabled={isUploading || !isValid}
+					>
 						{isUploading ? "Uploading..." : "Upload"}
 					</Button>
 				</div>

@@ -139,9 +139,10 @@ export default function AnalysisPage() {
 		{ id: "morph_in_context", label: "Morph In Context" },
 		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
 		{ id: "possible_relations", label: "Possible Relations" },
-		{ id: "hindi_meaning", label: "Hindi Meaning" },
-		{ id: "english_meaning", label: "English Meaning" },
 		{ id: "bgcolor", label: "Color Code" },
+		{ id: "english_meaning", label: "English Meaning" },
+		{ id: "hindi_meaning", label: "Hindi Meaning" },
+
 		// Add dynamic language columns (excluding 'hi' and 'en' which have dedicated columns)
 		...availableLanguages
 			.filter((lang) => lang.code !== "hi" && lang.code !== "en")
@@ -615,6 +616,8 @@ export default function AnalysisPage() {
 			}
 
 			// Fill empty fields with "-" to prevent server errors
+			// Use URL params (decodedBook, decodedPart1, decodedPart2) instead of currentData values
+			// to ensure we're saving to the correct book/part combination
 			const dataToUpdate = {
 				_id: currentData._id,
 				anvaya_no: currentData.anvaya_no,
@@ -634,11 +637,11 @@ export default function AnalysisPage() {
 				name_classification: currentData.name_classification,
 				bgcolor: currentData.bgcolor,
 				sentno: currentData.sentno,
-				chaptno: currentData.chaptno,
+				chaptno: decodedChaptno, // Use URL param
 				slokano: currentData.slokano,
-				book: currentData.book,
-				part1: currentData.part1,
-				part2: currentData.part2,
+				book: decodedBook, // Use URL param instead of currentData.book
+				part1: decodedPart1 !== "null" ? decodedPart1 : null, // Use URL param instead of currentData.part1
+				part2: decodedPart2 !== "null" ? decodedPart2 : null, // Use URL param instead of currentData.part2
 			};
 			const response = await fetch(
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`,
@@ -1305,11 +1308,17 @@ export default function AnalysisPage() {
 										affected.original.name_classification,
 									bgcolor: affected.original.bgcolor,
 									sentno: affected.original.sentno,
-									chaptno: affected.original.chaptno,
+									chaptno: decodedChaptno, // Use URL param
 									slokano: affected.original.slokano,
-									book: affected.original.book,
-									part1: affected.original.part1,
-									part2: affected.original.part2,
+									book: decodedBook, // Use URL param instead of affected.original.book
+									part1:
+										decodedPart1 !== "null"
+											? decodedPart1
+											: null, // Use URL param instead of affected.original.part1
+									part2:
+										decodedPart2 !== "null"
+											? decodedPart2
+											: null, // Use URL param instead of affected.original.part2
 								}),
 							}
 						);
@@ -1404,8 +1413,31 @@ export default function AnalysisPage() {
 								process.env.NEXT_PUBLIC_DBI_KEY || "",
 						},
 						body: JSON.stringify({
-							...row,
+							_id: row._id,
+							anvaya_no: row.anvaya_no,
+							word: row.word,
+							poem: row.poem,
+							sandhied_word: row.sandhied_word,
+							morph_analysis: row.morph_analysis,
+							morph_in_context: row.morph_in_context,
+							kaaraka_sambandha: row.kaaraka_sambandha,
+							possible_relations: row.possible_relations,
+							hindi_meaning: row.hindi_meaning,
+							english_meaning: row.english_meaning,
+							meanings: row.meanings,
+							samAsa: row.samAsa,
+							prayoga: row.prayoga,
+							sarvanAma: row.sarvanAma,
+							name_classification: row.name_classification,
+							bgcolor: row.bgcolor,
 							sentno: row.newSentno,
+							chaptno: decodedChaptno, // Use URL param
+							slokano: row.slokano,
+							book: decodedBook, // Use URL param instead of row.book
+							part1:
+								decodedPart1 !== "null" ? decodedPart1 : null, // Use URL param instead of row.part1
+							part2:
+								decodedPart2 !== "null" ? decodedPart2 : null, // Use URL param instead of row.part2
 						}),
 					}
 				)
@@ -1475,8 +1507,31 @@ export default function AnalysisPage() {
 								process.env.NEXT_PUBLIC_DBI_KEY || "",
 						},
 						body: JSON.stringify({
-							...row,
+							_id: row._id,
+							anvaya_no: row.anvaya_no,
+							word: row.word,
+							poem: row.poem,
+							sandhied_word: row.sandhied_word,
+							morph_analysis: row.morph_analysis,
+							morph_in_context: row.morph_in_context,
+							kaaraka_sambandha: row.kaaraka_sambandha,
+							possible_relations: row.possible_relations,
+							hindi_meaning: row.hindi_meaning,
+							english_meaning: row.english_meaning,
+							meanings: row.meanings,
+							samAsa: row.samAsa,
+							prayoga: row.prayoga,
+							sarvanAma: row.sarvanAma,
+							name_classification: row.name_classification,
+							bgcolor: row.bgcolor,
 							sentno: row.newSentno,
+							chaptno: decodedChaptno, // Use URL param
+							slokano: row.slokano,
+							book: decodedBook, // Use URL param instead of row.book
+							part1:
+								decodedPart1 !== "null" ? decodedPart1 : null, // Use URL param instead of row.part1
+							part2:
+								decodedPart2 !== "null" ? decodedPart2 : null, // Use URL param instead of row.part2
 						}),
 					}
 				)
@@ -2245,8 +2300,8 @@ export default function AnalysisPage() {
 				chaptno: decodedChaptno,
 				slokano: shloka?.slokano,
 				book: decodedBook,
-				part1: decodedPart1,
-				part2: decodedPart2,
+				part1: decodedPart1 !== "null" ? decodedPart1 : null, // Ensure null handling is consistent
+				part2: decodedPart2 !== "null" ? decodedPart2 : null, // Ensure null handling is consistent
 				graph: "-",
 				meanings: newRowData.meanings || {},
 			};
@@ -3073,7 +3128,7 @@ export default function AnalysisPage() {
 
 	// Render the UI with the Shloka
 	return (
-		<div className="relative">
+		<div className="relative min-h-screen bg-fixed bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80">
 			{/* Fixed Previous Button on Left */}
 			{canGoPrevious() && (
 				<Button
@@ -3098,8 +3153,8 @@ export default function AnalysisPage() {
 				</Button>
 			)}
 
-			<div className="container mx-auto p-6 space-y-8 w-full">
-				<div className="flex justify-between items-center">
+			<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:py-10">
+				<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 					<Header
 						book={decodedBook}
 						part1={decodedPart1}
@@ -3254,7 +3309,7 @@ export default function AnalysisPage() {
 					);
 				})()}
 
-				<div className="flex justify-end w-full gap-2">
+				<div className="flex w-full flex-wrap justify-end gap-2">
 					{renderAddRowButton()}
 
 					{/* Undo History Button */}
@@ -3448,65 +3503,75 @@ export default function AnalysisPage() {
 					)}
 				</div>
 				{/* Main Content */}
-				<div className="rounded-lg border bg-card">
-					<Table>
-						<TableHeader>
-							<TableRow className="bg-muted/50">
-								{selectedColumns.includes("index") && (
-									<TableHead className="w-[100px]">
-										Index
-									</TableHead>
-								)}
-								{selectedColumns.includes("word") && (
-									<TableHead>Word</TableHead>
-								)}
-								{selectedColumns.includes("poem") && (
-									<TableHead>Prose Index</TableHead>
-								)}
-								{selectedColumns.includes("sandhied_word") && (
-									<TableHead>Sandhied Word</TableHead>
-								)}
-								{selectedColumns.includes("morph_analysis") && (
-									<TableHead>Morph Analysis</TableHead>
-								)}
-								{selectedColumns.includes(
-									"morph_in_context"
-								) && <TableHead>Morph In Context</TableHead>}
-								{selectedColumns.includes(
-									"kaaraka_sambandha"
-								) && <TableHead>Kaaraka Relation</TableHead>}
-								{selectedColumns.includes(
-									"possible_relations"
-								) && <TableHead>Possible Relations</TableHead>}
-								{selectedColumns.includes("hindi_meaning") && (
-									<TableHead>Hindi Meaning</TableHead>
-								)}
-								{selectedColumns.includes(
-									"english_meaning"
-								) && <TableHead>English Meaning</TableHead>}
-								{/* Render dynamic language column headers */}
-								{availableLanguages.map((lang) => {
-									const columnId = `meaning_${lang.code}`;
-									if (!selectedColumns.includes(columnId))
-										return null;
-									return (
-										<TableHead key={columnId}>
-											{lang.name} Meaning
+				<div className="rounded-lg border bg-card shadow-sm">
+					<div className="w-full overflow-x-auto">
+						<Table className="min-w-[900px]">
+							<TableHeader>
+								<TableRow className="bg-muted/50">
+									{selectedColumns.includes("index") && (
+										<TableHead className="w-[100px]">
+											Index
 										</TableHead>
-									);
-								})}
-								{selectedColumns.includes("bgcolor") && (
-									<TableHead>Color Code</TableHead>
-								)}
-								{isFieldEditable("word") && (
-									<TableHead className="w-[100px]">
-										Actions
-									</TableHead>
-								)}
-							</TableRow>
-						</TableHeader>
-						{renderTableContent()}
-					</Table>
+									)}
+									{selectedColumns.includes("word") && (
+										<TableHead>Word</TableHead>
+									)}
+									{selectedColumns.includes("poem") && (
+										<TableHead>Prose Index</TableHead>
+									)}
+									{selectedColumns.includes(
+										"sandhied_word"
+									) && <TableHead>Sandhied Word</TableHead>}
+									{selectedColumns.includes(
+										"morph_analysis"
+									) && <TableHead>Morph Analysis</TableHead>}
+									{selectedColumns.includes(
+										"morph_in_context"
+									) && (
+										<TableHead>Morph In Context</TableHead>
+									)}
+									{selectedColumns.includes(
+										"kaaraka_sambandha"
+									) && (
+										<TableHead>Kaaraka Relation</TableHead>
+									)}
+									{selectedColumns.includes(
+										"possible_relations"
+									) && (
+										<TableHead>
+											Possible Relations
+										</TableHead>
+									)}
+									{selectedColumns.includes(
+										"hindi_meaning"
+									) && <TableHead>Hindi Meaning</TableHead>}
+									{selectedColumns.includes(
+										"english_meaning"
+									) && <TableHead>English Meaning</TableHead>}
+									{/* Render dynamic language column headers */}
+									{availableLanguages.map((lang) => {
+										const columnId = `meaning_${lang.code}`;
+										if (!selectedColumns.includes(columnId))
+											return null;
+										return (
+											<TableHead key={columnId}>
+												{lang.name} Meaning
+											</TableHead>
+										);
+									})}
+									{selectedColumns.includes("bgcolor") && (
+										<TableHead>Color Code</TableHead>
+									)}
+									{isFieldEditable("word") && (
+										<TableHead className="w-[100px]">
+											Actions
+										</TableHead>
+									)}
+								</TableRow>
+							</TableHeader>
+							{renderTableContent()}
+						</Table>
+					</div>
 				</div>
 
 				<GraphDisplay
@@ -3876,7 +3941,7 @@ export default function AnalysisPage() {
 					</DialogContent>
 				</Dialog>
 
-				<Card className="mt-8" id="discussions">
+				<Card className="mt-6 md:mt-8" id="discussions">
 					<CardHeader>
 						<CardTitle>Discussions</CardTitle>
 					</CardHeader>

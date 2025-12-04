@@ -49,46 +49,39 @@ export default function ReplaceBookPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Replace Book Name</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Old Book Name</label>
-            <Input
-              value={oldBook}
-              onChange={(e) => setOldBook(e.target.value)}
-              placeholder="Enter old book name"
-              disabled={loading}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">New Book Name</label>
-            <Input
-              value={newBook}
-              onChange={(e) => setNewBook(e.target.value)}
-              placeholder="Enter new book name"
-              disabled={loading}
-            />
-          </div>
-          <Button 
-            onClick={handleReplace} 
-            disabled={loading || !oldBook || !newBook}
-            className="w-full"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Replacing...
-              </>
-            ) : (
-              "Replace Book Name"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Old Book Name</label>
+        <Input
+          value={oldBook}
+          onChange={(e) => setOldBook(e.target.value)}
+          placeholder="Enter old book name"
+          disabled={loading}
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">New Book Name</label>
+        <Input
+          value={newBook}
+          onChange={(e) => setNewBook(e.target.value)}
+          placeholder="Enter new book name"
+          disabled={loading}
+        />
+      </div>
+      <Button
+        onClick={handleReplace}
+        disabled={loading || !oldBook || !newBook}
+        className="w-full"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Replacing...
+          </>
+        ) : (
+          "Replace Book Name"
+        )}
+      </Button>
     </div>
   );
 }

@@ -851,18 +851,6 @@ export default function DataDownload() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<Database className="h-8 w-8 text-primary" />
-				<div>
-					<h2 className="text-2xl font-bold">Data Download Center</h2>
-					<p className="text-muted-foreground">
-						Download analysis and shloka data with custom field
-						selection and format options
-					</p>
-				</div>
-			</div>
-
 			{/* Data Selection */}
 			<Card>
 				<CardHeader>

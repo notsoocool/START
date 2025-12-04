@@ -279,19 +279,17 @@ export default function GroupsPage() {
 	}
 
 	return (
-		<div className="container mx-auto p-4 space-y-8">
-			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Group Management</h1>
-				{!isEditing && (
-					<Button onClick={() => setIsEditing(false)}>
-						<Plus className="mr-2 h-4 w-4" /> Create New Group
-					</Button>
-				)}
-			</div>
-
+		<div className="space-y-8">
 			<Card>
 				<CardHeader>
-					<CardTitle>{isEditing ? "Edit Group" : "Create New Group"}</CardTitle>
+					<div className="flex items-center justify-between gap-2">
+						<CardTitle>{isEditing ? "Edit Group" : "Create New Group"}</CardTitle>
+						{!isEditing && (
+							<Button size="sm" onClick={() => setIsEditing(false)}>
+								<Plus className="mr-2 h-4 w-4" /> New Group
+							</Button>
+						)}
+					</div>
 					<CardDescription>
 						{isEditing ? "Update the group details below" : "Fill in the details to create a new group"}
 						{formData.type === "A" ? " (Annotators only)" : " (Editors only)"}

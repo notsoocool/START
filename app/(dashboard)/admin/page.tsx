@@ -1,7 +1,14 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import UploadJsonPage from "@/components/global/upload-json"; // Import your JSON upload component
 import UserPerms from "@/components/global/user-perms"; // Import your permission change component
@@ -18,9 +25,12 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
-	const [activeTab, setActiveTab] = useState("upload");
+	const [activeTab, setActiveTab] = useState("permissions");
 	const [treeData, setTreeData] = useState<TreeNode[]>([]);
 	const router = useRouter();
+	const tabsScrollRef = useRef<HTMLDivElement>(null);
+	const [canScrollLeft, setCanScrollLeft] = useState(false);
+	const [canScrollRight, setCanScrollRight] = useState(true);
 
 	// Function to change tabs from child components
 	const changeTab = (tabName: string) => {
@@ -77,25 +87,166 @@ export default function AdminPage() {
 		}
 	}, [activeTab]);
 
+	// Check scroll position to show/hide fade indicators
+	const checkScrollPosition = () => {
+		const scrollContainer = tabsScrollRef.current;
+		if (!scrollContainer) return;
+
+		const { scrollLeft, scrollWidth, clientWidth } = scrollContainer;
+		setCanScrollLeft(scrollLeft > 0);
+		setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+	};
+
+	useEffect(() => {
+		const scrollContainer = tabsScrollRef.current;
+		if (!scrollContainer) return;
+
+		// Check on mount and resize
+		checkScrollPosition();
+		window.addEventListener("resize", checkScrollPosition);
+		scrollContainer.addEventListener("scroll", checkScrollPosition);
+
+		return () => {
+			window.removeEventListener("resize", checkScrollPosition);
+			scrollContainer.removeEventListener("scroll", checkScrollPosition);
+		};
+	}, []);
+
 	return (
 		<Tabs
 			value={activeTab}
 			onValueChange={setActiveTab}
-			className="space-y-4 mx-4 my-4"
+			className="mx-auto my-6 max-w-6xl space-y-4"
 		>
-			<TabsList>
-				<TabsTrigger value="upload">Upload JSON</TabsTrigger>
-				<TabsTrigger value="permissions">
-					Change User Permissions
-				</TabsTrigger>
-				<TabsTrigger value="replace">Replace Book Name</TabsTrigger>
-				<TabsTrigger value="delete">Delete Entries</TabsTrigger>
-				<TabsTrigger value="group">Group Administration</TabsTrigger>
-				<TabsTrigger value="publish">Book Publishing</TabsTrigger>
-				<TabsTrigger value="languages">Language Management</TabsTrigger>
-				<TabsTrigger value="history">History</TabsTrigger>
-				<TabsTrigger value="download">Data Download</TabsTrigger>
-			</TabsList>
+			<div className="space-y-3">
+				<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+					<div>
+						<h1 className="text-2xl font-semibold tracking-tight">
+							Admin Console
+						</h1>
+						<p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+							Manage data imports, permissions, book metadata,
+							languages, groups, publishing, and more from a
+							single place.
+						</p>
+					</div>
+
+					{/* Mobile-friendly section selector (shadcn Select) */}
+					<div className="sm:hidden">
+						<label htmlFor="admin-section" className="sr-only">
+							Select admin section
+						</label>
+						<Select value={activeTab} onValueChange={setActiveTab}>
+							<SelectTrigger
+								id="admin-section"
+								className="w-full"
+							>
+								<SelectValue placeholder="Select admin section" />
+							</SelectTrigger>
+							<SelectContent>
+								{/* <SelectItem value="upload">
+									Upload JSON
+								</SelectItem> */}
+								<SelectItem value="permissions">
+									Change User Permissions
+								</SelectItem>
+								<SelectItem value="replace">
+									Replace Book Name
+								</SelectItem>
+								<SelectItem value="delete">
+									Delete Entries
+								</SelectItem>
+								<SelectItem value="group">
+									Group Administration
+								</SelectItem>
+								<SelectItem value="publish">
+									Book Publishing
+								</SelectItem>
+								<SelectItem value="languages">
+									Language Management
+								</SelectItem>
+								<SelectItem value="history">History</SelectItem>
+								<SelectItem value="download">
+									Data Download
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				{/* Scrollable tabs bar with visual scroll indicators */}
+				<div className="relative -mx-4 border-b bg-background/80 px-4 pb-2 pt-1 backdrop-blur-sm sm:mx-0 sm:rounded-xl sm:border sm:bg-muted/60 sm:px-3">
+					{/* Left fade gradient - shows when can scroll left */}
+					{canScrollLeft && (
+						<div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-background/80 via-background/40 to-transparent sm:from-muted/60 sm:via-muted/30" />
+					)}
+					{/* Right fade gradient - shows when can scroll right */}
+					{canScrollRight && (
+						<div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-background/80 via-background/40 to-transparent sm:from-muted/60 sm:via-muted/30" />
+					)}
+					<div
+						ref={tabsScrollRef}
+						className="overflow-x-auto scrollbar-hide"
+					>
+						<TabsList className="min-w-max space-x-1">
+							{/* <TabsTrigger
+								value="upload"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Upload JSON
+							</TabsTrigger> */}
+							<TabsTrigger
+								value="permissions"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Change User Permissions
+							</TabsTrigger>
+							<TabsTrigger
+								value="replace"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Replace Book Name
+							</TabsTrigger>
+							<TabsTrigger
+								value="delete"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Delete Entries
+							</TabsTrigger>
+							<TabsTrigger
+								value="group"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Group Administration
+							</TabsTrigger>
+							<TabsTrigger
+								value="publish"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Book Publishing
+							</TabsTrigger>
+							<TabsTrigger
+								value="languages"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Language Management
+							</TabsTrigger>
+							<TabsTrigger
+								value="history"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								History
+							</TabsTrigger>
+							<TabsTrigger
+								value="download"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Data Download
+							</TabsTrigger>
+						</TabsList>
+					</div>
+				</div>
+			</div>
 
 			<TabsContent value="upload">
 				<Card className="mt-4">
@@ -151,6 +302,11 @@ export default function AdminPage() {
 
 			<TabsContent value="group">
 				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Group Administration
+						</CardTitle>
+					</CardHeader>
 					<CardContent>
 						<GroupsPage />
 					</CardContent>
@@ -159,6 +315,11 @@ export default function AdminPage() {
 
 			<TabsContent value="publish">
 				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Book Publishing
+						</CardTitle>
+					</CardHeader>
 					<CardContent>
 						<BookPublishPage />
 					</CardContent>

@@ -202,23 +202,12 @@ export default function LanguageManagement() {
 
 	return (
 		<div className="space-y-4">
-			<div className="flex justify-between items-center">
-				<div>
-					<h3 className="text-lg font-semibold">
-						Language Management
-					</h3>
-					<p className="text-sm text-muted-foreground">
-						Manage available languages for meanings. Languages use
-						ISO 639-1 codes (e.g., 'en' for English, 'hi' for
-						Hindi).
-					</p>
-				</div>
-				<Button onClick={() => setOpenDialog(true)}>
-					<Plus className="h-4 w-4 mr-2" />
+			<div className="flex items-center justify-end">
+				<Button size="sm" onClick={() => setOpenDialog(true)}>
+					<Plus className="mr-2 h-4 w-4" />
 					Add Language
 				</Button>
 			</div>
-
 			<div className="border rounded-lg">
 				<Table>
 					<TableHeader>

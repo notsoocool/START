@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,7 +16,13 @@ import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 interface Book {
 	book: string;
@@ -64,7 +76,11 @@ export default function BookPublishPage() {
 		}
 	};
 
-	const handleBookPublishChange = async (book: string, field: "userPublished" | "groupPublished", value: boolean) => {
+	const handleBookPublishChange = async (
+		book: string,
+		field: "userPublished" | "groupPublished",
+		value: boolean
+	) => {
 		try {
 			const response = await fetch("/api/books/publish", {
 				method: "POST",
@@ -75,7 +91,8 @@ export default function BookPublishPage() {
 				}),
 			});
 
-			if (!response.ok) throw new Error("Failed to update publishing status");
+			if (!response.ok)
+				throw new Error("Failed to update publishing status");
 
 			const responseData = await response.json();
 			toast.success(responseData.message);
@@ -83,7 +100,9 @@ export default function BookPublishPage() {
 			// Update only the book-level state, not chapters
 			setData((prevData) => ({
 				...prevData,
-				books: prevData.books.map((b) => (b.book === book ? { ...b, [field]: value } : b)),
+				books: prevData.books.map((b) =>
+					b.book === book ? { ...b, [field]: value } : b
+				),
 			}));
 		} catch (error) {
 			console.error("Error updating publishing status:", error);
@@ -91,7 +110,11 @@ export default function BookPublishPage() {
 		}
 	};
 
-	const handleChapterPublishChange = async (chapter: Chapter, field: "userPublished" | "groupPublished", value: boolean) => {
+	const handleChapterPublishChange = async (
+		chapter: Chapter,
+		field: "userPublished" | "groupPublished",
+		value: boolean
+	) => {
 		try {
 			const requestBody = {
 				book: chapter.book,
@@ -112,7 +135,9 @@ export default function BookPublishPage() {
 			if (!response.ok) {
 				const errorData = await response.json();
 				console.error("Chapter publish error response:", errorData);
-				throw new Error(errorData.error || "Failed to update publishing status");
+				throw new Error(
+					errorData.error || "Failed to update publishing status"
+				);
 			}
 
 			const responseData = await response.json();
@@ -122,7 +147,12 @@ export default function BookPublishPage() {
 			setData((prevData) => ({
 				...prevData,
 				chapters: prevData.chapters.map((c) =>
-					c.book === chapter.book && c.part1 === chapter.part1 && c.part2 === chapter.part2 && c.chaptno === chapter.chaptno ? { ...c, [field]: value } : c
+					c.book === chapter.book &&
+					c.part1 === chapter.part1 &&
+					c.part2 === chapter.part2 &&
+					c.chaptno === chapter.chaptno
+						? { ...c, [field]: value }
+						: c
 				),
 			}));
 		} catch (error) {
@@ -150,7 +180,9 @@ export default function BookPublishPage() {
 			// Update only the book-level state, not chapters
 			setData((prevData) => ({
 				...prevData,
-				books: prevData.books.map((b) => (b.book === book ? { ...b, locked } : b)),
+				books: prevData.books.map((b) =>
+					b.book === book ? { ...b, locked } : b
+				),
 			}));
 		} catch (error) {
 			console.error("Error updating lock status:", error);
@@ -158,7 +190,9 @@ export default function BookPublishPage() {
 		}
 	};
 
-	const filteredBooks = data.books.filter((book) => book.book.toLowerCase().includes(searchTerm.toLowerCase()));
+	const filteredBooks = data.books.filter((book) =>
+		book.book.toLowerCase().includes(searchTerm.toLowerCase())
+	);
 	const filteredChapters = data.chapters.filter((chapter) => {
 		const searchTerms = searchTerm
 			.toLowerCase()
@@ -167,7 +201,10 @@ export default function BookPublishPage() {
 
 		// If no search terms, show all chapters
 		if (searchTerms.length === 0) {
-			const bookFilter = selectedBook === "all" || selectedBook === "" || chapter.book === selectedBook;
+			const bookFilter =
+				selectedBook === "all" ||
+				selectedBook === "" ||
+				chapter.book === selectedBook;
 			const chaptnoValid = chapter.chaptno !== null;
 			return bookFilter && chaptnoValid;
 		}
@@ -175,29 +212,45 @@ export default function BookPublishPage() {
 		// Check if all search terms match any field
 		const allTermsMatch = searchTerms.every((term) => {
 			const bookMatch = chapter.book.toLowerCase().includes(term);
-			const part1Match = chapter.part1?.toLowerCase().includes(term) || false;
-			const part2Match = chapter.part2?.toLowerCase().includes(term) || false;
+			const part1Match =
+				chapter.part1?.toLowerCase().includes(term) || false;
+			const part2Match =
+				chapter.part2?.toLowerCase().includes(term) || false;
 			const chaptnoMatch = chapter.chaptno.toLowerCase().includes(term);
 
 			return bookMatch || part1Match || part2Match || chaptnoMatch;
 		});
 
-		const bookFilter = selectedBook === "all" || selectedBook === "" || chapter.book === selectedBook;
+		const bookFilter =
+			selectedBook === "all" ||
+			selectedBook === "" ||
+			chapter.book === selectedBook;
 		const chaptnoValid = chapter.chaptno !== null;
 
 		return allTermsMatch && bookFilter && chaptnoValid;
 	});
 
-	const uniqueBooks = Array.from(new Set(data.chapters.map((c) => c.book))).sort();
+	const uniqueBooks = Array.from(
+		new Set(data.chapters.map((c) => c.book))
+	).sort();
 
 	// Function to check if a book is partially published
 	const getBookPublishingStatus = (bookName: string) => {
 		const bookChapters = data.chapters.filter((c) => c.book === bookName);
-		if (bookChapters.length === 0) return { status: "no-chapters", userPublished: false, groupPublished: false };
+		if (bookChapters.length === 0)
+			return {
+				status: "no-chapters",
+				userPublished: false,
+				groupPublished: false,
+			};
 
 		const totalChapters = bookChapters.length;
-		const userPublishedChapters = bookChapters.filter((c) => c.userPublished).length;
-		const groupPublishedChapters = bookChapters.filter((c) => c.groupPublished).length;
+		const userPublishedChapters = bookChapters.filter(
+			(c) => c.userPublished
+		).length;
+		const groupPublishedChapters = bookChapters.filter(
+			(c) => c.groupPublished
+		).length;
 
 		const book = data.books.find((b) => b.book === bookName);
 		const bookUserPublished = book?.userPublished || false;
@@ -233,27 +286,19 @@ export default function BookPublishPage() {
 
 	if (!isSignedIn) {
 		return (
-			<div className="min-h-[75vh] bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-				<div className="max-w-4xl mx-auto space-y-6">
-					<h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 mb-8">
-						Manage Book Publishing
-					</h2>
-					<div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 p-6 rounded-xl shadow-xl">
-						<p className="text-center text-gray-600">Please sign in to manage book publishing.</p>
-					</div>
-				</div>
+			<div className="py-4 text-sm text-muted-foreground">
+				Please sign in to manage book publishing.
 			</div>
 		);
 	}
 
 	return (
-		<div className="container mx-auto p-4 space-y-8">
-			<div className="pt-5">
-				<CardTitle>Book Publishing Status</CardTitle>
-				<CardDescription>Manage publishing and lock status for books and individual chapters</CardDescription>
-			</div>
-
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+		<div className="space-y-6">
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="w-full"
+			>
 				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="books">Book Level</TabsTrigger>
 					<TabsTrigger value="chapters">Chapter Level</TabsTrigger>
@@ -262,7 +307,11 @@ export default function BookPublishPage() {
 				<TabsContent value="books" className="space-y-6">
 					<div className="space-y-2">
 						<Label>Search Books</Label>
-						<Input placeholder="Search by book name" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+						<Input
+							placeholder="Search by book name"
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+						/>
 					</div>
 
 					<ScrollArea className="h-[600px] rounded-md border p-4">
@@ -272,19 +321,39 @@ export default function BookPublishPage() {
 									<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
 								</div>
 							) : filteredBooks.length === 0 ? (
-								<div className="text-center text-gray-600 py-12">No books found</div>
+								<div className="text-center text-gray-600 py-12">
+									No books found
+								</div>
 							) : (
 								filteredBooks.map((book) => {
-									const publishingStatus = getBookPublishingStatus(book.book);
+									const publishingStatus =
+										getBookPublishingStatus(book.book);
 									return (
-										<div key={book.book} className="flex items-center justify-between p-4 border rounded-md">
+										<div
+											key={book.book}
+											className="flex items-center justify-between p-4 border rounded-md"
+										>
 											<div className="space-y-1">
-												<p className="font-medium">{book.book}</p>
-												<p className="text-sm text-gray-500">{book.shlokaCount} shlokas</p>
-												{publishingStatus.status === "partially-published" && (
+												<p className="font-medium">
+													{book.book}
+												</p>
+												<p className="text-sm text-gray-500">
+													{book.shlokaCount} shlokas
+												</p>
+												{publishingStatus.status ===
+													"partially-published" && (
 													<div className="text-xs text-orange-600 dark:text-orange-400">
-														Partially Published: {publishingStatus.userPublishedCount || 0} user-published, {publishingStatus.groupPublishedCount || 0}{" "}
-														group-published out of {publishingStatus.totalChapters} chapters
+														Partially Published:{" "}
+														{publishingStatus.userPublishedCount ||
+															0}{" "}
+														user-published,{" "}
+														{publishingStatus.groupPublishedCount ||
+															0}{" "}
+														group-published out of{" "}
+														{
+															publishingStatus.totalChapters
+														}{" "}
+														chapters
 													</div>
 												)}
 											</div>
@@ -292,20 +361,46 @@ export default function BookPublishPage() {
 												<div className="flex items-center space-x-2">
 													<Checkbox
 														id={`user-${book.book}`}
-														checked={book.userPublished}
-														onCheckedChange={(checked) => handleBookPublishChange(book.book, "userPublished", checked as boolean)}
+														checked={
+															book.userPublished
+														}
+														onCheckedChange={(
+															checked
+														) =>
+															handleBookPublishChange(
+																book.book,
+																"userPublished",
+																checked as boolean
+															)
+														}
 													/>
-													<Label htmlFor={`user-${book.book}`} className="text-sm">
+													<Label
+														htmlFor={`user-${book.book}`}
+														className="text-sm"
+													>
 														User Published
 													</Label>
 												</div>
 												<div className="flex items-center space-x-2">
 													<Checkbox
 														id={`group-${book.book}`}
-														checked={book.groupPublished}
-														onCheckedChange={(checked) => handleBookPublishChange(book.book, "groupPublished", checked as boolean)}
+														checked={
+															book.groupPublished
+														}
+														onCheckedChange={(
+															checked
+														) =>
+															handleBookPublishChange(
+																book.book,
+																"groupPublished",
+																checked as boolean
+															)
+														}
 													/>
-													<Label htmlFor={`group-${book.book}`} className="text-sm">
+													<Label
+														htmlFor={`group-${book.book}`}
+														className="text-sm"
+													>
 														Group Published
 													</Label>
 												</div>
@@ -313,10 +408,20 @@ export default function BookPublishPage() {
 													<Checkbox
 														id={`lock-${book.book}`}
 														checked={book.locked}
-														onCheckedChange={(checked) => handleLockChange(book.book, checked as boolean)}
+														onCheckedChange={(
+															checked
+														) =>
+															handleLockChange(
+																book.book,
+																checked as boolean
+															)
+														}
 														className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
 													/>
-													<Label htmlFor={`lock-${book.book}`} className="text-sm">
+													<Label
+														htmlFor={`lock-${book.book}`}
+														className="text-sm"
+													>
 														Locked
 													</Label>
 												</div>
@@ -333,12 +438,17 @@ export default function BookPublishPage() {
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<Label>Filter by Book</Label>
-							<Select value={selectedBook} onValueChange={setSelectedBook}>
+							<Select
+								value={selectedBook}
+								onValueChange={setSelectedBook}
+							>
 								<SelectTrigger>
 									<SelectValue placeholder="All books" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="all">All books</SelectItem>
+									<SelectItem value="all">
+										All books
+									</SelectItem>
 									{uniqueBooks.map((book) => (
 										<SelectItem key={book} value={book}>
 											{book}
@@ -365,7 +475,9 @@ export default function BookPublishPage() {
 								</div>
 							) : filteredChapters.length === 0 ? (
 								<div className="text-center text-gray-600 py-12">
-									{data.chapters.length === 0 ? "No chapters found" : "No chapters with proper structure found. Some books may not have chapter organization."}
+									{data.chapters.length === 0
+										? "No chapters found"
+										: "No chapters with proper structure found. Some books may not have chapter organization."}
 								</div>
 							) : (
 								filteredChapters.map((chapter) => (
@@ -374,29 +486,61 @@ export default function BookPublishPage() {
 										className="flex items-center justify-between p-4 border rounded-md"
 									>
 										<div className="space-y-1">
-											<p className="font-medium">{chapter.book}</p>
+											<p className="font-medium">
+												{chapter.book}
+											</p>
 											<p className="text-sm text-gray-500">
-												Chapter: {chapter.part1 || "N/A"}/{chapter.part2 || "N/A"}/{chapter.chaptno} ({chapter.shlokaCount} shlokas)
+												Chapter:{" "}
+												{chapter.part1 || "N/A"}/
+												{chapter.part2 || "N/A"}/
+												{chapter.chaptno} (
+												{chapter.shlokaCount} shlokas)
 											</p>
 										</div>
 										<div className="flex items-center space-x-4">
 											<div className="flex items-center space-x-2">
 												<Checkbox
 													id={`user-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`}
-													checked={chapter.userPublished}
-													onCheckedChange={(checked) => handleChapterPublishChange(chapter, "userPublished", checked as boolean)}
+													checked={
+														chapter.userPublished
+													}
+													onCheckedChange={(
+														checked
+													) =>
+														handleChapterPublishChange(
+															chapter,
+															"userPublished",
+															checked as boolean
+														)
+													}
 												/>
-												<Label htmlFor={`user-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`} className="text-sm">
+												<Label
+													htmlFor={`user-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`}
+													className="text-sm"
+												>
 													User Published
 												</Label>
 											</div>
 											<div className="flex items-center space-x-2">
 												<Checkbox
 													id={`group-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`}
-													checked={chapter.groupPublished}
-													onCheckedChange={(checked) => handleChapterPublishChange(chapter, "groupPublished", checked as boolean)}
+													checked={
+														chapter.groupPublished
+													}
+													onCheckedChange={(
+														checked
+													) =>
+														handleChapterPublishChange(
+															chapter,
+															"groupPublished",
+															checked as boolean
+														)
+													}
 												/>
-												<Label htmlFor={`group-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`} className="text-sm">
+												<Label
+													htmlFor={`group-chapter-${chapter.book}-${chapter.part1}-${chapter.part2}-${chapter.chaptno}`}
+													className="text-sm"
+												>
 													Group Published
 												</Label>
 											</div>
