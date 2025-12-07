@@ -151,8 +151,13 @@ export default function AnalysisPage() {
 				label: `${lang.name} Meaning`,
 			})),
 	];
-	// Column options is the same as baseColumnOptions now
-	const columnOptions = baseColumnOptions;
+	
+	// Filter out restricted columns for "User" permission
+	// Users with "User" permission cannot see: morph_analysis, possible_relations, bgcolor
+	const restrictedColumnsForUser = ["morph_analysis", "possible_relations", "bgcolor"];
+	const columnOptions = permissions === "User"
+		? baseColumnOptions.filter((col) => !restrictedColumnsForUser.includes(col.id))
+		: baseColumnOptions;
 	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
 	const DEFAULT_ZOOM = 1;
 	const MIN_ZOOM = 0.5;
@@ -850,6 +855,16 @@ export default function AnalysisPage() {
 
 	// Language columns are available in baseColumnOptions but not auto-selected
 	// Users can manually select them from the customize column options
+
+	// Remove restricted columns from selectedColumns when user has "User" permission
+	useEffect(() => {
+		if (permissions === "User") {
+			const restrictedColumnsForUser = ["morph_analysis", "possible_relations", "bgcolor"];
+			setSelectedColumns((prev) =>
+				prev.filter((col) => !restrictedColumnsForUser.includes(col))
+			);
+		}
+	}, [permissions]);
 
 	// Sorting preference for the combined sentence view
 	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">(

@@ -73,13 +73,15 @@ export default function Shlokas() {
 				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:py-10">
 					{/* Sidebar skeleton - hidden on mobile */}
 					<div className="hidden w-full md:block md:w-3/12">
-						<div className="flex h-auto flex-col items-start gap-3 rounded-lg bg-background/60 p-3 shadow-sm ring-1 ring-border/60 md:sticky md:top-24 md:h-[70vh]">
-							<strong className="p-1 text-sm font-semibold">
+						<div className="flex flex-col items-start gap-3 rounded-lg bg-background/60 p-3 shadow-sm ring-1 ring-border/60 md:sticky md:top-24 md:max-h-[70vh] md:overflow-hidden">
+							<strong className="shrink-0 p-1 text-sm font-semibold">
 								Shlokas
 							</strong>
-							<Skeleton className="mt-1 h-6 w-48" />
-							<Skeleton className="mt-1 h-6 w-40" />
-							<Skeleton className="mt-1 h-6 w-44" />
+							<div className="mt-1 flex w-full flex-1 flex-col gap-2 overflow-y-auto">
+								<Skeleton className="h-6 w-full" />
+								<Skeleton className="h-6 w-full" />
+								<Skeleton className="h-6 w-full" />
+							</div>
 						</div>
 					</div>
 
@@ -120,13 +122,13 @@ export default function Shlokas() {
 			<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:py-10">
 				{/* Shloka List - hidden on mobile, visible from md (tablet) upwards */}
 				<div className="hidden w-full transition-colors duration-500 md:block md:w-3/12">
-					<div className="flex h-auto flex-col items-start gap-2 rounded-lg bg-background/60 p-3 shadow-sm ring-1 ring-border/60 md:sticky md:top-24 md:h-[70vh]">
-						<div className="flex w-full items-center justify-between transition-colors duration-500">
+					<div className="flex flex-col items-start gap-2 rounded-lg bg-background/60 p-3 shadow-sm ring-1 ring-border/60 md:sticky md:top-24 md:max-h-[70vh] md:overflow-hidden">
+						<div className="flex w-full shrink-0 items-center justify-between transition-colors duration-500">
 							<strong className="p-1 text-lg text-gray-900 transition-colors duration-500 dark:text-gray-100">
 								Shlokas
 							</strong>
 						</div>
-						<div className="mt-1 flex w-full flex-wrap gap-1 lg:flex-col">
+						<div className="mt-1 flex w-full flex-1 flex-col gap-1 overflow-y-auto lg:flex-col">
 							{shlokas.map((shloka: Shloka) => (
 								<Button
 									key={shloka._id}
@@ -150,7 +152,7 @@ export default function Shlokas() {
 											});
 										}
 									}}
-									className={`w-full justify-start text-xs sm:text-sm transition-colors duration-500
+									className={`w-full shrink-0 justify-start text-xs sm:text-sm transition-colors duration-500
 											${
 												shloka._id === activeShlokaId
 													? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
