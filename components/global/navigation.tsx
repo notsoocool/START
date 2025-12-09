@@ -39,6 +39,10 @@ const routes = [
 		href: "/group-info",
 		label: "Group Info",
 	},
+	{
+		href: "/about",
+		label: "About",
+	},
 ];
 
 export const Navigation = () => {
