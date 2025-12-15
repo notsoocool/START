@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -130,34 +130,75 @@ export default function AnalysisPage() {
 	>([]);
 	// Base column options including static columns and dynamic language columns
 	// Only add languages that are NOT 'hi' (Hindi) or 'en' (English) since those have dedicated columns
-	const baseColumnOptions = [
-		{ id: "index", label: "Index" },
-		{ id: "word", label: "Word" },
-		{ id: "poem", label: "Prose Index" },
-		{ id: "sandhied_word", label: "Sandhied Word" },
-		{ id: "morph_analysis", label: "Morph Analysis" },
-		{ id: "morph_in_context", label: "Morph In Context" },
-		{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
-		{ id: "possible_relations", label: "Possible Relations" },
-		{ id: "bgcolor", label: "Color Code" },
-		{ id: "english_meaning", label: "English Meaning" },
-		{ id: "hindi_meaning", label: "Hindi Meaning" },
+	const baseColumnOptions = useMemo(
+		() => [
+			{ id: "index", label: "Index" },
+			{ id: "word", label: "Word" },
+			{ id: "poem", label: "Prose Index" },
+			{ id: "sandhied_word", label: "Sandhied Word" },
+			{ id: "morph_analysis", label: "Morph Analysis" },
+			{ id: "morph_in_context", label: "Morph In Context" },
+			{ id: "kaaraka_sambandha", label: "Kaaraka Relation" },
+			{ id: "possible_relations", label: "Possible Relations" },
+			{ id: "bgcolor", label: "Color Code" },
+			{ id: "english_meaning", label: "English Meaning" },
+			{ id: "hindi_meaning", label: "Hindi Meaning" },
 
-		// Add dynamic language columns (excluding 'hi' and 'en' which have dedicated columns)
-		...availableLanguages
-			.filter((lang) => lang.code !== "hi" && lang.code !== "en")
-			.map((lang) => ({
-				id: `meaning_${lang.code}`,
-				label: `${lang.name} Meaning`,
-			})),
-	];
-	
+			// Add dynamic language columns (excluding 'hi' and 'en' which have dedicated columns)
+			...availableLanguages
+				.filter((lang) => lang.code !== "hi" && lang.code !== "en")
+				.map((lang) => ({
+					id: `meaning_${lang.code}`,
+					label: `${lang.name} Meaning`,
+				})),
+		],
+		[availableLanguages]
+	);
+
 	// Filter out restricted columns for "User" permission
 	// Users with "User" permission cannot see: morph_analysis, possible_relations, bgcolor
-	const restrictedColumnsForUser = ["morph_analysis", "possible_relations", "bgcolor"];
-	const columnOptions = permissions === "User"
-		? baseColumnOptions.filter((col) => !restrictedColumnsForUser.includes(col.id))
-		: baseColumnOptions;
+	const restrictedColumnsForUser = [
+		"morph_analysis",
+		"possible_relations",
+		"bgcolor",
+	];
+	const columnOptions = useMemo(
+		() =>
+			permissions === "User"
+				? baseColumnOptions.filter(
+						(col) => !restrictedColumnsForUser.includes(col.id)
+				  )
+				: baseColumnOptions,
+		[permissions, baseColumnOptions]
+	);
+
+	// Persisted column preferences (shared across all shlokas)
+	const COLUMN_PREF_KEY = "column_prefs_all_shlokas";
+	const DEFAULT_SELECTED_COLUMNS = [
+		"index",
+		"word",
+		"poem",
+		"morph_analysis",
+		"morph_in_context",
+		"kaaraka_sambandha",
+		"possible_relations",
+	];
+
+	const sanitizeColumns = useCallback(
+		(cols: string[]) => {
+			const allowedIds = new Set(columnOptions.map((c) => c.id));
+			const restricted =
+				permissions === "User" ? restrictedColumnsForUser : [];
+			const filtered = cols.filter(
+				(id) => allowedIds.has(id) && !restricted.includes(id)
+			);
+			return filtered.length > 0
+				? filtered
+				: DEFAULT_SELECTED_COLUMNS.filter((id) => allowedIds.has(id));
+		},
+		[columnOptions, permissions]
+	);
+
 	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
 	const DEFAULT_ZOOM = 1;
 	const MIN_ZOOM = 0.5;
@@ -843,28 +884,52 @@ export default function AnalysisPage() {
 
 	// Handle node toggling directly inside the SVG
 	// Initialize with base columns, language columns will be added dynamically
-	const [selectedColumns, setSelectedColumns] = useState<string[]>([
-		"index",
-		"word",
-		"poem",
-		"morph_analysis",
-		"morph_in_context",
-		"kaaraka_sambandha",
-		"possible_relations",
-	]);
+	const [selectedColumns, setSelectedColumns] = useState<string[]>(
+		DEFAULT_SELECTED_COLUMNS
+	);
+	const [didLoadColumnPrefs, setDidLoadColumnPrefs] = useState(false);
 
 	// Language columns are available in baseColumnOptions but not auto-selected
 	// Users can manually select them from the customize column options
 
-	// Remove restricted columns from selectedColumns when user has "User" permission
+	// Load saved column preferences from localStorage
 	useEffect(() => {
-		if (permissions === "User") {
-			const restrictedColumnsForUser = ["morph_analysis", "possible_relations", "bgcolor"];
-			setSelectedColumns((prev) =>
-				prev.filter((col) => !restrictedColumnsForUser.includes(col))
-			);
+		if (typeof window === "undefined") return;
+		try {
+			const stored = localStorage.getItem(COLUMN_PREF_KEY);
+			if (stored) {
+				const parsed = JSON.parse(stored);
+				if (Array.isArray(parsed)) {
+					setSelectedColumns(sanitizeColumns(parsed));
+				}
+			} else {
+				setSelectedColumns(sanitizeColumns(DEFAULT_SELECTED_COLUMNS));
+			}
+		} catch (err) {
+			console.warn("Failed to load column preferences", err);
+		} finally {
+			setDidLoadColumnPrefs(true);
 		}
-	}, [permissions]);
+	}, [COLUMN_PREF_KEY, sanitizeColumns]);
+
+	// Persist column preferences
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		if (!didLoadColumnPrefs) return;
+		try {
+			localStorage.setItem(
+				COLUMN_PREF_KEY,
+				JSON.stringify(selectedColumns)
+			);
+		} catch (err) {
+			console.warn("Failed to save column preferences", err);
+		}
+	}, [selectedColumns, COLUMN_PREF_KEY, didLoadColumnPrefs]);
+
+	// Re-sanitize when permissions or available columns change
+	useEffect(() => {
+		setSelectedColumns((prev) => sanitizeColumns(prev));
+	}, [sanitizeColumns]);
 
 	// Sorting preference for the combined sentence view
 	const [sentenceSortBy, setSentenceSortBy] = useState<"poem" | "anvaya">(
