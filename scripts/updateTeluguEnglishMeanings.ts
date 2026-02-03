@@ -7,10 +7,10 @@ import * as fs from "fs";
 import * as path from "path";
 
 interface TSVRow {
-	anvaya_no: string;
 	word: string;
-	morph_in_context: string; // Not used for matching, just for reference
+	morph_in_context: string; // Used for matching along with word
 	telugu_meaning: string;
+	english_meaning: string;
 }
 
 async function updateTeluguEnglishMeanings() {
@@ -22,12 +22,12 @@ async function updateTeluguEnglishMeanings() {
 		const BOOK = "अष्टाङ्गहृदयम्";
 		const PART1 = null;
 		const PART2 = null;
-		const CHAPTER = "05";
+		const CHAPTER = "02";
 		const TELUGU_LANG_CODE = "te";
 
 		// Get TSV file path from command line argument or use default
 		const tsvFilePath =
-			process.argv[2] || path.join(process.cwd(), "meanings.tsv");
+			process.argv[2] || path.join(process.cwd(), "meaning.tsv");
 
 		if (!fs.existsSync(tsvFilePath)) {
 			console.error(`TSV file not found at: ${tsvFilePath}`);
@@ -54,8 +54,8 @@ async function updateTeluguEnglishMeanings() {
 			// Skip header row if it exists
 			if (
 				lineNumber === 1 &&
-				(line.toLowerCase().includes("no.") ||
-					line.toLowerCase().includes("anvaya"))
+				(line.toLowerCase().includes("word") ||
+					line.toLowerCase().includes("morph"))
 			) {
 				continue;
 			}
@@ -68,7 +68,7 @@ async function updateTeluguEnglishMeanings() {
 			// Split by comma (CSV format)
 			const parts = line.split(",");
 
-			if (parts.length < 5) {
+			if (parts.length < 4) {
 				// Try to handle cases where there might be fewer columns (empty values at the end)
 				if (parts.length < 2) {
 					console.warn(
@@ -77,29 +77,29 @@ async function updateTeluguEnglishMeanings() {
 					continue;
 				}
 				// Pad with empty strings if needed
-				while (parts.length < 5) {
+				while (parts.length < 4) {
 					parts.push("");
 				}
 			}
 
-			// Skip first column (No.) and extract: anvaya_no, word, Morph In Context, telugu meaning
-			const [, anvaya_no, word, morph_in_context, telugu_meaning] = parts;
+			// Extract: word, morph_in_context, telugu_meaning, english_meaning
+			const [word, morph_in_context, telugu_meaning, english_meaning] = parts;
 
-			// Skip if anvaya_no or word is missing
+			// Skip if word or morph_in_context is missing (required for matching)
 			if (
-				!anvaya_no ||
 				!word ||
-				anvaya_no.trim() === "" ||
-				word.trim() === ""
+				!morph_in_context ||
+				word.trim() === "" ||
+				morph_in_context.trim() === ""
 			) {
 				continue; // Silently skip empty rows
 			}
 
 			tsvData.push({
-				anvaya_no: anvaya_no.trim(),
 				word: word.trim(),
-				morph_in_context: morph_in_context?.trim() || "",
+				morph_in_context: morph_in_context.trim(),
 				telugu_meaning: telugu_meaning?.trim() || "",
+				english_meaning: english_meaning?.trim() || "",
 			});
 		}
 
@@ -110,10 +110,12 @@ async function updateTeluguEnglishMeanings() {
 			console.log("\nSample of first 3 parsed rows:");
 			tsvData.slice(0, 3).forEach((row, idx) => {
 				console.log(
-					`  ${idx + 1}. anvaya_no="${row.anvaya_no}", word="${
-						row.word
+					`  ${idx + 1}. word="${row.word}", morph_in_context="${
+						row.morph_in_context
 					}", telugu="${row.telugu_meaning.substring(0, 30)}${
 						row.telugu_meaning.length > 30 ? "..." : ""
+					}", english="${row.english_meaning.substring(0, 30)}${
+						row.english_meaning.length > 30 ? "..." : ""
 					}"`
 				);
 			});
@@ -138,26 +140,29 @@ async function updateTeluguEnglishMeanings() {
 
 		// Process each TSV row
 		for (const tsvRow of tsvData) {
-			// Find matching record by anvaya_no and word only
+			// Find matching record by word and morph_in_context
 			const matchingRecord = allRecords.find(
 				(record) =>
-					record.anvaya_no?.trim() === tsvRow.anvaya_no &&
-					record.word?.trim() === tsvRow.word
+					record.word?.trim() === tsvRow.word &&
+					record.morph_in_context?.trim() === tsvRow.morph_in_context
 			);
 
 			if (!matchingRecord) {
 				notFoundCount++;
 				notFoundRows.push(tsvRow);
 				console.warn(
-					`No match found for: anvaya_no="${tsvRow.anvaya_no}", word="${tsvRow.word}"`
+					`No match found for: word="${tsvRow.word}", morph_in_context="${tsvRow.morph_in_context}"`
 				);
 				continue;
 			}
 
-			// Skip if telugu_meaning is empty
-			if (!tsvRow.telugu_meaning || tsvRow.telugu_meaning.trim() === "") {
+			// Skip if both telugu_meaning and english_meaning are empty
+			if (
+				(!tsvRow.telugu_meaning || tsvRow.telugu_meaning.trim() === "") &&
+				(!tsvRow.english_meaning || tsvRow.english_meaning.trim() === "")
+			) {
 				console.warn(
-					`Skipping update for anvaya_no="${tsvRow.anvaya_no}", word="${tsvRow.word}": telugu_meaning is empty`
+					`Skipping update for word="${tsvRow.word}", morph_in_context="${tsvRow.morph_in_context}": both telugu_meaning and english_meaning are empty`
 				);
 				continue;
 			}
@@ -171,27 +176,44 @@ async function updateTeluguEnglishMeanings() {
 				continue;
 			}
 
-			// Get existing meanings Map or create new one
-			// Mongoose Map is automatically available on the document
-			if (!doc.meanings) {
-				doc.meanings = new Map();
+			// Update Telugu meaning in meanings Map
+			if (tsvRow.telugu_meaning && tsvRow.telugu_meaning.trim() !== "") {
+				// Get existing meanings Map or create new one
+				if (!doc.meanings) {
+					doc.meanings = new Map();
+				}
+				// Set Telugu meaning directly on the Map
+				doc.meanings.set(TELUGU_LANG_CODE, tsvRow.telugu_meaning.trim());
 			}
 
-			// Set Telugu meaning directly on the Map
-			doc.meanings.set(TELUGU_LANG_CODE, tsvRow.telugu_meaning.trim());
+			// Update English meaning in direct field
+			if (tsvRow.english_meaning && tsvRow.english_meaning.trim() !== "") {
+				doc.english_meaning = tsvRow.english_meaning.trim();
+			}
 
-			// Save the document - Mongoose will properly persist the Map
+			// Save the document - Mongoose will properly persist the Map and direct field
 			await doc.save();
 
 			updatedCount++;
+			const updates: string[] = [];
+			if (tsvRow.telugu_meaning && tsvRow.telugu_meaning.trim() !== "") {
+				updates.push(
+					`telugu="${tsvRow.telugu_meaning.substring(0, 30)}${
+						tsvRow.telugu_meaning.length > 30 ? "..." : ""
+					}"`
+				);
+			}
+			if (tsvRow.english_meaning && tsvRow.english_meaning.trim() !== "") {
+				updates.push(
+					`english="${tsvRow.english_meaning.substring(0, 30)}${
+						tsvRow.english_meaning.length > 30 ? "..." : ""
+					}"`
+				);
+			}
 			console.log(
-				`✓ Updated record ${matchingRecord._id}: anvaya_no="${
-					tsvRow.anvaya_no
-				}", word="${
+				`✓ Updated record ${matchingRecord._id}: word="${
 					tsvRow.word
-				}", telugu_meaning="${tsvRow.telugu_meaning.substring(0, 50)}${
-					tsvRow.telugu_meaning.length > 50 ? "..." : ""
-				}"`
+				}", morph_in_context="${tsvRow.morph_in_context}", ${updates.join(", ")}`
 			);
 		}
 
@@ -205,8 +227,8 @@ async function updateTeluguEnglishMeanings() {
 			console.log("\n=== Rows not found in database ===");
 			notFoundRows.forEach((row, index) => {
 				console.log(
-					`${index + 1}. anvaya_no="${row.anvaya_no}", word="${
-						row.word
+					`${index + 1}. word="${row.word}", morph_in_context="${
+						row.morph_in_context
 					}"`
 				);
 			});

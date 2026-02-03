@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { Providers } from "./providers";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Initialize Inter font
 const inter = Inter({ subsets: ["latin"] });
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 						<Providers>{children}</Providers>
 					</ThemeProvider>
 					<Analytics />
+					<SpeedInsights />
 				</body>
 			</html>
 		</ClerkProvider>
