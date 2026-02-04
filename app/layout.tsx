@@ -11,22 +11,22 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-	title: "START",
-	description: "CodeCache, a snippet manager for developers.",
+    title: "START",
+    description: "CodeCache, a snippet manager for developers.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-	return (
-		<ClerkProvider>
-			<html lang="en" suppressHydrationWarning>
-				<body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-950 dark:to-gray-900 antialiased"}>
-					<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-						<Providers>{children}</Providers>
-					</ThemeProvider>
-					<Analytics />
-					<SpeedInsights />
-				</body>
-			</html>
-		</ClerkProvider>
-	);
+    return (
+        <ClerkProvider>
+            <html lang="en" suppressHydrationWarning>
+                <body className={"min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-950 dark:to-gray-900 antialiased"}>
+                    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                        <Providers>{children}</Providers>
+                    </ThemeProvider>
+                    <Analytics />
+                    <SpeedInsights />
+                </body>
+            </html>
+        </ClerkProvider>
+    );
 }
