@@ -111,25 +111,25 @@ const BookCard = ({
     return (
         <motion.div
             layoutId={`book-grid-${item.id}`}
-            className="w-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-hidden transition-colors duration-500 cursor-pointer shadow-md hover:shadow-lg"
+            className="w-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-visible transition-colors duration-500 cursor-pointer shadow-md hover:shadow-lg"
             onClick={onExpand}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
         >
-            <div className="p-6">
-                <div className="flex items-center gap-3">
+            <div className="p-6 overflow-visible">
+                <div className="flex items-center gap-3 overflow-visible">
                     <Icon className="h-6 w-6 text-neutral-700 dark:text-neutral-200 flex-shrink-0" />
                     <h3 className="font-medium text-base text-neutral-700 dark:text-neutral-200">
                         {item.title}
                     </h3>
                     {item.status && (
-                        <div className="flex items-center gap-2 flex-wrap ml-auto">
-                            {item.status.locked &&
+                        <div className="flex items-center gap-2 flex-wrap ml-auto overflow-visible">
+                            {item.status.locked === true &&
                                 (currentUser?.perms === "Admin" ||
                                     currentUser?.perms === "Root") && (
-                                    <div className="relative group">
+                                    <div className="relative group z-50">
                                         <Lock className="h-4 w-4 text-red-500" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                             Locked
                                         </span>
                                     </div>
@@ -137,17 +137,17 @@ const BookCard = ({
                             {item.status.userPublished &&
                                 (currentUser?.perms === "Admin" ||
                                     currentUser?.perms === "Root") && (
-                                    <div className="relative group">
+                                    <div className="relative group z-50">
                                         <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                             User Published
                                         </span>
                                     </div>
                                 )}
                             {item.status.groupPublished && (
-                                <div className="relative group">
+                                <div className="relative group z-50">
                                     <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                         Group Published
                                     </span>
                                 </div>
@@ -157,9 +157,9 @@ const BookCard = ({
                                 !item.status.groupPublished &&
                                 (currentUser?.perms === "Admin" ||
                                     currentUser?.perms === "Root") && (
-                                    <div className="relative group">
+                                    <div className="relative group z-50">
                                         <User className="h-4 w-4 text-orange-500" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                             {ownerName ? `Owned by ${ownerName}` : "Private"}
                                         </span>
                                     </div>
@@ -263,13 +263,13 @@ const TreeNode = ({
     return (
         <motion.div
             layoutId={`card-${item.id}`}
-            className={`${isHorizontal ? "flex-shrink-0" : "w-full"} mb-2  flex flex-col bg-secondary sm:rounded-3xl overflow-hidden transition-colors duration-500`}
+            className={`${isHorizontal ? "flex-shrink-0" : "w-full"} mb-2  flex flex-col bg-secondary sm:rounded-3xl overflow-visible transition-colors duration-500`}
         >
-            <div>
-                <div className="flex justify-between items-center p-4">
-                    <div className="flex items-center gap-3 flex-1">
+            <div className="overflow-visible">
+                <div className="flex justify-between items-center p-4 overflow-visible">
+                    <div className="flex items-center gap-3 flex-1 overflow-visible">
                         <Icon className="h-5 w-5 text-neutral-700 dark:text-neutral-200 flex-shrink-0" />
-                        <div className="flex-1">
+                        <div className="flex-1 overflow-visible">
                             <motion.h3
                                 layoutId={`title-${item.id}`}
                                 className="font-medium text-neutral-700 dark:text-neutral-200"
@@ -277,14 +277,14 @@ const TreeNode = ({
                                 {item.title}
                             </motion.h3>
                             {item.type === "book" && item.status && (
-                                <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-2 mt-2 overflow-visible">
                                     {/* Locked indicator - only show to Admin/Root */}
-                                    {item.status.locked &&
+                                    {item.status.locked === true &&
                                         (currentUser?.perms === "Admin" ||
                                             currentUser?.perms === "Root") && (
-                                            <div className="relative group">
+                                            <div className="relative group z-50">
                                                 <Lock className="h-4 w-4 text-red-500" />
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                     Locked - Only Admin/Root
                                                 </span>
                                             </div>
@@ -294,9 +294,9 @@ const TreeNode = ({
                                     {item.status.userPublished &&
                                         (currentUser?.perms === "Admin" ||
                                             currentUser?.perms === "Root") && (
-                                            <div className="relative group">
+                                            <div className="relative group z-50">
                                                 <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                     User Published - All users can see
                                                 </span>
                                             </div>
@@ -304,9 +304,9 @@ const TreeNode = ({
 
                                     {/* Group Published indicator */}
                                     {item.status.groupPublished && (
-                                        <div className="relative group">
+                                        <div className="relative group z-50">
                                             <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                 Group Published - Group members only
                                             </span>
                                         </div>
@@ -318,7 +318,7 @@ const TreeNode = ({
                                         !item.status.groupPublished &&
                                         (currentUser?.perms === "Admin" ||
                                             currentUser?.perms === "Root") && (
-                                            <div className="relative group">
+                                            <div className="relative group z-50">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -334,7 +334,7 @@ const TreeNode = ({
                                                 >
                                                     <User className="h-4 w-4 text-orange-500 cursor-pointer" />
                                                 </Button>
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                     {ownerName
                                                         ? `Private - Owned by ${ownerName}. Click to view details.`
                                                         : "Private - Click to view owner details"}
@@ -620,23 +620,23 @@ const ExpandedBookView = ({
 
     return (
         <motion.div
-            className="w-full h-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-hidden"
+            className="w-full h-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-visible"
         >
-            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
+            <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 overflow-visible">
+                <div className="flex items-center justify-between overflow-visible">
+                    <div className="flex items-center gap-3 flex-1 overflow-visible">
                         <Icon className="h-6 w-6 text-neutral-700 dark:text-neutral-200" />
                         <h3 className="font-medium text-lg text-neutral-700 dark:text-neutral-200">
                             {item.title}
                         </h3>
                         {item.status && (
-                            <div className="flex items-center gap-2 flex-wrap ml-2">
-                                {item.status.locked &&
+                            <div className="flex items-center gap-2 flex-wrap ml-2 overflow-visible">
+                                {item.status.locked === true &&
                                     (currentUser?.perms === "Admin" ||
                                         currentUser?.perms === "Root") && (
-                                        <div className="relative group">
+                                        <div className="relative group z-50">
                                             <Lock className="h-4 w-4 text-red-500" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                 Locked - Only Admin/Root
                                             </span>
                                         </div>
@@ -644,17 +644,17 @@ const ExpandedBookView = ({
                                 {item.status.userPublished &&
                                     (currentUser?.perms === "Admin" ||
                                         currentUser?.perms === "Root") && (
-                                        <div className="relative group">
+                                        <div className="relative group z-50">
                                             <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                 User Published - All users can see
                                             </span>
                                         </div>
                                     )}
                                 {item.status.groupPublished && (
-                                    <div className="relative group">
+                                    <div className="relative group z-50">
                                         <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                             Group Published - Group members only
                                         </span>
                                     </div>
@@ -664,7 +664,7 @@ const ExpandedBookView = ({
                                     !item.status.groupPublished &&
                                     (currentUser?.perms === "Admin" ||
                                         currentUser?.perms === "Root") && (
-                                        <div className="relative group">
+                                        <div className="relative group z-50">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -678,7 +678,7 @@ const ExpandedBookView = ({
                                             >
                                                 <User className="h-4 w-4 text-orange-500 cursor-pointer" />
                                             </Button>
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
                                                 {ownerName
                                                     ? `Private - Owned by ${ownerName}. Click to view details.`
                                                     : "Private - Click to view owner details"}
