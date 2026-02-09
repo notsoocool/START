@@ -53,18 +53,18 @@ export const LoadingScreen = ({
 				>
 					{/* Background animated elements */}
 					<div className="absolute inset-0 overflow-hidden">
-						{/* Floating particles */}
+						{/* Floating particles - use safe fallbacks for SSR (window is undefined on server) */}
 						{[...Array(20)].map((_, i) => (
 							<motion.div
 								key={i}
 								className="absolute w-2 h-2 bg-purple-400/20 rounded-full"
 								initial={{
-									x: Math.random() * window.innerWidth,
-									y: Math.random() * window.innerHeight,
+									x: typeof window !== "undefined" ? Math.random() * window.innerWidth : 0,
+									y: typeof window !== "undefined" ? Math.random() * window.innerHeight : 0,
 								}}
 								animate={{
-									x: Math.random() * window.innerWidth,
-									y: Math.random() * window.innerHeight,
+									x: typeof window !== "undefined" ? Math.random() * window.innerWidth : 0,
+									y: typeof window !== "undefined" ? Math.random() * window.innerHeight : 0,
 								}}
 								transition={{
 									duration: 8 + Math.random() * 4,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,12 +64,28 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Header } from "@/components/global/analysisHeader";
-import { ShlokaCard } from "@/components/global/ShlokaCard";
-import { GraphDisplay } from "@/components/global/GraphDisplay";
 import BookmarkButton from "@/components/global/BookmarkButton";
-import { Discussions } from "@/components/global/Discussions";
-import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+
+const ShlokaCard = dynamic(
+	() => import("@/components/global/ShlokaCard").then((m) => ({ default: m.ShlokaCard })),
+	{ loading: () => <Skeleton className="h-32 w-full rounded-lg" />, ssr: true }
+);
+
+const GraphDisplay = dynamic(
+	() => import("@/components/global/GraphDisplay").then((m) => ({ default: m.GraphDisplay })),
+	{ loading: () => <Skeleton className="h-48 w-full rounded-lg" />, ssr: true }
+);
+
+const Discussions = dynamic(
+	() => import("@/components/global/Discussions").then((m) => ({ default: m.Discussions })),
+	{ loading: () => <Skeleton className="h-24 w-full rounded-lg" />, ssr: true }
+);
+
+const ErrorDisplay = dynamic(
+	() => import("@/components/global/ErrorDisplay").then((m) => ({ default: m.ErrorDisplay })),
+	{ ssr: true }
+);
 
 declare global {
 	interface Window {
