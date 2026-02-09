@@ -1,27 +1,32 @@
 "use client";
 
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
 	Card,
 	CardContent,
-	CardFooter,
 	CardHeader,
-	CardTitle,
 } from "@/components/ui/card";
 import { useParams } from "next/navigation";
 import { useShlokas } from "@/lib/hooks/use-api";
+import type { Shloka } from "./ChapterShlokaCards";
 
-// Define the shloka type
-type Shloka = {
-	_id: any;
-	chaptno: string;
-	slokano: string;
-	spart: string;
-};
+const ChapterShlokaCards = dynamic(
+	() => import("./ChapterShlokaCards").then((m) => ({ default: m.ChapterShlokaCards })),
+	{
+		loading: () => (
+			<div className="grid grid-cols-1 gap-6">
+				{[1, 2, 3].map((i) => (
+					<Skeleton key={i} className="h-40 w-full rounded-lg" />
+				))}
+			</div>
+		),
+		ssr: true,
+	}
+);
 
 export default function Shlokas() {
 	const [activeShlokaId, setActiveShlokaId] = useState<string | null>(null);
@@ -169,49 +174,16 @@ export default function Shlokas() {
 					</div>
 				</div>
 
-				{/* Shloka Cards */}
+				{/* Shloka Cards - loaded via next/dynamic for smaller initial bundle */}
 				<div className="w-full px-1 pt-2 md:w-9/12 md:px-2 md:pt-0">
-					<div className="grid grid-cols-1 gap-6" ref={shlokasRef}>
-						{shlokas.map((shloka: Shloka) => (
-							<Link
-								href={`/books/${book}/${part1}/${part2}/${shloka.chaptno}/${shloka._id}`}
-								key={shloka._id}
-								data-navigate="true"
-							>
-								<Card
-									id={shloka._id}
-									ref={(el) => {
-										shlokaRefs.current[shloka._id] = el;
-									}}
-									className="group overflow-hidden border border-gray-200 bg-white/80 transition-all duration-500 hover:border-purple-300 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/80 dark:hover:border-purple-700"
-								>
-									<CardHeader className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-800 dark:bg-gray-800/90">
-										<CardTitle className="flex justify-between text-base text-gray-900 dark:text-gray-100 sm:text-lg">
-											Chapter {shloka.chaptno} - Shloka{" "}
-											{shloka.slokano}
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="p-5 sm:p-6 md:p-8 transition-colors duration-300 group-hover:bg-purple-50/80 dark:group-hover:bg-purple-950/20">
-										<div className="space-y-3 text-center sm:space-y-4">
-											{shloka.spart
-												.split("#")
-												.map((part, index) => (
-													<p
-														key={index}
-														className="text-base font-medium leading-relaxed text-gray-800 dark:text-gray-200 sm:text-lg"
-													>
-														{part.trim()}
-													</p>
-												))}
-										</div>
-									</CardContent>
-									<CardFooter className="flex justify-end px-4 py-2 text-xs text-purple-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:text-purple-400 sm:text-sm">
-										View Analysis →
-									</CardFooter>
-								</Card>
-							</Link>
-						))}
-					</div>
+					<ChapterShlokaCards
+						shlokas={shlokas}
+						book={book as string}
+						part1={part1 as string}
+						part2={part2 as string}
+						shlokasRef={shlokasRef}
+						shlokaRefs={shlokaRefs}
+					/>
 				</div>
 			</div>
 		</div>

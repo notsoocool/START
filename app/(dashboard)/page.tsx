@@ -1,10 +1,15 @@
 "use client";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Loader } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ErrorDisplay } from "@/components/global/ErrorDisplay";
 import { useUser } from "@clerk/nextjs";
+
+const ErrorDisplay = dynamic(
+	() => import("@/components/global/ErrorDisplay").then((m) => ({ default: m.ErrorDisplay })),
+	{ ssr: true }
+);
 
 interface User {
 	id: string;
