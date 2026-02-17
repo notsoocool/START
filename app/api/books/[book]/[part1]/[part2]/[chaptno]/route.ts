@@ -13,6 +13,9 @@ interface Params {
 	chaptno: string;
 }
 
+// Treat null, undefined, or string "null" as "no part" (query uses null)
+const isNullParam = (v: unknown) => v == null || v === "null";
+
 // Add CORS headers helper function
 function corsHeaders() {
 	return {
@@ -31,13 +34,17 @@ export async function GET(request: Request, { params }: { params: Params }) {
 	await dbConnect();
 	const { book, part1, part2, chaptno } = params;
 
-	// Query to match the specified book, part1, part2, and chapter
-	const query = {
-		...(book !== "null" && { book }),
-		...(part1 !== "null" && { part1 }),
-		...(part2 !== "null" && { part2 }),
+	// Query to match the specified book, part1, part2, and chapter.
+	// When part2/part1 is null (or "null" string), we must explicitly add part2: null / part1: null,
+	// otherwise omitting the field matches ALL values (e.g. part2: "1" would also match).
+	const query: Record<string, unknown> = {
 		chaptno,
 	};
+	if (!isNullParam(book)) query.book = book;
+	if (isNullParam(part1)) query.part1 = null;
+	else if (part1) query.part1 = part1;
+	if (isNullParam(part2)) query.part2 = null;
+	else if (part2) query.part2 = part2;
 
 	// Fetch all shlokas for the specified chapter and sort by slokano (numeric order)
 	const shlokas = await AHShloka.find(query).sort({
@@ -58,11 +65,11 @@ export async function DELETE(
 		return authResponse;
 	}
 
-	// Build the query, explicitly including null values when params are "null"
+	// Build the query, explicitly including null when param is null/undefined/"null"
 	const query = {
 		book,
-		part1: part1 !== "null" ? part1 : null,
-		part2: part2 !== "null" ? part2 : null,
+		part1: isNullParam(part1) ? null : part1,
+		part2: isNullParam(part2) ? null : part2,
 		chaptno,
 	};
 
@@ -108,8 +115,8 @@ export async function DELETE(
 						modelType: "Shloka",
 						details: {
 							book,
-							part1: part1 !== "null" ? part1 : undefined,
-							part2: part2 !== "null" ? part2 : undefined,
+							part1: isNullParam(part1) ? undefined : part1,
+							part2: isNullParam(part2) ? undefined : part2,
 							chaptno,
 							slokano: "multiple",
 							changes: [
@@ -134,8 +141,8 @@ export async function DELETE(
 						modelType: "Shloka",
 						details: {
 							book,
-							part1: part1 !== "null" ? part1 : undefined,
-							part2: part2 !== "null" ? part2 : undefined,
+							part1: isNullParam(part1) ? undefined : part1,
+							part2: isNullParam(part2) ? undefined : part2,
 							chaptno,
 							slokano: "multiple",
 							changes: [
@@ -235,8 +242,8 @@ export async function POST(request: Request, { params }: { params: Params }) {
 		// Create new shloka
 		const shloka = await AHShloka.create({
 			book,
-			part1: part1 !== "null" ? part1 : null,
-			part2: part2 !== "null" ? part2 : null,
+			part1: isNullParam(part1) ? null : part1,
+			part2: isNullParam(part2) ? null : part2,
 			chaptno,
 			slokano: data.slokano,
 			spart: data.spart,
@@ -252,8 +259,8 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			modelType: "Shloka",
 			details: {
 				book,
-				part1: part1 !== "null" ? part1 : undefined,
-				part2: part2 !== "null" ? part2 : undefined,
+				part1: isNullParam(part1) ? undefined : part1,
+				part2: isNullParam(part2) ? undefined : part2,
 				chaptno,
 				slokano: data.slokano,
 				changes: [
