@@ -54,7 +54,7 @@ export async function OPTIONS() {
 
 /**
  * GET /api/analysis/[book]/anvaya
- * Returns all shlokas for the book with: slokano, chaptno, spart, anvaya.
+ * Returns all shlokas for the book with: spart, anvaya.
  * anvaya = original shloka = sentence texts with words in verse (poem) order.
  */
 export async function GET(
@@ -91,8 +91,6 @@ export async function GET(
 		}
 
 		const data: {
-			slokano: string;
-			chaptno: string;
 			spart: string;
 			anvaya: string[];
 		}[] = [];
@@ -125,8 +123,6 @@ export async function GET(
 			}
 
 			data.push({
-				slokano: String(shloka.slokano ?? ""),
-				chaptno: String(shloka.chaptno ?? ""),
 				spart: String(shloka.spart ?? ""),
 				anvaya,
 			});

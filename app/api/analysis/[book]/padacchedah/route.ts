@@ -59,7 +59,7 @@ export async function OPTIONS() {
 
 /**
  * GET /api/analysis/[book]/padacchedah
- * Returns all shlokas for the book with: slokano, chaptno, spart, padacchedah.
+ * Returns all shlokas for the book with: spart, padacchedah.
  * padacchedah = sentence texts with words in prose (anvaya_no) order.
  */
 export async function GET(
@@ -96,8 +96,6 @@ export async function GET(
 		}
 
 		const data: {
-			slokano: string;
-			chaptno: string;
 			spart: string;
 			padacchedah: string[];
 		}[] = [];
@@ -130,8 +128,6 @@ export async function GET(
 			}
 
 			data.push({
-				slokano: String(shloka.slokano ?? ""),
-				chaptno: String(shloka.chaptno ?? ""),
 				spart: String(shloka.spart ?? ""),
 				padacchedah,
 			});
