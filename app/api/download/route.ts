@@ -9,6 +9,73 @@ export const maxDuration = 60; // 60 seconds max
 // Force dynamic route - required for API endpoints with query parameters
 export const dynamic = "force-dynamic";
 
+// Helpers for padacchedah/anvaya computation (from analysis API logic)
+function joinWordsWithHyphenRule(tokens: string[]): string {
+	let output = "";
+	for (const token of tokens) {
+		const word = String(token ?? "").trim();
+		if (!word) continue;
+		if (output.endsWith("-")) {
+			output += word;
+		} else {
+			output += (output ? " " : "") + word;
+		}
+	}
+	return output;
+}
+
+function sortByAnvaya(a: { anvaya_no?: string }, b: { anvaya_no?: string }) {
+	const [am, as] = String(a?.anvaya_no ?? "0.0")
+		.split(".")
+		.map((n) => parseInt(n, 10) || 0);
+	const [bm, bs] = String(b?.anvaya_no ?? "0.0")
+		.split(".")
+		.map((n) => parseInt(n, 10) || 0);
+	if (am !== bm) return am - bm;
+	return as - bs;
+}
+
+function sortByPoem(a: { poem?: string }, b: { poem?: string }) {
+	const ai = parseInt(String(a?.poem ?? "0"), 10) || 0;
+	const bi = parseInt(String(b?.poem ?? "0"), 10) || 0;
+	return ai - bi;
+}
+
+// Normalize part1/part2 for matching (e.g. "none", null, "" all mean "no part")
+function normPart(v: string | null | undefined): string {
+	const s = String(v ?? "").trim().toLowerCase();
+	if (s === "none" || s === "null" || s === "") return "";
+	return String(v ?? "").trim();
+}
+
+function analysisKey(row: {
+	part1?: string | null;
+	part2?: string | null;
+	chaptno?: string;
+	slokano?: string;
+}) {
+	const p1 = normPart(row.part1);
+	const p2 = normPart(row.part2);
+	const c = String(row.chaptno ?? "");
+	const s = String(row.slokano ?? "");
+	return `${p1}|${p2}|${c}|${s}`;
+}
+
+// Keep only requested fields in each record
+function filterToFields<T extends Record<string, unknown>>(
+	records: T[],
+	fields: string[]
+): Record<string, unknown>[] {
+	if (fields.length === 0) return [];
+	return records.map((r) => {
+		const out: Record<string, unknown> = {};
+		for (const k of fields) {
+			if (k in r) out[k] = r[k];
+		}
+		return out;
+	});
+}
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = request.nextUrl;
@@ -155,9 +222,112 @@ export async function GET(request: NextRequest) {
 				totalCount
 			);
 
-			const analysisData = await Analysis.find(analysisQuery).select(
-				analysisFields.join(" ")
+			// Padacchedah and anvaya are computed from Analysis, not stored
+			const baseAnalysisFields = analysisFields.filter(
+				(f) => f !== "padacchedah" && f !== "anvaya"
 			);
+			const analysisSelectStr =
+				baseAnalysisFields.length > 0
+					? baseAnalysisFields.join(" ")
+					: "part1 part2 chaptno slokano";
+
+			const analysisData = (await Analysis.find(analysisQuery)
+				.select(analysisSelectStr)
+				.lean()) as Record<string, unknown>[];
+
+			const needsPadacchedah = analysisFields.includes("padacchedah");
+			const needsAnvaya = analysisFields.includes("anvaya");
+
+			if (needsPadacchedah || needsAnvaya) {
+				// Fetch analysis rows with word/sentno/poem for computation
+				const computeData = (await Analysis.find(analysisQuery)
+					.select("part1 part2 chaptno slokano sentno anvaya_no poem word")
+					.lean()) as {
+					part1?: string | null;
+					part2?: string | null;
+					chaptno?: string;
+					slokano?: string;
+					sentno?: string;
+					anvaya_no?: string;
+					poem?: string;
+					word?: string;
+				}[];
+
+				const analysisByKey = new Map<
+					string,
+					{ sentno: string; anvaya_no?: string; poem?: string; word?: string }[]
+				>();
+				for (const row of computeData) {
+					const key = analysisKey(row);
+					if (!analysisByKey.has(key)) analysisByKey.set(key, []);
+					analysisByKey.get(key)!.push({
+						sentno: String(row.sentno ?? ""),
+						anvaya_no: row.anvaya_no,
+						poem: row.poem,
+						word: row.word,
+					});
+				}
+
+				const padacchedahByKey = new Map<string, string[]>();
+				const anvayaByKey = new Map<string, string[]>();
+
+				for (const [key, rows] of Array.from(analysisByKey.entries())) {
+					const grouped: Record<
+						string,
+						{ sentno: string; anvaya_no?: string; poem?: string; word?: string }[]
+					> = {};
+					for (const r of rows) {
+						const k = String(r.sentno ?? "");
+						if (!k) continue;
+						if (!grouped[k]) grouped[k] = [];
+						grouped[k].push(r);
+					}
+					const sentnos = Object.keys(grouped).sort(
+						(a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0)
+					);
+
+					if (needsPadacchedah) {
+						const padacchedah: string[] = [];
+						for (const sentno of sentnos) {
+							const group = grouped[sentno]
+								.slice()
+								.sort(sortByAnvaya);
+							const words = group
+								.map((r) => String(r?.word ?? "").trim())
+								.filter((w) => w && w !== "-");
+							padacchedah.push(joinWordsWithHyphenRule(words));
+						}
+						padacchedahByKey.set(key, padacchedah);
+					}
+					if (needsAnvaya) {
+						const anvaya: string[] = [];
+						for (const sentno of sentnos) {
+							const group = grouped[sentno]
+								.slice()
+								.sort(sortByPoem);
+							const words = group
+								.map((r) => String(r?.word ?? "").trim())
+								.filter((w) => w && w !== "-");
+							anvaya.push(joinWordsWithHyphenRule(words));
+						}
+						anvayaByKey.set(key, anvaya);
+					}
+				}
+
+				// Attach padacchedah/anvaya to each analysis record
+				for (const row of analysisData) {
+					const key = analysisKey(
+						row as Parameters<typeof analysisKey>[0]
+					);
+					if (needsPadacchedah) {
+						row.padacchedah = padacchedahByKey.get(key) ?? [];
+					}
+					if (needsAnvaya) {
+						row.anvaya = anvayaByKey.get(key) ?? [];
+					}
+				}
+			}
+
 			console.log("Analysis results count:", analysisData.length);
 			result.analysis = analysisData;
 		}
@@ -228,11 +398,102 @@ export async function GET(request: NextRequest) {
 				totalShlokaCount
 			);
 
-			const shlokaData = await Shloka.find(shlokaQuery).select(
-				shlokaFields.join(" ")
-			);
+			let selectFields =
+				shlokaFields.length > 0 ? shlokaFields.join(" ") : "_id";
+			// When "both" with mergeable analysis fields, need part1/part2/chaptno/slokano for key
+			if (
+				dataType === "both" &&
+				analysisFields.every(
+					(f) => f === "padacchedah" || f === "anvaya"
+				)
+			) {
+				selectFields = selectFields
+					? `${selectFields} part1 part2 chaptno slokano`
+					: "part1 part2 chaptno slokano";
+			}
+
+			const shlokaData = (await Shloka.find(shlokaQuery)
+				.select(selectFields)
+				.sort({ part1: 1, part2: 1, chaptno: 1, slokano: 1 })
+				.lean()) as Record<string, unknown>[];
+
 			console.log("Shloka results count:", shlokaData.length);
 			result.shloka = shlokaData;
+		}
+
+		// When "both" with only shloka-level analysis fields (padacchedah/anvaya), merge into single table
+		const analysisOnlyShlokaLevel =
+			dataType === "both" &&
+			analysisFields.length > 0 &&
+			analysisFields.every(
+				(f) => f === "padacchedah" || f === "anvaya"
+			);
+
+		if (
+			analysisOnlyShlokaLevel &&
+			result.shloka &&
+			result.shloka.length > 0 &&
+			result.analysis &&
+			result.analysis.length > 0
+		) {
+			const padacchedahByKey = new Map<string, string[]>();
+			const anvayaByKey = new Map<string, string[]>();
+			for (const row of result.analysis as Record<string, unknown>[]) {
+				const key = analysisKey(
+					row as Parameters<typeof analysisKey>[0]
+				);
+				if (
+					!padacchedahByKey.has(key) &&
+					Array.isArray(row.padacchedah)
+				) {
+					padacchedahByKey.set(key, row.padacchedah as string[]);
+				}
+				if (!anvayaByKey.has(key) && Array.isArray(row.anvaya)) {
+					anvayaByKey.set(key, row.anvaya as string[]);
+				}
+			}
+
+			const af = analysisFields as string[];
+			const allRequestedFields = [
+				...af,
+				...shlokaFields.filter((f) => !af.includes(f)),
+			];
+			const merged: Record<string, unknown>[] = [];
+
+			for (const shloka of result.shloka as Record<string, unknown>[]) {
+				const key = analysisKey(
+					shloka as Parameters<typeof analysisKey>[0]
+				);
+				const out: Record<string, unknown> = {};
+				for (const f of allRequestedFields) {
+					if (f === "padacchedah") {
+						out.padacchedah = padacchedahByKey.get(key) ?? [];
+					} else if (f === "anvaya") {
+						out.anvaya = anvayaByKey.get(key) ?? [];
+					} else if (f in shloka) {
+						out[f] = shloka[f];
+					}
+				}
+				merged.push(out);
+			}
+
+			result.merged = merged;
+		}
+
+		// Filter analysis and shloka to only requested fields (when not using merged)
+		if (!result.merged) {
+			if (result.analysis) {
+				result.analysis = filterToFields(
+					result.analysis as Record<string, unknown>[],
+					analysisFields
+				);
+			}
+			if (result.shloka) {
+				result.shloka = filterToFields(
+					result.shloka as Record<string, unknown>[],
+					shlokaFields
+				);
+			}
 		}
 
 		// Set response headers based on format
@@ -268,11 +529,15 @@ export async function GET(request: NextRequest) {
 			console.log("Converting to CSV. Data structure:", {
 				dataType,
 				resultKeys: Object.keys(result),
+				hasMerged: !!result.merged,
 				analysisLength: result.analysis?.length,
 				shlokaLength: result.shloka?.length,
 			});
 
-			if (dataType === "both") {
+			if (result.merged && result.merged.length > 0) {
+				// Merged single table (both with only padacchedah/anvaya + shloka)
+				csvData = convertToCSV(result.merged);
+			} else if (dataType === "both") {
 				// For "both" data type, create separate CSV sections
 				const analysisCSV =
 					result.analysis && result.analysis.length > 0
@@ -317,9 +582,11 @@ export async function GET(request: NextRequest) {
 			});
 		} else {
 			// Return as JSON - handle different data structures
-			let jsonResult: any;
+			let jsonResult: unknown;
 
-			if (dataType === "analysis") {
+			if (result.merged) {
+				jsonResult = result.merged;
+			} else if (dataType === "analysis") {
 				jsonResult = result.analysis;
 			} else if (dataType === "shloka") {
 				jsonResult = result.shloka;
@@ -381,6 +648,15 @@ function convertToCSV(data: any[]): string {
 						stringValue = value.join("; ");
 					} else if (value instanceof Date) {
 						stringValue = value.toISOString();
+					} else if (
+						value &&
+						typeof (value as { toString?: () => string }).toString ===
+							"function"
+					) {
+						// MongoDB ObjectId and similar - use toString for clean string
+						const str = (value as { toString: () => string }).toString();
+						stringValue =
+							str !== "[object Object]" ? str : JSON.stringify(value);
 					} else {
 						// For other objects, try to get meaningful string representation
 						try {

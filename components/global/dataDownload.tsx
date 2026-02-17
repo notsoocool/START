@@ -185,6 +185,18 @@ export default function DataDownload() {
 			description: "Second part identifier",
 			selected: true,
 		},
+		{
+			id: "padacchedah",
+			label: "Padacchedah",
+			description: "Word-by-word breakdown in prose order",
+			selected: false,
+		},
+		{
+			id: "anvaya",
+			label: "Anvaya",
+			description: "Syntactic rearrangement in verse order",
+			selected: false,
+		},
 	]);
 
 	// Shloka fields with descriptions
@@ -203,8 +215,8 @@ export default function DataDownload() {
 		},
 		{
 			id: "spart",
-			label: "Sub Part",
-			description: "Subdivision identifier",
+			label: "Shloka",
+			description: "Sanskrit verse text",
 			selected: true,
 		},
 		{
@@ -558,7 +570,7 @@ export default function DataDownload() {
 				"chapter",
 				selectedChapter === "all" ? "all" : selectedChapter || ""
 			);
-			params.append("format", "json");
+			params.append("format", format);
 			params.append("dataType", dataType);
 			params.append("downloadId", newDownloadId);
 
@@ -751,7 +763,7 @@ export default function DataDownload() {
 
 			// Combine chunks and create download
 			const blob = new Blob(chunks as BlobPart[], {
-				type: "application/json",
+				type: format === "csv" ? "text/csv" : "application/json",
 			});
 			const url = URL.createObjectURL(blob);
 
@@ -762,7 +774,7 @@ export default function DataDownload() {
 			const part2Label =
 				selectedPart2 === "none" ? "none" : selectedPart2 || "";
 			const chapterLabel = selectedChapter || "";
-			link.download = `data_${selectedBook}_${part1Label}_${part2Label}_${chapterLabel}.json`;
+			link.download = `data_${selectedBook}_${part1Label}_${part2Label}_${chapterLabel}.${format}`;
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
@@ -816,7 +828,7 @@ export default function DataDownload() {
 			const part2Label =
 				selectedPart2 === "none" ? "none" : selectedPart2 || "";
 			const chapterLabel = selectedChapter || "";
-			link.download = `data_${selectedBook}_${part1Label}_${part2Label}_${chapterLabel}.json`;
+			link.download = `data_${selectedBook}_${part1Label}_${part2Label}_${chapterLabel}.${format}`;
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
@@ -904,9 +916,7 @@ export default function DataDownload() {
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="json">JSON</SelectItem>
-									<SelectItem value="csv" disabled>
-										CSV (Temporarily Disabled)
-									</SelectItem>
+									<SelectItem value="csv">CSV</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -1275,7 +1285,7 @@ export default function DataDownload() {
 									{dataType === "shloka" && "Shloka data"}
 									{dataType === "both" &&
 										"Analysis and shloka data"}{" "}
-									in JSON format
+									in {format.toUpperCase()} format
 									{selectedBook === "all" && " for all books"}
 									{selectedBook !== "all" &&
 										selectedPart1 === "all" &&
