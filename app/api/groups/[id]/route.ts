@@ -23,6 +23,28 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 		await dbConnect();
 		const data = await request.json();
 		const group = await Group.findByIdAndUpdate(params.id, data, { new: true });
+
+		if (!group) {
+			return NextResponse.json({ error: "Group not found" }, { status: 404 });
+		}
+
+		// When Group A gets new books, propagate them to parent Group B(s)
+		if (group.type === "A" && data.assignedBooks) {
+			const parentGroupBs = await Group.find({
+				type: "B",
+				supervisedGroups: group._id,
+			});
+
+			for (const parentB of parentGroupBs) {
+				const mergedBooks = Array.from(
+					new Set([...(parentB.assignedBooks || []), ...data.assignedBooks])
+				);
+				await Group.findByIdAndUpdate(parentB._id, {
+					assignedBooks: mergedBooks,
+				});
+			}
+		}
+
 		return NextResponse.json(group);
 	} catch (error) {
 		console.error("Error updating group:", error);

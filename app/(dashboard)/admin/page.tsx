@@ -19,6 +19,7 @@ import DeleteEntry from "@/components/global/deleteEntry";
 import HistoryPage from "@/components/global/history";
 import DataDownload from "@/components/global/dataDownload";
 import LanguageManagement from "@/components/global/languageManagement";
+import OnlineUsers from "@/components/global/onlineUsers";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
@@ -169,6 +170,9 @@ export default function AdminPage() {
 								<SelectItem value="download">
 									Data Download
 								</SelectItem>
+								<SelectItem value="online">
+									Online Users
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -242,6 +246,12 @@ export default function AdminPage() {
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Data Download
+							</TabsTrigger>
+							<TabsTrigger
+								value="online"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Online Users
 							</TabsTrigger>
 						</TabsList>
 					</div>
@@ -351,6 +361,18 @@ export default function AdminPage() {
 					</CardHeader>
 					<CardContent>
 						<DataDownload />
+					</CardContent>
+				</Card>
+			</TabsContent>
+			<TabsContent value="online">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Online Users
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<OnlineUsers />
 					</CardContent>
 				</Card>
 			</TabsContent>

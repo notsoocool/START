@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Group from "@/lib/db/groupModel";
 import Perms from "@/lib/db/permissionsModel";
@@ -11,6 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	AlertDialog,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -54,6 +63,34 @@ export default function GroupsPage() {
 		supervisedGroups: [] as string[],
 	});
 	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
+	const editFormRef = useRef<HTMLDivElement>(null);
+
+	// When editing, show the current group + parent (if Group A) + children (if Group B)
+	const groupsToShow = useMemo(() => {
+		if (!isEditing || !selectedGroup) return groups;
+		const ids = new Set<string>([selectedGroup._id]);
+
+		if (selectedGroup.type === "A") {
+			// Add parent Group B that supervises this Group A
+			const parentGroup = groups.find(
+				(g) =>
+					g.type === "B" &&
+					Array.isArray(g.supervisedGroups) &&
+					g.supervisedGroups.some((sg) => (typeof sg === "string" ? sg : sg._id) === selectedGroup._id)
+			);
+			if (parentGroup) ids.add(parentGroup._id);
+		} else {
+			// Add child Group A(s) that this Group B supervises
+			const supervisedIds = Array.isArray(selectedGroup.supervisedGroups)
+				? selectedGroup.supervisedGroups.map((sg) => (typeof sg === "string" ? sg : sg._id))
+				: [];
+			supervisedIds.forEach((id) => ids.add(id));
+		}
+
+		return groups.filter((g) => ids.has(g._id));
+	}, [isEditing, selectedGroup, groups]);
 
 	useEffect(() => {
 		fetchGroups();
@@ -226,13 +263,21 @@ export default function GroupsPage() {
 		}
 	};
 
-	const handleDelete = async (id: string) => {
+	const handleDeleteClick = (group: GroupData) => {
+		setGroupToDelete(group);
+		setDeleteDialogOpen(true);
+	};
+
+	const handleDeleteConfirm = async () => {
+		if (!groupToDelete) return;
 		try {
-			const response = await fetch(`/api/groups/${id}`, { method: "DELETE" });
+			const response = await fetch(`/api/groups/${groupToDelete._id}`, { method: "DELETE" });
 			const data = await response.json();
 
 			if (response.ok) {
 				toast.success("Group deleted successfully!");
+				setDeleteDialogOpen(false);
+				setGroupToDelete(null);
 				fetchGroups();
 			} else {
 				toast.error(data.error || "Failed to delete group");
@@ -253,6 +298,10 @@ export default function GroupsPage() {
 			assignedBooks: group.assignedBooks,
 			supervisedGroups: Array.isArray(group.supervisedGroups) ? group.supervisedGroups.map((g) => (typeof g === "string" ? g : g._id)) : [],
 		});
+		// Scroll to edit form
+		setTimeout(() => {
+			editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+		}, 50);
 	};
 
 	const handleCancel = () => {
@@ -280,7 +329,7 @@ export default function GroupsPage() {
 
 	return (
 		<div className="space-y-8">
-			<Card>
+			<Card ref={editFormRef}>
 				<CardHeader>
 					<div className="flex items-center justify-between gap-2">
 						<CardTitle>{isEditing ? "Edit Group" : "Create New Group"}</CardTitle>
@@ -440,9 +489,29 @@ export default function GroupsPage() {
 			</Card>
 
 			<div className="space-y-4">
-				<h2 className="text-2xl font-bold">Existing Groups</h2>
+				<h2 className="text-2xl font-bold">
+					{isEditing ? "Editing" : "Existing"} Groups
+					{isEditing && (
+						<span className="ml-2 text-sm font-normal text-muted-foreground">
+							(Showing current group and related parent/child groups)
+						</span>
+					)}
+				</h2>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{groups.map((group) => (
+					{groupsToShow.map((group) => {
+						const isParent =
+							isEditing &&
+							selectedGroup &&
+							selectedGroup.type === "A" &&
+							group.type === "B" &&
+							group._id !== selectedGroup._id;
+						const isChild =
+							isEditing &&
+							selectedGroup &&
+							selectedGroup.type === "B" &&
+							group.type === "A" &&
+							group._id !== selectedGroup._id;
+						return (
 						<Card
 							key={group._id}
 							id={`group-${group._id}`}
@@ -455,6 +524,12 @@ export default function GroupsPage() {
 									{group.name}
 									{highlightedGroupId === group._id && (
 										<span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">Highlighted</span>
+									)}
+									{isParent && (
+										<span className="ml-2 text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">Parent</span>
+									)}
+									{isChild && (
+										<span className="ml-2 text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">Child</span>
 									)}
 								</CardTitle>
 								<CardDescription>Type: {group.type}</CardDescription>
@@ -513,14 +588,38 @@ export default function GroupsPage() {
 								<Button variant="outline" size="sm" onClick={() => handleEdit(group)}>
 									<Pencil className="mr-2 h-4 w-4" /> Edit
 								</Button>
-								<Button variant="destructive" size="sm" onClick={() => handleDelete(group._id)}>
+								<Button variant="destructive" size="sm" onClick={() => handleDeleteClick(group)}>
 									<Trash2 className="mr-2 h-4 w-4" /> Delete
 								</Button>
 							</CardFooter>
 						</Card>
-					))}
+					);
+					})}
 				</div>
 			</div>
+
+			<AlertDialog
+				open={deleteDialogOpen}
+				onOpenChange={(open) => {
+					setDeleteDialogOpen(open);
+					if (!open) setGroupToDelete(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will permanently delete the group &quot;{groupToDelete?.name}&quot;. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<Button variant="destructive" onClick={handleDeleteConfirm}>
+							Delete
+						</Button>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

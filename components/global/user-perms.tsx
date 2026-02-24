@@ -34,6 +34,13 @@ type User = {
 interface UsersApiResponse {
 	users: User[];
 	total: number;
+	countsByRole?: {
+		User: number;
+		Annotator: number;
+		Editor: number;
+		Admin: number;
+		Root: number;
+	};
 }
 
 interface Group {
@@ -55,10 +62,12 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [usersPerPage, setUsersPerPage] = useState(10);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [roleFilter, setRoleFilter] = useState<string | null>(null);
 	const { data, isLoading, error, refetch } = useUsers(
 		currentPage,
 		usersPerPage,
-		searchTerm
+		searchTerm,
+		roleFilter || undefined
 	) as {
 		data: UsersApiResponse;
 		isLoading: boolean;
@@ -67,6 +76,13 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	};
 	const users = data?.users || [];
 	const total = data?.total || 0;
+	const countsByRole = data?.countsByRole || {
+		User: 0,
+		Annotator: 0,
+		Editor: 0,
+		Admin: 0,
+		Root: 0,
+	};
 	const [currentUser, setCurrentUser] = useState<{
 		id: string;
 		firstName: string;
@@ -79,10 +95,10 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 	);
 	const router = useRouter();
 
-	// Reset to page 1 when search term changes
+	// Reset to page 1 when search term or role filter changes
 	useEffect(() => {
 		setCurrentPage(1);
-	}, [searchTerm]);
+	}, [searchTerm, roleFilter]);
 
 	useEffect(() => {
 		const fetchCurrentUser = async () => {
@@ -265,6 +281,48 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 
 	return (
 		<div className="space-y-4">
+			<div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+				<div className="flex items-center gap-2">
+					<Users className="h-5 w-5 text-muted-foreground" />
+					<span className="text-sm font-medium text-muted-foreground">Total Users</span>
+					<span className="text-2xl font-bold tabular-nums">{total}</span>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					{[
+						{
+							label: "All",
+							value: null,
+							count:
+								countsByRole.User +
+								countsByRole.Editor +
+								countsByRole.Annotator +
+								countsByRole.Admin +
+								countsByRole.Root,
+							className: "bg-background",
+						},
+						{ label: "User", value: "User", count: countsByRole.User, className: "bg-background" },
+						{ label: "Editor", value: "Editor", count: countsByRole.Editor, className: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+						{ label: "Annotator", value: "Annotator", count: countsByRole.Annotator, className: "bg-green-500/10 text-green-700 dark:text-green-300" },
+						{ label: "Admin", value: "Admin", count: countsByRole.Admin, className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+						{ label: "Root", value: "Root", count: countsByRole.Root, className: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
+					].map(({ label, value, count, className }) => {
+						const isActive = roleFilter === value;
+						return (
+							<button
+								key={label}
+								type="button"
+								onClick={() => setRoleFilter(isActive ? null : value)}
+								className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer hover:opacity-90 ${className} ${
+									isActive ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+								}`}
+							>
+								<span className="text-muted-foreground">{label}</span>
+								<span className="tabular-nums">{value === null ? total : count}</span>
+							</button>
+						);
+					})}
+				</div>
+			</div>
 			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<Input
 					type="search"

@@ -296,16 +296,18 @@ export function useAddDiscussion() {
 export function useUsers(
 	page: number = 1,
 	limit: number = 10,
-	search: string = ""
+	search: string = "",
+	role?: string
 ) {
 	return useQuery({
-		queryKey: ["users", page, limit, search],
+		queryKey: ["users", page, limit, search, role],
 		queryFn: async () => {
 			const params = new URLSearchParams({
 				page: page.toString(),
 				limit: limit.toString(),
 			});
 			if (search) params.append("search", search);
+			if (role) params.append("role", role);
 			const response = await fetch(`/api/users?${params.toString()}`);
 			if (!response.ok) throw new Error("Failed to fetch users");
 			return response.json();

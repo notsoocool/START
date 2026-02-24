@@ -10,6 +10,7 @@ export async function GET(request: Request) {
 		const limit = parseInt(searchParams.get("limit") || "10", 10);
 		const ids = searchParams.get("ids");
 		const search = searchParams.get("search") || "";
+		const role = searchParams.get("role") || searchParams.get("perms") || "";
 		const skip = (page - 1) * limit;
 
 		let query: any = {};
@@ -40,6 +41,11 @@ export async function GET(request: Request) {
 			};
 		}
 
+		// Add role filter
+		if (role && ["User", "Annotator", "Editor", "Admin", "Root"].includes(role)) {
+			query.perms = role;
+		}
+
 		// Fetch paginated users with optional search
 		total = await Perms.countDocuments(query);
 		const users = await Perms.find(query, "userID name perms")
@@ -52,7 +58,26 @@ export async function GET(request: Request) {
 			perms: user.perms,
 		}));
 
-		return NextResponse.json({ users: mappedUsers, total });
+		// Get counts by role - always full counts (no role filter) for badge display
+		const countMatch: any = search
+			? { $or: [{ name: { $regex: search, $options: "i" } }, { userID: { $regex: search, $options: "i" } }] }
+			: {};
+		const countsByRole = await Perms.aggregate([
+			{ $match: countMatch },
+			{ $group: { _id: "$perms", count: { $sum: 1 } } },
+		]);
+		const roleCounts = {
+			User: 0,
+			Annotator: 0,
+			Editor: 0,
+			Admin: 0,
+			Root: 0,
+		};
+		countsByRole.forEach((r) => {
+			if (r._id in roleCounts) roleCounts[r._id as keyof typeof roleCounts] = r.count;
+		});
+
+		return NextResponse.json({ users: mappedUsers, total, countsByRole: roleCounts });
 	} catch (error) {
 		console.error("Error fetching users:", error);
 		return NextResponse.json(

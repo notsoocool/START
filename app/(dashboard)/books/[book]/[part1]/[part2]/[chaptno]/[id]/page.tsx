@@ -374,13 +374,25 @@ export default function AnalysisPage() {
 				setLoading(true);
 				setError(null);
 
-				// Fetch book structure and chapters
-				const bookResponse = await fetch(`/api/books`);
-				const bookData = await bookResponse.json();
+				// Phase 1: Fetch independent data in parallel (no dependencies)
+				const [bookResponse, shlokaResponse, availableShlokaResponse] =
+					await Promise.all([
+						fetch(`/api/books`),
+						fetch(`/api/ahShloka/${decodedId}`),
+						fetch(
+							`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`
+						),
+					]);
 
-				// Find the matching book, part1, part2 in the tree using decoded values
+				if (!shlokaResponse.ok) {
+					throw new Error("Shloka not found");
+				}
+				shlokaData = await shlokaResponse.json();
+				setShloka(shlokaData);
+				originalSlokano = shlokaData.slokano;
+
+				const bookData = await bookResponse.json();
 				const currentBook = bookData.find((b: any) => {
-					// Handle null/undefined values
 					const bookMatch = b.book === decodedBook;
 					const part1Match =
 						(b.part1?.[0]?.part === null &&
@@ -390,44 +402,20 @@ export default function AnalysisPage() {
 						(b.part1?.[0]?.part2?.[0]?.part === null &&
 							decodedPart2 === "null") ||
 						b.part1?.[0]?.part2?.[0]?.part === decodedPart2;
-
 					return bookMatch && part1Match && part2Match;
 				});
 
 				if (currentBook) {
-					// Get chapters from the nested structure: part1[0].part2[0].chapters
 					const chapters =
 						currentBook.part1?.[0]?.part2?.[0]?.chapters || [];
 					setChapters(chapters);
-				} else {
-					console.log("No matching book found for:", {
-						decodedBook,
-						decodedPart1,
-						decodedPart2,
-					});
 				}
 
-				// Fetch shloka details
-				const shlokaResponse = await fetch(
-					`/api/ahShloka/${decodedId}`
-				);
-				if (!shlokaResponse.ok) {
-					throw new Error("Shloka not found");
-				}
-				shlokaData = await shlokaResponse.json();
-				setShloka(shlokaData);
-				originalSlokano = shlokaData.slokano;
-
-				// Load available shlokas
-				const availableShlokaResponse = await fetch(
-					`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}`
-				);
 				const availableShlokaData =
 					await availableShlokaResponse.json();
 				setAvailableShlokas(availableShlokaData.shlokas);
 
-				// Load analysis data
-				// Try to fetch analysis data with the original slokano
+				// Phase 2: Fetch analysis (depends on slokano from shloka)
 				let chapterResponse = await fetch(
 					`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shlokaData.slokano}`
 				);

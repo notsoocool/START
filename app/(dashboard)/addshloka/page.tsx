@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
 	Table,
@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { useBooks } from "@/lib/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -294,6 +295,59 @@ const SaveDialog = ({
 	</Dialog>
 );
 
+const StepCard = ({
+	title,
+	locked,
+	unlockHint,
+	stepNumber,
+	children,
+	headerActions,
+	preview,
+}: {
+	title: string;
+	locked: boolean;
+	unlockHint: string;
+	stepNumber: number;
+	children: React.ReactNode;
+	headerActions?: React.ReactNode;
+	preview?: string;
+}) => (
+	<Card
+		className={cn(
+			"relative transition-all duration-200",
+			locked &&
+				"border-dashed border-muted-foreground/30 bg-muted/5"
+		)}
+	>
+		<CardHeader className="flex flex-row items-center justify-between">
+			<CardTitle className="flex items-center gap-2">
+				{locked && (
+					<Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+				)}
+				<span className="text-muted-foreground/80">Step {stepNumber}</span>
+				<span>{title}</span>
+			</CardTitle>
+			{!locked && headerActions}
+		</CardHeader>
+		<CardContent className={cn(locked && "pointer-events-none select-none")}>
+			{locked ? (
+				<div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+					<p className="text-sm text-muted-foreground max-w-md">
+						{unlockHint}
+					</p>
+					{preview && (
+						<p className="text-xs text-muted-foreground/70 italic">
+							{preview}
+						</p>
+					)}
+				</div>
+			) : (
+				children
+			)}
+		</CardContent>
+	</Card>
+);
+
 export default function ShlokaPage() {
 	const [shlokaInput, setShlokaInput] = useState<string>("");
 	const [shlokaProcessing, setShlokaProcessing] = useState<boolean>(false);
@@ -331,6 +385,7 @@ export default function ShlokaPage() {
 		data: booksData,
 		isLoading: booksLoading,
 		error: booksError,
+		refetch: refetchBooks,
 	} = useBooks();
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const [selectedPart1, setSelectedPart1] = useState<string>("");
@@ -340,6 +395,11 @@ export default function ShlokaPage() {
 	const [isNewBook, setIsNewBook] = useState(false);
 	const [showSaveDialog, setShowSaveDialog] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+
+	const setShowSaveDialogWithRefetch = (show: boolean) => {
+		if (show) refetchBooks(); // Fresh book list so group/own books appear
+		setShowSaveDialog(show);
+	};
 	const [availableLanguages, setAvailableLanguages] = useState<
 		{ code: string; name: string }[]
 	>([]);
@@ -376,6 +436,60 @@ export default function ShlokaPage() {
 		};
 		fetchLanguages();
 	}, []);
+
+	const DRAFT_KEY = "addshloka-draft";
+
+	// Restore draft from sessionStorage on mount (e.g. after refresh)
+	useEffect(() => {
+		try {
+			const raw = sessionStorage.getItem(DRAFT_KEY);
+			if (!raw) return;
+			const draft = JSON.parse(raw);
+			if (draft.shlokaInput) setShlokaInput(draft.shlokaInput);
+			if (draft.processedShlokas?.length) setProcessedShlokas(draft.processedShlokas);
+			if (draft.editableSandhiResults?.length) setEditableSandhiResults(draft.editableSandhiResults);
+			if (draft.originalSandhiResults?.length) setOriginalSandhiResults(draft.originalSandhiResults);
+			if (draft.analysisData?.length) {
+				setAnalysisData(draft.analysisData);
+				setOriginalAnalysisData(draft.analysisData);
+			}
+			if (draft.showSandhiEdit) setShowSandhiEdit(true);
+			toast.info("Draft restored. Your previous work was recovered.");
+		} catch {
+			// Ignore parse errors
+		}
+	}, []);
+
+	// Persist draft so refresh doesn't lose work
+	useEffect(() => {
+		const hasWork =
+			shlokaInput.trim() ||
+			processedShlokas.length > 0 ||
+			analysisData.length > 0;
+		if (!hasWork) return;
+		try {
+			sessionStorage.setItem(
+				DRAFT_KEY,
+				JSON.stringify({
+					shlokaInput,
+					processedShlokas,
+					editableSandhiResults,
+					originalSandhiResults,
+					analysisData,
+					showSandhiEdit,
+				})
+			);
+		} catch {
+			// Ignore quota errors
+		}
+	}, [
+		shlokaInput,
+		processedShlokas,
+		editableSandhiResults,
+		originalSandhiResults,
+		analysisData,
+		showSandhiEdit,
+	]);
 
 	const baseColumnOptions = [
 		{ id: "anvaya_no", label: "Index" },
@@ -434,13 +548,19 @@ export default function ShlokaPage() {
 		e.preventDefault();
 		setShlokaProcessing(true);
 
-		try {
-			// Split shlokas by '#'
-			const shlokas = shlokaInput
-				.split("#")
-				.map((s) => s.trim())
-				.filter(Boolean);
+		// Split shlokas by '#'
+		const shlokas = shlokaInput
+			.split("#")
+			.map((s) => s.trim())
+			.filter(Boolean);
 
+		if (shlokas.length === 0) {
+			toast.error("Please enter at least one shloka in Step 1 before processing.");
+			setShlokaProcessing(false);
+			return;
+		}
+
+		try {
 			const processedResults = await Promise.all(
 				shlokas.map(async (shloka) => {
 					// Call sandhi splitter API
@@ -457,6 +577,9 @@ export default function ShlokaPage() {
 					};
 				})
 			);
+
+			// Store processed results for Step 2 display
+			setProcessedShlokas(processedResults);
 
 			// Store original results
 			setOriginalSandhiResults(processedResults);
@@ -1247,7 +1370,8 @@ export default function ShlokaPage() {
 			toast.success("Successfully saved shloka and analysis", {
 				id: loadingToast,
 			});
-			setShowSaveDialog(false);
+			sessionStorage.removeItem(DRAFT_KEY);
+			setShowSaveDialogWithRefetch(false);
 		} catch (error) {
 			console.error("Error saving data:", error);
 			// Update error toast
@@ -1275,17 +1399,41 @@ export default function ShlokaPage() {
 	if (permsLoading) {
 		return (
 			<div className="container mx-auto p-6 space-y-8">
+				{/* Skeleton matching page layout */}
 				<Card>
 					<CardHeader>
-						<CardTitle>Loading</CardTitle>
+						<CardTitle className="flex items-center gap-2">
+							<span className="text-muted-foreground/80">Step 1</span>
+							<span>Enter Shlokas</span>
+						</CardTitle>
 					</CardHeader>
-					<CardContent>
-						<div className="flex items-center gap-4">
-							<Skeleton className="h-5 w-40" />
-							<Skeleton className="h-5 w-24" />
+					<CardContent className="space-y-4">
+						<div className="space-y-2">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-24 w-full rounded-md" />
 						</div>
+						<Button disabled className="opacity-70">
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							Checking permissions...
+						</Button>
 					</CardContent>
 				</Card>
+				{[2, 3, 4, 5].map((step) => (
+					<Card
+						key={step}
+						className="border-dashed border-muted-foreground/30 bg-muted/5"
+					>
+						<CardHeader>
+							<Skeleton className="h-5 w-40" />
+						</CardHeader>
+						<CardContent>
+							<div className="flex flex-col items-center gap-2 py-6">
+								<Skeleton className="h-4 w-64 rounded-full" />
+								<Skeleton className="h-3 w-48" />
+							</div>
+						</CardContent>
+					</Card>
+				))}
 			</div>
 		);
 	}
@@ -1308,9 +1456,13 @@ export default function ShlokaPage() {
 
 	return (
 		<div className="container mx-auto p-6 space-y-8">
+			{/* Step 1: Always unlocked */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Add Shlokas</CardTitle>
+					<CardTitle className="flex items-center gap-2">
+						<span className="text-muted-foreground/80">Step 1</span>
+						<span>Enter Shlokas</span>
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
@@ -1341,185 +1493,173 @@ export default function ShlokaPage() {
 				</CardContent>
 			</Card>
 
-			{/* Display processed shlokas */}
-			{processedShlokas.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle>Processed Shlokas</CardTitle>
-					</CardHeader>
-					<CardContent>
-						{processedShlokas.map((result, index) => (
-							<div key={index} className="mb-4">
-								<h3 className="font-semibold">
-									Original Shloka {index + 1}:
-								</h3>
-								<p>{result.original}</p>
-								<h4 className="mt-2">Split Result:</h4>
-								<p>{result.split.join(" ")}</p>
-							</div>
-						))}
-					</CardContent>
-				</Card>
-			)}
+			{/* Step 2: Processed Shlokas - unlocked when processed */}
+			<StepCard
+				title="Processed Shlokas"
+				locked={processedShlokas.length === 0}
+				unlockHint="Enter shlokas above and click Process Shlokas to unlock"
+				stepNumber={2}
+				preview="Shows original text and sandhi-split result for each shloka"
+			>
+				{processedShlokas.map((result, index) => (
+					<div key={index} className="mb-4">
+						<h3 className="font-semibold">
+							Original Shloka {index + 1}:
+						</h3>
+						<p>{result.original}</p>
+						<h4 className="mt-2">Split Result:</h4>
+						<p>{result.split.join(" ")}</p>
+					</div>
+				))}
+			</StepCard>
 
-			{/* Sandhi Split Review Section - Always visible after initial processing */}
-			{showSandhiEdit && (
-				<Card>
-					<CardHeader>
-						<CardTitle>Review Sandhi Split Results</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="space-y-4">
-							<div className="flex justify-end space-x-4 mb-4">
-								<Button
-									variant="outline"
-									onClick={() => {
-										setEditableSandhiResults(
-											originalSandhiResults.map(
-												(result) =>
-													result.split.join(" ")
-											)
-										);
-									}}
-								>
-									Reset to Original
-								</Button>
-								<Button
-									onClick={handleProcessAnalysis}
-									disabled={analysisProcessing}
-								>
-									{analysisProcessing ? (
-										<>
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-											Processing...
-										</>
-									) : (
-										"Process Analysis"
-									)}
-								</Button>
+			{/* Step 3: Sandhi Split Review - unlocked when processed */}
+			<StepCard
+				title="Review Sandhi Split Results"
+				locked={!showSandhiEdit}
+				unlockHint="Process shlokas above to review and edit the sandhi split"
+				stepNumber={3}
+				preview="Edit split results, then run morphological analysis"
+			>
+				<div className="space-y-4">
+					<div className="flex justify-end space-x-4 mb-4">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setEditableSandhiResults(
+									originalSandhiResults.map(
+										(result) => result.split.join(" ")
+									)
+								);
+							}}
+						>
+							Reset to Original
+						</Button>
+						<Button
+							onClick={handleProcessAnalysis}
+							disabled={analysisProcessing}
+						>
+							{analysisProcessing ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Processing...
+								</>
+							) : (
+								"Process Analysis"
+							)}
+						</Button>
+					</div>
+					{editableSandhiResults.map((result, index) => (
+						<div key={index} className="space-y-2">
+							<label className="block text-sm font-medium">
+								Shloka {index + 1} Split Result
+							</label>
+							<Input
+								value={result}
+								onChange={(e) => {
+									const newResults = [
+										...editableSandhiResults,
+									];
+									newResults[index] = e.target.value;
+									setEditableSandhiResults(newResults);
+								}}
+							/>
+							<div className="text-sm text-muted-foreground">
+								Original:{" "}
+								{originalSandhiResults[index]?.split.join(" ")}
 							</div>
-							{editableSandhiResults.map((result, index) => (
-								<div key={index} className="space-y-2">
-									<label className="block text-sm font-medium">
-										Shloka {index + 1} Split Result
-									</label>
-									<Input
-										value={result}
-										onChange={(e) => {
-											const newResults = [
-												...editableSandhiResults,
-											];
-											newResults[index] = e.target.value;
-											setEditableSandhiResults(
-												newResults
-											);
-										}}
+						</div>
+					))}
+				</div>
+			</StepCard>
+
+			{/* Step 4: Analysis Results - unlocked when analysis done */}
+			<StepCard
+				title="Analysis Results"
+				locked={analysisData.length === 0}
+				unlockHint="Click Process Analysis in the step above to unlock"
+				stepNumber={4}
+				preview="Table with word, morph analysis, meanings, and relations"
+				headerActions={
+					<div className="flex items-center gap-4">
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="outline" size="sm">
+									<SliderIcon className="mr-2 h-4 w-4" />
+									Set Opacity
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-80">
+								<div className="space-y-2">
+									<h4 className="font-medium leading-none">
+										Background Opacity
+									</h4>
+									<p className="text-sm text-muted-foreground">
+										Adjust the opacity of color highlighting
+									</p>
+									<Slider
+										defaultValue={[opacity * 100]}
+										max={100}
+										step={1}
+										className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4"
+										onValueChange={handleOpacityChange}
 									/>
-									<div className="text-sm text-muted-foreground">
-										Original:{" "}
-										{originalSandhiResults[
-											index
-										]?.split.join(" ")}
+								</div>
+							</PopoverContent>
+						</Popover>
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="outline" size="sm">
+									Select Columns
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-80">
+								<div className="space-y-2">
+									<h4 className="font-medium leading-none mb-3">
+										Visible Columns
+									</h4>
+									<div className="grid grid-cols-2 gap-2">
+										{columnOptions.map((option) => (
+											<Button
+												key={option.id}
+												variant={
+													selectedColumns.includes(
+														option.id
+													)
+														? "default"
+														: "outline"
+												}
+												onClick={() =>
+													handleColumnSelect(
+														option.id
+													)
+												}
+												size="sm"
+											>
+												{option.label}
+											</Button>
+										))}
 									</div>
 								</div>
-							))}
-						</div>
-					</CardContent>
-				</Card>
-			)}
-
-			{/* Analysis Results Section */}
-			{analysisData.length > 0 && (
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<CardTitle>Analysis Results</CardTitle>
-						<div className="flex items-center gap-4">
-							{/* Opacity Slider */}
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button variant="outline" size="sm">
-										<SliderIcon className="mr-2 h-4 w-4" />
-										Set Opacity
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-80">
-									<div className="space-y-2">
-										<h4 className="font-medium leading-none">
-											Background Opacity
-										</h4>
-										<p className="text-sm text-muted-foreground">
-											Adjust the opacity of color
-											highlighting
-										</p>
-										<Slider
-											defaultValue={[opacity * 100]}
-											max={100}
-											step={1}
-											className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4"
-											onValueChange={handleOpacityChange}
-										/>
-									</div>
-								</PopoverContent>
-							</Popover>
-
-							{/* Column Selector */}
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button variant="outline" size="sm">
-										Select Columns
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-80">
-									<div className="space-y-2">
-										<h4 className="font-medium leading-none mb-3">
-											Visible Columns
-										</h4>
-										<div className="grid grid-cols-2 gap-2">
-											{columnOptions.map((option) => (
-												<Button
-													key={option.id}
-													variant={
-														selectedColumns.includes(
-															option.id
-														)
-															? "default"
-															: "outline"
-													}
-													onClick={() =>
-														handleColumnSelect(
-															option.id
-														)
-													}
-													size="sm"
-												>
-													{option.label}
-												</Button>
-											))}
-										</div>
-									</div>
-								</PopoverContent>
-							</Popover>
-
-							{/* Generate Graph Button */}
-							<Button
-								onClick={handleGenerateGraph}
-								size="sm"
-								disabled={analysisData.length === 0}
-							>
-								Generate Graph
-							</Button>
-
-							<Button
-								onClick={() => setShowSaveDialog(true)}
-								size="sm"
-							>
-								Save
-							</Button>
-						</div>
-					</CardHeader>
-
-					<CardContent>
-						<div className="rounded-md border">
+							</PopoverContent>
+						</Popover>
+						<Button
+							onClick={handleGenerateGraph}
+							size="sm"
+							disabled={analysisData.length === 0}
+						>
+							Generate Graph
+						</Button>
+						<Button
+							onClick={() => setShowSaveDialogWithRefetch(true)}
+							size="sm"
+						>
+							Save
+						</Button>
+					</div>
+				}
+			>
+				<div className="rounded-md border">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -1606,34 +1746,31 @@ export default function ShlokaPage() {
 								{renderTableContent()}
 							</Table>
 						</div>
-					</CardContent>
-				</Card>
-			)}
+			</StepCard>
 
-			{/* Graph Display Section */}
-			{Object.keys(graphUrls).length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle>Generated Graphs</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<GraphDisplay
-							graphUrls={graphUrls}
-							zoomLevels={zoomLevels}
-							handleZoomIn={handleZoomIn}
-							handleZoomOut={handleZoomOut}
-							handleResetZoom={handleResetZoom}
-							MIN_ZOOM={MIN_ZOOM}
-							MAX_ZOOM={MAX_ZOOM}
-							DEFAULT_ZOOM={DEFAULT_ZOOM}
-						/>
-					</CardContent>
-				</Card>
-			)}
+			{/* Step 5: Generated Graphs - unlocked when graphs generated */}
+			<StepCard
+				title="Generated Graphs"
+				locked={Object.keys(graphUrls).length === 0}
+				unlockHint="Generate graphs from the Analysis Results step above to unlock"
+				stepNumber={5}
+				preview="Dependency graphs for each sentence"
+			>
+				<GraphDisplay
+					graphUrls={graphUrls}
+					zoomLevels={zoomLevels}
+					handleZoomIn={handleZoomIn}
+					handleZoomOut={handleZoomOut}
+					handleResetZoom={handleResetZoom}
+					MIN_ZOOM={MIN_ZOOM}
+					MAX_ZOOM={MAX_ZOOM}
+					DEFAULT_ZOOM={DEFAULT_ZOOM}
+				/>
+			</StepCard>
 
 			<SaveDialog
 				showSaveDialog={showSaveDialog}
-				setShowSaveDialog={setShowSaveDialog}
+				setShowSaveDialog={setShowSaveDialogWithRefetch}
 				selectedBook={selectedBook}
 				setSelectedBook={setSelectedBook}
 				selectedPart1={selectedPart1}
