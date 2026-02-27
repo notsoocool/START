@@ -323,6 +323,7 @@ function kaarakaMatchesPossible(kaarakaItem: string, possibleList: Array<{ relat
 		return (
 			pRel === rel ||
 			pRel.startsWith(`सुप्_${rel}`) ||
+			pRel.startsWith(`${rel}_`) || // e.g. कर्ता matches कर्ता_बे_वेर्ब्स
 			new RegExp(`^${escapeRegex(rel)}\\d+`).test(pRel)
 		);
 	});
@@ -468,7 +469,12 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
 		if (kaaraka.includes("हेतुः") && !/[35]|तसिल्/.test(morph)) {
 			pushErr(errors, slokano, sentno, anvaya, "हेतुः requires 3 or 5 or तसिल् in morph_in_context");
 		}
-		if ((kaaraka.includes("करणम्") || kaaraka.includes("करण,")) && !morph.includes("3")) {
+		// करणम् as standalone relation (not विषयाधिकरणम् etc. which end with करणम्)
+		const hasKaranam = kaarakaList.some((entry) => {
+			const rel = entry.split(",")[0]?.trim() ?? "";
+			return rel === "करणम्" || rel === "करण";
+		});
+		if (hasKaranam && !morph.includes("3")) {
 			pushErr(errors, slokano, sentno, anvaya, "करणम् requires 3 in morph_in_context");
 		}
 		if (/विषयाधिकरणम्|देशाधिकरणम्|कालाधिकरणम्|अधिकरणम्/.test(kaaraka) && !/[7]|अव्य/.test(morph)) {
