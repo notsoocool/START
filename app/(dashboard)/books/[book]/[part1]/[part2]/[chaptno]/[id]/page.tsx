@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,7 @@ import {
 	Undo2,
 	Split,
 	Merge,
+	ShieldCheck,
 } from "lucide-react";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
@@ -145,6 +147,20 @@ export default function AnalysisPage() {
 	const [availableLanguages, setAvailableLanguages] = useState<
 		{ code: string; name: string }[]
 	>([]);
+	const [rawSanityErrors, setRawSanityErrors] = useState<
+		Array<{ slokano?: string; sentno?: string; anvaya_no?: string; message: string }>
+	>([]);
+	const [isRunningSanityCheck, setIsRunningSanityCheck] = useState(false);
+	// Only show errors for the current shloka (analysis page shows one shloka at a time)
+	const sanityErrors = useMemo(() => {
+		if (!shloka || rawSanityErrors.length === 0) return [];
+		const slokanoMatch = (a: string, b: string) =>
+			a === b || a.padStart(3, "0") === b.padStart(3, "0");
+		const currentSlok = String(shloka.slokano ?? "").trim();
+		return rawSanityErrors.filter(
+			(e) => e.slokano && slokanoMatch(String(e.slokano), currentSlok)
+		);
+	}, [shloka, rawSanityErrors]);
 	// Base column options including static columns and dynamic language columns
 	// Only add languages that are NOT 'hi' (Hindi) or 'en' (English) since those have dedicated columns
 	const baseColumnOptions = useMemo(
@@ -360,6 +376,58 @@ export default function AnalysisPage() {
 			console.error("Error saving undo history:", error);
 		}
 	}, [deletedRowsHistory, UNDO_STORAGE_KEY]);
+
+	// Load sanity check errors from sessionStorage (set when navigating from Sanity Check)
+	useEffect(() => {
+		try {
+			// Try multiple key formats (null vs none, different encodings)
+			const keyVariants = [
+				`sanity-check-errors-${decodedBook}-${decodedPart1}-${decodedPart2}-${decodedChaptno}`,
+				`sanity-check-errors-${decodedBook}-null-null-${decodedChaptno}`,
+				`sanity-check-errors-${decodedBook}-none-none-${decodedChaptno}`,
+			];
+			let parsed: unknown = null;
+			let usedKey = "";
+			for (const key of keyVariants) {
+				const stored = sessionStorage.getItem(key);
+				if (stored) {
+					parsed = JSON.parse(stored);
+					usedKey = key;
+					break;
+				}
+			}
+			// Fallback: "latest" key (scope must match)
+			if (!parsed || !Array.isArray(parsed)) {
+				const latest = sessionStorage.getItem("sanity-check-errors-latest");
+				if (latest) {
+					const obj = JSON.parse(latest) as { book?: string; part1?: string; part2?: string; chaptno?: string; errors?: unknown[] };
+					const norm = (p: string) => (p === "none" || p === "null" || !p ? "null" : p);
+					const scopeMatch =
+						(obj.book ?? "") === decodedBook &&
+						norm(obj.part1 ?? "") === norm(decodedPart1) &&
+						norm(obj.part2 ?? "") === norm(decodedPart2) &&
+						(obj.chaptno ?? "") === decodedChaptno;
+					if (scopeMatch && Array.isArray(obj.errors)) {
+						parsed = obj.errors;
+						usedKey = "sanity-check-errors-latest";
+					}
+				}
+			}
+			if (parsed && Array.isArray(parsed)) {
+				setRawSanityErrors(parsed);
+				// Clear after delay so React Strict Mode's second mount can also read
+				const t = setTimeout(() => {
+					if (usedKey) sessionStorage.removeItem(usedKey);
+					sessionStorage.removeItem("sanity-check-errors-latest");
+				}, 500);
+				return () => clearTimeout(t);
+			} else {
+				setRawSanityErrors([]);
+			}
+		} catch {
+			setRawSanityErrors([]);
+		}
+	}, [decodedBook, decodedPart1, decodedPart2, decodedChaptno]);
 
 	useEffect(() => {
 		if (!decodedId) return;
@@ -1682,6 +1750,52 @@ export default function AnalysisPage() {
 		return false;
 	};
 
+	const canRunSanityCheck =
+		permissions === "Editor" || permissions === "Admin" || permissions === "Root";
+
+	const handleRunSanityCheck = async () => {
+		if (!canRunSanityCheck) return;
+		// Use current shloka's analysis rows only (not whole chapter)
+		const rows = (updatedData ?? chapter ?? []).filter((r: any) => !r?.deleted);
+		if (rows.length === 0) {
+			toast.error("No analysis data to check");
+			return;
+		}
+		// Ensure each row has slokano for error matching
+		const dataToSend = rows.map((r: any) => ({
+			...r,
+			slokano: r.slokano ?? shloka?.slokano,
+			book: r.book ?? decodedBook,
+			part1: r.part1 ?? (decodedPart1 === "null" ? null : decodedPart1),
+			part2: r.part2 ?? (decodedPart2 === "null" ? null : decodedPart2),
+			chaptno: r.chaptno ?? decodedChaptno,
+		}));
+		setIsRunningSanityCheck(true);
+		try {
+			const res = await fetch("/api/sanity-check", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ data: dataToSend }),
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				throw new Error(err.error || "Sanity check failed");
+			}
+			const data = await res.json();
+			setRawSanityErrors(data.errors ?? []);
+			if (data.valid) {
+				toast.success(`All ${data.totalRows} rows passed sanity check`);
+			} else {
+				toast.error(`${data.errors?.length ?? 0} error(s) found`);
+			}
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Sanity check failed");
+			setRawSanityErrors([]);
+		} finally {
+			setIsRunningSanityCheck(false);
+		}
+	};
+
 	const renderColumnsBasedOnPermissions = (
 		processed: any,
 		procIndex: number,
@@ -2149,12 +2263,28 @@ export default function AnalysisPage() {
 		));
 	};
 
+	const getRowErrors = (processed: any) => {
+		if (sanityErrors.length === 0) return [];
+		const sentno = String(processed.sentno ?? "").trim();
+		const anvaya = String(processed.anvaya_no ?? "").trim();
+		const slokano = String(processed.slokano ?? shloka?.slokano ?? "").trim();
+		const slokanoMatch = (a: string, b: string) => a === b || a.padStart(3, "0") === b.padStart(3, "0");
+		const sentnoMatch = (a: string, b: string) => a === b || String(parseInt(a, 10)) === String(parseInt(b, 10));
+		return sanityErrors.filter((e) => {
+			if (e.slokano && slokano && !slokanoMatch(String(e.slokano), slokano)) return false;
+			if (e.sentno && sentno && !sentnoMatch(String(e.sentno), sentno)) return false;
+			if (e.anvaya_no && anvaya && e.anvaya_no !== anvaya) return false;
+			return true;
+		});
+	};
+
 	const renderTableContent = () => (
 		<TableBody>
 			{chapter?.map((processed: any, procIndex: number) => {
 				const currentProcessedData = updatedData[procIndex];
 				const isHovered = hoveredRowIndex === procIndex;
 				const lookupWord = extractWord(processed.morph_in_context);
+				const rowErrors = getRowErrors(processed);
 
 				return (
 					<TableRow
@@ -2169,6 +2299,28 @@ export default function AnalysisPage() {
 								: "transparent",
 						}}
 					>
+						{sanityErrors.length > 0 && (
+							<TableCell className="w-8 p-1 align-top">
+								{rowErrors.length > 0 ? (
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div className="mt-1.5 size-2.5 shrink-0 cursor-help rounded-full bg-red-500" />
+											</TooltipTrigger>
+											<TooltipContent side="right" className="max-w-xs">
+												<div className="space-y-1">
+													{rowErrors.map((e, i) => (
+														<p key={i} className="text-sm">
+															{e.message}
+														</p>
+													))}
+												</div>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								) : null}
+							</TableCell>
+						)}
 						{renderColumnsBasedOnPermissions(
 							processed,
 							procIndex,
@@ -3240,7 +3392,17 @@ export default function AnalysisPage() {
 
 			<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:py-10">
 				<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-					<Header
+					<div className="flex flex-col gap-2 w-full">
+						{rawSanityErrors.length > 0 && (
+							<Link
+								href="/admin?tab=sanity"
+								className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+							>
+								<ChevronLeft className="h-4 w-4" />
+								Back to Sanity Check
+							</Link>
+						)}
+						<Header
 						book={decodedBook}
 						part1={decodedPart1}
 						part2={decodedPart2}
@@ -3259,24 +3421,47 @@ export default function AnalysisPage() {
 						chapters={chapters}
 						onChapterChange={handleChapterChange}
 					/>
+					</div>
 				</div>
 
 				{/* Group Status Indicator */}
 				{permissions && !isGroupCheckLoading && (
 					<div className="bg-muted p-3 rounded-md">
-						<div className="flex items-center justify-between">
-							<span className="text-sm font-medium">
-								Permission Status:
-							</span>
-							<span
-								className={`text-sm px-2 py-1 rounded ${
-									isFieldEditable("word")
-										? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-										: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-								}`}
-							>
-								{getGroupStatusMessage()}
-							</span>
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex items-center gap-3">
+								<span className="text-sm font-medium">
+									Permission Status:
+								</span>
+								<span
+									className={`text-sm px-2 py-1 rounded ${
+										isFieldEditable("word")
+											? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+											: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+									}`}
+								>
+									{getGroupStatusMessage()}
+								</span>
+							</div>
+							{canRunSanityCheck && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleRunSanityCheck}
+									disabled={isRunningSanityCheck}
+								>
+									{isRunningSanityCheck ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Running...
+										</>
+									) : (
+										<>
+											<ShieldCheck className="mr-2 h-4 w-4" />
+											Run Sanity Check
+										</>
+									)}
+								</Button>
+							)}
 						</div>
 					</div>
 				)}
@@ -3593,6 +3778,9 @@ export default function AnalysisPage() {
 						<Table className="min-w-[900px]">
 							<TableHeader>
 								<TableRow className="bg-muted/50">
+									{sanityErrors.length > 0 && (
+										<TableHead className="w-8 p-1" />
+									)}
 									{selectedColumns.includes("index") && (
 										<TableHead className="w-[100px]">
 											Index

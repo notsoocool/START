@@ -18,14 +18,17 @@ import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
 import HistoryPage from "@/components/global/history";
 import DataDownload from "@/components/global/dataDownload";
+import SanityCheck from "@/components/global/sanityCheck";
 import LanguageManagement from "@/components/global/languageManagement";
 import OnlineUsers from "@/components/global/onlineUsers";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminPage() {
+	const searchParams = useSearchParams();
+	const tabParam = searchParams.get("tab");
 	const [activeTab, setActiveTab] = useState("permissions");
 	const [treeData, setTreeData] = useState<TreeNode[]>([]);
 	const router = useRouter();
@@ -40,6 +43,13 @@ export default function AdminPage() {
 		setActiveTab(tabName);
 		console.log("activeTab set to:", tabName);
 	};
+
+	// Open tab from URL (?tab=sanity etc.)
+	useEffect(() => {
+		if (tabParam && ["permissions", "replace", "delete", "group", "publish", "languages", "history", "download", "sanity", "online"].includes(tabParam)) {
+			setActiveTab(tabParam);
+		}
+	}, [tabParam]);
 
 	useEffect(() => {
 		const checkAuthorization = async () => {
@@ -170,6 +180,7 @@ export default function AdminPage() {
 								<SelectItem value="download">
 									Data Download
 								</SelectItem>
+								<SelectItem value="sanity">Sanity Check</SelectItem>
 								<SelectItem value="online">
 									Online Users
 								</SelectItem>
@@ -246,6 +257,12 @@ export default function AdminPage() {
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Data Download
+							</TabsTrigger>
+							<TabsTrigger
+								value="sanity"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Sanity Check
 							</TabsTrigger>
 							<TabsTrigger
 								value="online"
@@ -361,6 +378,18 @@ export default function AdminPage() {
 					</CardHeader>
 					<CardContent>
 						<DataDownload />
+					</CardContent>
+				</Card>
+			</TabsContent>
+			<TabsContent value="sanity">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Sanity Check
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<SanityCheck />
 					</CardContent>
 				</Card>
 			</TabsContent>
