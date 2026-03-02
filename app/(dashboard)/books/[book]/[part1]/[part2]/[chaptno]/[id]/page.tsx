@@ -2263,17 +2263,24 @@ export default function AnalysisPage() {
 		));
 	};
 
-	const getRowErrors = (processed: any) => {
+	const getRowErrors = (processed: any, procIndex: number) => {
 		if (sanityErrors.length === 0) return [];
 		const sentno = String(processed.sentno ?? "").trim();
 		const anvaya = String(processed.anvaya_no ?? "").trim();
 		const slokano = String(processed.slokano ?? shloka?.slokano ?? "").trim();
 		const slokanoMatch = (a: string, b: string) => a === b || a.padStart(3, "0") === b.padStart(3, "0");
 		const sentnoMatch = (a: string, b: string) => a === b || String(parseInt(a, 10)) === String(parseInt(b, 10));
+		const isFirstRowOfSentence = !chapter?.slice(0, procIndex).some(
+			(p: any) => sentnoMatch(String(p.sentno ?? ""), sentno)
+		);
 		return sanityErrors.filter((e) => {
+			// Errors with no location info (e.g. "Hanging reference") cannot be pinned to a row — don't show on any row
+			if (!e.slokano && !e.sentno && !e.anvaya_no) return false;
 			if (e.slokano && slokano && !slokanoMatch(String(e.slokano), slokano)) return false;
 			if (e.sentno && sentno && !sentnoMatch(String(e.sentno), sentno)) return false;
 			if (e.anvaya_no && anvaya && e.anvaya_no !== anvaya) return false;
+			// Sentence-level errors (no anvaya_no): show only on first row of that sentence
+			if (!e.anvaya_no && !isFirstRowOfSentence) return false;
 			return true;
 		});
 	};
@@ -2284,7 +2291,7 @@ export default function AnalysisPage() {
 				const currentProcessedData = updatedData[procIndex];
 				const isHovered = hoveredRowIndex === procIndex;
 				const lookupWord = extractWord(processed.morph_in_context);
-				const rowErrors = getRowErrors(processed);
+				const rowErrors = getRowErrors(processed, procIndex);
 
 				return (
 					<TableRow

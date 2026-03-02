@@ -27,11 +27,11 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 
 	// Get the current book data with type guards
 	const currentBook = treeData.find((b) => b.book === selectedBook);
-	const currentPart1 = currentBook?.part1?.find(
-		(p) => p.part === selectedPart1
+	const currentPart1 = currentBook?.part1?.find((p) =>
+		selectedPart1 === "null" ? p.part === null : p.part === selectedPart1
 	);
-	const currentPart2 = currentPart1?.part2?.find(
-		(p) => p.part === selectedPart2
+	const currentPart2 = currentPart1?.part2?.find((p) =>
+		selectedPart2 === "null" ? p.part === null : p.part === selectedPart2
 	);
 
 	const chapterOptions = getChapterOptions();
@@ -295,12 +295,17 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 											<SelectItem value="all">
 												All parts
 											</SelectItem>
+											{currentBook.part1.some((p) => p.part === null) && (
+												<SelectItem value="null">
+													None (chapters directly under book)
+												</SelectItem>
+											)}
 											{currentBook.part1
 												.filter((p) => p.part !== null)
 												.map((p) => (
 													<SelectItem
-														key={p.part}
-														value={p.part}
+														key={String(p.part)}
+														value={String(p.part)}
 													>
 														{p.part}
 													</SelectItem>
@@ -332,14 +337,21 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 											<SelectItem value="all">
 												All sub-parts
 											</SelectItem>
-											{currentPart1.part2.map((p) => (
-												<SelectItem
-													key={p.part}
-													value={p.part}
-												>
-													{p.part}
+											{currentPart1.part2.some((p) => p.part === null) && (
+												<SelectItem value="null">
+													None
 												</SelectItem>
-											))}
+											)}
+											{currentPart1.part2
+												.filter((p) => p.part !== null)
+												.map((p) => (
+													<SelectItem
+														key={String(p.part)}
+														value={String(p.part)}
+													>
+														{p.part}
+													</SelectItem>
+												))}
 										</SelectContent>
 									</Select>
 								</div>
@@ -427,30 +439,18 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 	function getChapterOptions(): string[] {
 		if (!selectedBook || !currentBook) return [];
 
-		// Case 1: If part1 is not selected or "all", show all chapters
+		// Case 1: If part1 is not selected or "all", show all chapters from the book
 		if (!selectedPart1 || selectedPart1 === "all") {
-			if (currentBook.part1 && currentBook.part1.length > 0) {
-				// Get chapters from part1 with null part
-				const nullPart1 = currentBook.part1.find(
-					(p) => p.part === null
-				);
-				if (nullPart1 && nullPart1.part2[0]) {
-					return [...nullPart1.part2[0].chapters].sort(
-						(a, b) => Number(a) - Number(b)
-					);
-				}
-			}
-			// If no null part1, get all chapters from all parts
-			return currentBook.part1
-				.flatMap((p1) => p1.part2)
-				.flatMap((p2) => p2.chapters)
+			return (currentBook.part1 ?? [])
+				.flatMap((p1) => p1.part2 ?? [])
+				.flatMap((p2) => p2.chapters ?? [])
 				.filter(
 					(chapter, index, self) => self.indexOf(chapter) === index
 				)
 				.sort((a, b) => Number(a) - Number(b));
 		}
 
-		// Case 2: If part1 is selected but no specific part2 ("all" or empty)
+		// Case 2: If part1 is selected (including "null") but no specific part2 ("all" or empty)
 		if ((!selectedPart2 || selectedPart2 === "all") && currentPart1) {
 			return currentPart1.part2
 				.flatMap((p2) => p2.chapters)
@@ -460,7 +460,7 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 				.sort((a, b) => Number(a) - Number(b));
 		}
 
-		// Case 3: Both part1 and part2 are selected
+		// Case 3: Both part1 and part2 are selected (including "null")
 		if (currentPart2) {
 			return [...currentPart2.chapters].sort(
 				(a, b) => Number(a) - Number(b)
