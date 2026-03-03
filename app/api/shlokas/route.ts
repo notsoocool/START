@@ -3,6 +3,8 @@ import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
 import { currentUser } from "@clerk/nextjs/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
 	await dbConnect();
 

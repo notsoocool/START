@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Perms from "@/lib/db/permissionsModel";
 import dbConnect from "@/lib/db/connect";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
 	try {
 		await dbConnect();

@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Start from "@/lib/db/permissionsModel";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
 	// Get the headers
 	const headerPayload = headers();

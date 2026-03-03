@@ -5,6 +5,8 @@ import Shloka from "@/lib/db/newShlokaModel";
 import { currentUser } from "@clerk/nextjs/server";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
 	try {
 		const user = await currentUser();

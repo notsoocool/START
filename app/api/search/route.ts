@@ -3,6 +3,8 @@ import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
 	await dbConnect();
 
