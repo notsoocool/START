@@ -7,12 +7,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronDown, Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Send, Mail, Check, AlertCircle, Trash2 } from "lucide-react";
+import { Loader2, Send, Mail, Check, AlertCircle, Trash2, Megaphone, Trash } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { useNotifications } from "@/lib/hooks/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface User {
 	userID: string;
@@ -39,20 +44,24 @@ interface Notification {
 
 export default function NotificationsPage() {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [users, setUsers] = useState<User[]>([]);
-	const { data: notificationsData, isLoading: notificationsLoading, error: notificationsError } = useNotifications(1);
-	const [loading, setLoading] = useState(true);
+	const [page, setPage] = useState(1);
+	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(page);
 	const [sending, setSending] = useState(false);
 	const [currentUser, setCurrentUser] = useState<{ id: string; perms: string } | null>(null);
-	const [selectedUser, setSelectedUser] = useState<string>("all");
+	type RecipientType = "all" | "editors" | "annotators" | "admins" | "user";
+	const [recipientType, setRecipientType] = useState<RecipientType>("all");
+	const [selectedUser, setSelectedUser] = useState<string>("");
 	const [subject, setSubject] = useState("");
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState("view");
-	const [page, setPage] = useState(1);
-	const [totalPages, setTotalPages] = useState(1);
 	const [resolutionMessages, setResolutionMessages] = useState<Record<string, string>>({});
+	const [isFixesAnnouncement, setIsFixesAnnouncement] = useState(false);
+	const [userSearch, setUserSearch] = useState("");
+	const [userPopoverOpen, setUserPopoverOpen] = useState(false);
 
 	// Fetch current user and check if they're Root
 	useEffect(() => {
@@ -83,7 +92,7 @@ export default function NotificationsPage() {
 	useEffect(() => {
 		const fetchUsers = async () => {
 			try {
-				const response = await fetch("/api/getAllUsers?limit=100");
+				const response = await fetch("/api/getAllUsers?all=true");
 				const data = await response.json();
 
 				if (response.ok) {
@@ -101,30 +110,7 @@ export default function NotificationsPage() {
 		}
 	}, [currentUser]);
 
-	// Fetch notifications
-	useEffect(() => {
-		const fetchNotifications = async () => {
-			try {
-				setLoading(true);
-				const response = await fetch(`/api/notifications/get?page=${page}`);
-				const data = await response.json();
-
-				if (response.ok) {
-					setTotalPages(data.pagination.pages);
-				} else {
-					console.error("Error fetching notifications:", data.error);
-				}
-			} catch (error) {
-				console.error("Error fetching notifications:", error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		if (currentUser) {
-			fetchNotifications();
-		}
-	}, [currentUser, page]);
+	const totalPages = notificationsData?.pagination?.pages ?? 1;
 
 	const handleSendNotification = async () => {
 		if (!subject.trim() || !message.trim()) {
@@ -143,27 +129,26 @@ export default function NotificationsPage() {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					recipientID: selectedUser === "all" ? null : selectedUser,
+					recipientType,
+					recipientID: recipientType === "user" ? selectedUser : undefined,
 					subject,
 					message,
+					shouldDeleteAfterRead: isFixesAnnouncement,
+					deleteAfterHours: isFixesAnnouncement ? 168 : 24,
 				}),
 			});
 
 			const data = await response.json();
 
 			if (response.ok) {
-				setSuccess("Notification sent successfully!");
+				const count = data.count ?? 1;
+				setSuccess(`Notification sent successfully${count > 1 ? ` to ${count} recipients` : ""}!`);
 				setSubject("");
 				setMessage("");
-				setSelectedUser("all");
-
-				// Refresh notifications
-				const notifResponse = await fetch(`/api/notifications/get?page=${page}`);
-				const notifData = await notifResponse.json();
-
-				if (notifResponse.ok) {
-					// notificationsData.notifications = notifData.notifications;
-				}
+				setRecipientType("all");
+				setSelectedUser("");
+				setUserSearch("");
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			} else {
 				setError(data.error || "Failed to send notification");
 			}
@@ -186,8 +171,7 @@ export default function NotificationsPage() {
 			});
 
 			if (response.ok) {
-				// Update the local state to mark the notification as read
-				// notificationsData.notifications = notificationsData.notifications.map((notification) => (notification._id === notificationId ? { ...notification, isRead: true } : notification));
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			}
 		} catch (error) {
 			console.error("Error marking notification as read:", error);
@@ -205,22 +189,31 @@ export default function NotificationsPage() {
 			});
 
 			if (response.ok) {
-				// Update the local state to mark the error as resolved
-				// notificationsData.notifications = notificationsData.notifications.map((notification) =>
-				// 	notification._id === notificationId
-				// 		? {
-				// 				...notification,
-				// 				isResolved: true,
-				// 				resolutionMessage,
-				// 				resolvedAt: new Date().toISOString(),
-				// 		  }
-				// 		: notification
-				// );
-				// Clear the resolution message
-				setResolutionMessages({ ...resolutionMessages, [notificationId]: "" });
+				setResolutionMessages((prev) => ({ ...prev, [notificationId]: "" }));
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			}
 		} catch (error) {
 			console.error("Error resolving error report:", error);
+		}
+	};
+
+	const [cleanupRunning, setCleanupRunning] = useState(false);
+	const [cleanupResult, setCleanupResult] = useState<{ deleted: { total: number; afterRead: number; byAge: number } } | null>(null);
+
+	const handleRunCleanup = async () => {
+		try {
+			setCleanupRunning(true);
+			setCleanupResult(null);
+			const response = await fetch("/api/notifications/cleanup", { method: "POST" });
+			const data = await response.json();
+			if (response.ok) {
+				setCleanupResult(data);
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			setCleanupRunning(false);
 		}
 	};
 
@@ -231,8 +224,7 @@ export default function NotificationsPage() {
 			});
 
 			if (response.ok) {
-				// Remove the notification from the local state
-				// notificationsData.notifications = notificationsData.notifications.filter((notification) => notification._id !== notificationId);
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			}
 		} catch (error) {
 			console.error("Error deleting notification:", error);
@@ -268,8 +260,27 @@ export default function NotificationsPage() {
 				<TabsContent value="view">
 					<Card>
 						<CardHeader>
-							<CardTitle>All Notifications</CardTitle>
-							<CardDescription>View and manage all notifications</CardDescription>
+							<div className="flex items-center justify-between">
+								<div>
+									<CardTitle>All Notifications</CardTitle>
+									<CardDescription>View and manage all notifications. Old notifications (30+ days) are auto-deleted daily.</CardDescription>
+								</div>
+								<Button variant="outline" size="sm" onClick={handleRunCleanup} disabled={cleanupRunning}>
+									{cleanupRunning ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<>
+											<Trash className="h-4 w-4 mr-1" />
+											Run cleanup
+										</>
+									)}
+								</Button>
+							</div>
+							{cleanupResult && (
+								<div className="text-sm text-muted-foreground mt-2">
+									Deleted {cleanupResult.deleted.total} notification(s) — {cleanupResult.deleted.afterRead} after read, {cleanupResult.deleted.byAge} by age
+								</div>
+							)}
 						</CardHeader>
 						<CardContent>
 							{notificationsLoading ? (
@@ -395,19 +406,86 @@ export default function NotificationsPage() {
 							<div className="space-y-4">
 								<div>
 									<label className="block text-sm font-medium mb-1">Recipient</label>
-									<Select value={selectedUser || "all"} onValueChange={setSelectedUser}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select a user or send to all" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="all">All Users</SelectItem>
-											{users.map((user) => (
-												<SelectItem key={user.userID} value={user.userID}>
-													{user.name} ({user.perms})
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+									<div className="space-y-2">
+										<Select value={recipientType} onValueChange={(v) => {
+											setRecipientType(v as RecipientType);
+											setSelectedUser("");
+											setUserSearch("");
+										}}>
+											<SelectTrigger>
+												<SelectValue placeholder="Select recipient type" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">All Users</SelectItem>
+												<SelectItem value="editors">All Editors</SelectItem>
+												<SelectItem value="annotators">All Annotators</SelectItem>
+												<SelectItem value="admins">All Admins</SelectItem>
+												<SelectItem value="user">Single User</SelectItem>
+											</SelectContent>
+										</Select>
+										{recipientType === "user" && (
+											<Popover open={userPopoverOpen} onOpenChange={setUserPopoverOpen}>
+												<PopoverTrigger asChild>
+													<Button
+														variant="outline"
+														role="combobox"
+														className="w-full justify-between font-normal"
+													>
+														{selectedUser ? (
+															users.find((u) => u.userID === selectedUser)?.name ?? selectedUser
+														) : (
+															<span className="text-muted-foreground">Search and select a user...</span>
+														)}
+														<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+													</Button>
+												</PopoverTrigger>
+												<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+													<div className="flex items-center border-b px-2">
+														<Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+														<Input
+															placeholder="Search by name or role..."
+															value={userSearch}
+															onChange={(e) => setUserSearch(e.target.value)}
+															className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+														/>
+													</div>
+													<ScrollArea className="max-h-[280px]">
+														{users
+															.filter(
+																(u) =>
+																	!userSearch.trim() ||
+																	u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+																	u.perms.toLowerCase().includes(userSearch.toLowerCase())
+															)
+															.map((user) => (
+																<button
+																	key={user.userID}
+																	type="button"
+																	className="flex w-full items-center gap-2 px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+																	onClick={() => {
+																		setSelectedUser(user.userID);
+																		setUserSearch("");
+																		setUserPopoverOpen(false);
+																	}}
+																>
+																	{user.name} ({user.perms})
+																</button>
+															))}
+														{users.filter(
+															(u) =>
+																!userSearch.trim() ||
+																u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+																u.perms.toLowerCase().includes(userSearch.toLowerCase())
+														).length === 0 && (
+															<div className="py-6 text-center text-sm text-muted-foreground">
+																No users found.
+															</div>
+														)}
+													</ScrollArea>
+												</PopoverContent>
+											</Popover>
+										)}
+									</div>
 								</div>
 
 								<div>
@@ -419,10 +497,34 @@ export default function NotificationsPage() {
 									<label className="block text-sm font-medium mb-1">Message</label>
 									<Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Enter notification message" rows={5} />
 								</div>
+
+								<div className="flex items-center space-x-2">
+									<Checkbox
+										id="fixes-announcement"
+										checked={isFixesAnnouncement}
+										onCheckedChange={(checked) => setIsFixesAnnouncement(checked === true)}
+									/>
+									<label
+										htmlFor="fixes-announcement"
+										className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5"
+									>
+										<Megaphone className="h-4 w-4" />
+										Fixes announcement (auto-delete after 7 days)
+									</label>
+								</div>
 							</div>
 						</CardContent>
 						<CardFooter>
-							<Button onClick={handleSendNotification} disabled={sending || !subject.trim() || !message.trim()} className="w-full">
+							<Button
+								onClick={handleSendNotification}
+								disabled={
+									sending ||
+									!subject.trim() ||
+									!message.trim() ||
+									(recipientType === "user" && !selectedUser)
+								}
+								className="w-full"
+							>
 								{sending ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -124,23 +124,8 @@ export function useMarkNotificationAsRead() {
 
 	return useMutation({
 		mutationFn: markNotificationAsRead,
-		onSuccess: (_, notificationId) => {
-			// Update all notification queries in the cache
-			queryClient.setQueriesData(
-				{ queryKey: ["notifications"] },
-				(old: any) => {
-					if (!old) return old;
-					return {
-						...old,
-						notifications: old.notifications.map(
-							(n: Notification) =>
-								n._id === notificationId
-									? { ...n, isRead: true }
-									: n
-						),
-					};
-				}
-			);
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["notifications"] });
 		},
 	});
 }

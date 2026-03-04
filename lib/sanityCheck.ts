@@ -420,8 +420,8 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
             pushErr(errors, slokano, sentno, anvaya, "kaaraka_sambandha contains '#'");
         }
 
-        // Self loop: anvaya_no appears in its own kaaraka_sambandha
-        const selfLoopRe = new RegExp(`\\b${escapeRegex(anvaya)}\\b`);
+        // Self loop: anvaya_no appears in its own kaaraka_sambandha (exact ref, not prefix e.g. 2.1 in 2.1.1)
+        const selfLoopRe = new RegExp(`\\b${escapeRegex(anvaya)}\\b(?!\\.\\d)`);
         if (selfLoopRe.test(kaaraka)) {
             pushErr(errors, slokano, sentno, anvaya, "Self loop detected");
         }
@@ -511,7 +511,7 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
 
         // प्रयोजककर्ता
         if (kaaraka.includes("प्रयोजककर्ता")) {
-            const m = kaaraka.match(/प्रयोजककर्ता,(\d+\.\d+)/);
+            const m = kaaraka.match(/प्रयोजककर्ता,(\d+\.\d+(?:\.\d+)?)/);
             if (m) {
                 const target = findRow(data, m[1], sentno, slokano);
                 if (morph.includes("1") && target && !target.morph_in_context?.includes("णिच्")) {
@@ -525,7 +525,7 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
 
         // प्रयोज्यकर्ता
         if (kaaraka.includes("प्रयोज्यकर्ता")) {
-            const m = kaaraka.match(/प्रयोज्यकर्ता,(\d+\.\d+)/);
+            const m = kaaraka.match(/प्रयोज्यकर्ता,(\d+\.\d+(?:\.\d+)?)/);
             if (m) {
                 const target = findRow(data, m[1], sentno, slokano);
                 if (morph.includes("3") && target && !target.morph_in_context?.includes("णिच्")) {

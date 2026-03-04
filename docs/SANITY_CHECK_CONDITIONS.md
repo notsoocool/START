@@ -2,6 +2,13 @@
 
 This document lists all validation conditions in the sanity check for the START analysis data.
 
+## Anvaya / Reference Format
+
+All conditions support **anvaya_no** and **ref** in two formats:
+
+- **X.Y** — two parts (e.g. `1.1`, `2.1`)
+- **X.Y.Z** — three parts, two dots (e.g. `2.1.1`, `3.2.1`)
+
 ---
 
 ## 1. General Field Checks
@@ -15,7 +22,7 @@ This document lists all validation conditions in the sanity check for the START 
 
 ## 2. कर्ता Target Validation (checkKartaSambandha)
 
-When a row has `कर्ता,X.Y` (not अभिहित_कर्ता), the target row's morph must match the source morph:
+When a row has `कर्ता,X.Y` or `कर्ता,X.Y.Z` (not अभिहित_कर्ता), the target row's morph must match the source morph:
 
 | # | Condition | Error Message |
 |---|-----------|---------------|
@@ -32,7 +39,7 @@ When a row has `कर्ता,X.Y` (not अभिहित_कर्ता), t
 | 6 | Kaaraka is "-" or "" and not referenced by any other row in same sentno/slokano | `Hanging node detected` |
 | 7 | morph_in_context contains "/" | `morph_in_context contains '/'` |
 | 8 | kaaraka_sambandha contains "#" (should use ; not #) | `kaaraka_sambandha contains '#'` |
-| 9 | anvaya_no appears in its own kaaraka_sambandha | `Self loop detected` |
+| 9 | anvaya_no appears in its own kaaraka_sambandha (exact match only; e.g. 2.1 does not match 2.1.1) | `Self loop detected` |
 
 ---
 
@@ -77,9 +84,9 @@ Each relation requires specific markers in morph_in_context:
 
 | # | Condition | Error Message |
 |---|-----------|---------------|
-| 24 | प्रयोजककर्ता present, morph has "1", target lacks णिच् | `प्रयोजककर्ता present but target does not have णिच्` |
+| 24 | प्रयोजककर्ता present (ref X.Y or X.Y.Z), morph has "1", target lacks णिच् | `प्रयोजककर्ता present but target does not have णिच्` |
 | 25 | प्रयोजककर्ता present but morph lacks 1 or 3 | `प्रयोजककर्ता requires 1 or 3 in morph_in_context` |
-| 26 | प्रयोज्यकर्ता present, morph has "3", target lacks णिच् | `प्रयोज्यकर्ता present but target does not have णिच्` |
+| 26 | प्रयोज्यकर्ता present (ref X.Y or X.Y.Z), morph has "3", target lacks णिच् | `प्रयोज्यकर्ता present but target does not have णिच्` |
 | 27 | प्रयोज्यकर्ता present but morph lacks 2 or 3 | `प्रयोज्यकर्ता requires 2 or 3 in morph_in_context` |
 
 ---
@@ -97,7 +104,7 @@ Each relation requires specific markers in morph_in_context:
 
 | # | Condition | Error Message |
 |---|-----------|---------------|
-| 30 | anvaya_no referenced in kaaraka but does not exist | `Hanging reference: anvaya_no "${ref}" is referenced but does not exist` |
+| 30 | anvaya_no (X.Y or X.Y.Z) referenced in kaaraka but does not exist | `Hanging reference: anvaya_no "${ref}" is referenced but does not exist` |
 
 ---
 

@@ -62,6 +62,8 @@ Create a `.env.local` file with:
 MONGO_URI=your_mongodb_connection_string
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_key
 CLERK_SECRET_KEY=your_clerk_secret
+# Optional: for notification cleanup cron. Add in Vercel env vars; Vercel sends it in the Authorization header when invoking the cron.
+CRON_SECRET=your_16_char_minimum_secret
 ```
 
 4. **Run the development server**
