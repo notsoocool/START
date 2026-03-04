@@ -56,24 +56,25 @@ export async function logHistory(params: LogHistoryParams) {
 				.sort({ timestamp: -1 })
 				.lean();
 
-			if (lastEntry) {
+			if (lastEntry && !Array.isArray(lastEntry)) {
+				const entry = lastEntry as { _id: unknown; details?: { part1?: string; part2?: string; changes?: typeof params.details.changes } };
 				const part1Match =
-					(String(lastEntry.details?.part1 ?? "") === "" && String(params.details.part1 ?? "") === "") ||
-					lastEntry.details?.part1 === params.details.part1;
+					(String(entry.details?.part1 ?? "") === "" && String(params.details.part1 ?? "") === "") ||
+					entry.details?.part1 === params.details.part1;
 				const part2Match =
-					(String(lastEntry.details?.part2 ?? "") === "" && String(params.details.part2 ?? "") === "") ||
-					lastEntry.details?.part2 === params.details.part2;
+					(String(entry.details?.part2 ?? "") === "" && String(params.details.part2 ?? "") === "") ||
+					entry.details?.part2 === params.details.part2;
 
 				if (part1Match && part2Match) {
-					const existingChanges = (lastEntry.details as { changes?: typeof params.details.changes })?.changes || [];
+					const existingChanges = entry.details?.changes || [];
 					const mergedChanges = [...existingChanges, ...params.details.changes];
-					await History.findByIdAndUpdate(lastEntry._id, {
+					await History.findByIdAndUpdate(entry._id, {
 						$set: {
 							"details.changes": mergedChanges,
 							timestamp: now,
 						},
 					});
-					return lastEntry as any;
+					return entry;
 				}
 			}
 		}
