@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Group from "@/lib/db/groupModel";
+import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 
 export async function GET() {
 	try {
@@ -64,6 +65,13 @@ export async function POST(request: Request) {
 		});
 
 		await group.save();
+		await logUsageHistory("group_create", {
+			groupId: group._id,
+			name: group.name,
+			type: group.type,
+			members: group.members,
+			assignedBooks: group.assignedBooks,
+		});
 		return NextResponse.json(group);
 	} catch (error) {
 		console.error("Error creating group:", error);

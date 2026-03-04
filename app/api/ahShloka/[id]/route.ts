@@ -4,7 +4,7 @@ import dbConnect from "@/lib/db/connect";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
-import { logHistory } from "@/lib/utils/historyLogger";
+import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 import Analysis from "@/lib/db/newAnalysisModel";
 
 // Handler for GET requests (fetching snippet by ID)
@@ -75,44 +75,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		// Delete the shloka
 		const deletedShloka = await AHShloka.findByIdAndDelete(id);
 
-		// Log the shloka deletion with analysis information if it's a complete deletion
-		await logHistory({
-			action: isCompleteDeletion ? "complete_delete" : "delete",
-			modelType: "Shloka",
-			details: {
-				book: deletedShloka.book,
-				part1: deletedShloka.part1 || undefined,
-				part2: deletedShloka.part2 || undefined,
-				chaptno: deletedShloka.chaptno,
-				slokano: deletedShloka.slokano,
-				isCompleteDeletion,
-				changes: [
-					{
-						field: isCompleteDeletion ? "complete_deletion_shloka" : "deleted_shloka",
-						oldValue: {
-							slokano: deletedShloka.slokano,
-							spart: deletedShloka.spart,
-							status: {
-								locked: deletedShloka.locked,
-								userPublished: deletedShloka.userPublished,
-								groupPublished: deletedShloka.groupPublished,
-							},
-							// Include associated analyses in the oldValue when it's a complete deletion
-							...(isCompleteDeletion && {
-								deletedAnalyses: associatedAnalyses.map((analysis) => ({
-									anvaya_no: analysis.anvaya_no,
-									word: analysis.word,
-									sentno: analysis.sentno,
-									morph_analysis: analysis.morph_analysis,
-									english_meaning: analysis.english_meaning,
-									hindi_meaning: analysis.hindi_meaning,
-								})),
-							}),
-						},
-						newValue: null,
-					},
-				],
-			},
+		await logUsageHistory("shloka_delete", {
+			book: deletedShloka.book,
+			part1: deletedShloka.part1 || undefined,
+			part2: deletedShloka.part2 || undefined,
+			chaptno: deletedShloka.chaptno,
+			slokano: deletedShloka.slokano,
+			spart: deletedShloka.spart,
+			isCompleteDeletion,
+			deletedAnalysesCount: isCompleteDeletion ? associatedAnalyses.length : 0,
 		});
 
 		return NextResponse.json({
@@ -181,17 +152,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 		}
 
 		if (changes.length > 0) {
-			await logHistory({
-				action: "edit",
-				modelType: "Shloka",
-				details: {
-					book: originalShloka.book,
-					part1: originalShloka.part1 || undefined,
-					part2: originalShloka.part2 || undefined,
-					chaptno: originalShloka.chaptno,
-					slokano: originalShloka.slokano,
-					changes,
-				},
+			await logUsageHistory("shloka_rename", {
+				book: originalShloka.book,
+				part1: originalShloka.part1 || undefined,
+				part2: originalShloka.part2 || undefined,
+				chaptno: originalShloka.chaptno,
+				oldSlokano: originalShloka.slokano,
+				newSlokano: data.slokano,
+				oldSpart: originalShloka.spart,
+				newSpart: data.spart,
 			});
 		}
 

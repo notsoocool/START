@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
-import { logHistory } from "@/lib/utils/historyLogger";
+import { logAnalysisEdit, logAnalysisAdd, logAnalysisDelete } from "@/lib/utils/analysisHistoryLogger";
+import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 
 interface Params {
 	book: string;
@@ -10,46 +11,6 @@ interface Params {
 	part2: string;
 	chaptno: string;
 	slokano: string;
-}
-
-interface Change {
-	field: string;
-	oldValue: null | {
-		anvaya_no: string;
-		word: string;
-		sentno: string;
-		poem: string;
-		morph_analysis: string;
-		morph_in_context: string;
-		kaaraka_sambandha: string;
-		possible_relations: string;
-		bgcolor: string;
-		name_classification: string;
-		sarvanAma: string;
-		prayoga: string;
-		samAsa: string;
-		english_meaning: string;
-		sandhied_word: string;
-		hindi_meaning: string;
-	};
-	newValue: null | {
-		anvaya_no: string;
-		word: string;
-		sentno: string;
-		poem: string;
-		morph_analysis: string;
-		morph_in_context: string;
-		kaaraka_sambandha: string;
-		possible_relations: string;
-		bgcolor: string;
-		name_classification: string;
-		sarvanAma: string;
-		prayoga: string;
-		samAsa: string;
-		english_meaning: string;
-		sandhied_word: string;
-		hindi_meaning: string;
-	};
 }
 
 // Update CORS headers to include all methods
@@ -167,31 +128,22 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 			}
 		);
 
-		// Compare and log changes
-		const changes = Object.entries(data)
-			.filter(
-				([key, value]) =>
-					key !== "_id" &&
-					JSON.stringify(originalDoc[key]) !== JSON.stringify(value)
-			)
-			.map(([field, newValue]) => ({
-				field,
-				oldValue: originalDoc[field],
-				newValue,
-			}));
-
-		if (changes.length > 0) {
-			await logHistory({
-				action: "edit",
-				modelType: "Analysis",
-				details: {
+		const oldRow = originalDoc.toObject ? originalDoc.toObject() : { ...originalDoc };
+		const newRow = updatedDoc.toObject ? updatedDoc.toObject() : { ...updateData };
+		const hasChanges = Object.keys(data).some(
+			(k) => k !== "_id" && JSON.stringify(oldRow[k]) !== JSON.stringify(newRow[k])
+		);
+		if (hasChanges) {
+			await logAnalysisEdit({
+				location: {
 					book,
 					part1: part1 !== "null" ? part1 : undefined,
 					part2: part2 !== "null" ? part2 : undefined,
 					chaptno,
 					slokano,
-					changes,
 				},
+				oldRow,
+				newRow,
 			});
 		}
 
@@ -248,29 +200,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 				);
 			}
 
-			// Log the deletion
-			await logHistory({
-				action: "delete",
-				modelType: "Analysis",
-				details: {
+			const row = deletedRow.toObject ? deletedRow.toObject() : { ...deletedRow };
+			await logAnalysisDelete({
+				location: {
 					book,
 					part1: part1 !== "null" ? part1 : undefined,
 					part2: part2 !== "null" ? part2 : undefined,
 					chaptno,
 					slokano,
-					changes: [
-						{
-							field: "deleted_analysis",
-							oldValue: {
-								_id: deletedRow._id,
-								anvaya_no: deletedRow.anvaya_no,
-								word: deletedRow.word,
-								sentno: deletedRow.sentno,
-							},
-							newValue: null,
-						},
-					],
 				},
+				row,
 			});
 
 			console.log("Row deleted successfully by _id:", deletedRow);
@@ -313,29 +252,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 		// Delete the row - use findByIdAndDelete for absolute certainty
 		const deletedRow = await Analysis.findByIdAndDelete(rowToDelete._id);
 
-		// Log the deletion
-		await logHistory({
-			action: "delete",
-			modelType: "Analysis",
-			details: {
+		const row = deletedRow.toObject ? deletedRow.toObject() : { ...deletedRow };
+		await logAnalysisDelete({
+			location: {
 				book,
 				part1: part1 !== "null" ? part1 : undefined,
 				part2: part2 !== "null" ? part2 : undefined,
 				chaptno,
 				slokano,
-				changes: [
-					{
-						field: "deleted_analysis",
-						oldValue: {
-							_id: deletedRow._id,
-							anvaya_no: deletedRow.anvaya_no,
-							word: deletedRow.word,
-							sentno: deletedRow.sentno,
-						},
-						newValue: null,
-					},
-				],
 			},
+			row,
 		});
 
 		console.log("Row deleted successfully:", deletedRow); // Log the deleted row
@@ -402,131 +328,43 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 		});
 
 		const savedRow = await newRow.save();
+		const loc = {
+			book,
+			part1: part1 !== "null" ? part1 : undefined,
+			part2: part2 !== "null" ? part2 : undefined,
+			chaptno,
+			slokano,
+		};
 
-		// Track all changes for history logging
-		const allChanges: Change[] = [
-			{
-				field: "new_analysis",
-				oldValue: null,
-				newValue: {
-					anvaya_no: savedRow.anvaya_no,
-					word: savedRow.word,
-					sentno: savedRow.sentno,
-					poem: savedRow.poem,
-					morph_analysis: savedRow.morph_analysis,
-					morph_in_context: savedRow.morph_in_context,
-					kaaraka_sambandha: savedRow.kaaraka_sambandha,
-					possible_relations: savedRow.possible_relations,
-					bgcolor: savedRow.bgcolor,
-					name_classification: savedRow.name_classification,
-					sarvanAma: savedRow.sarvanAma,
-					prayoga: savedRow.prayoga,
-					samAsa: savedRow.samAsa,
-					english_meaning: savedRow.english_meaning,
-					sandhied_word: savedRow.sandhied_word,
-					hindi_meaning: savedRow.hindi_meaning,
-				},
-			},
-		];
+		await logAnalysisAdd({
+			location: loc,
+			row: savedRow.toObject ? savedRow.toObject() : { ...savedRow },
+		});
 
-		// Update all rows that were modified
 		if (updatedRows && Array.isArray(updatedRows)) {
-			console.log(
-				`Updating ${updatedRows.length} rows with new anvaya numbers and relations`
-			);
-
-			const updatePromises = updatedRows.map(async (row) => {
-				// Find the existing row by its original _id
+			for (const row of updatedRows) {
 				const existingRow = await Analysis.findById(row._id);
-				if (!existingRow) {
-					console.warn(`Row not found for update: ${row._id}`);
-					return;
-				}
-
-				// Only update if there are actual changes
+				if (!existingRow) continue;
 				const hasChanges =
 					existingRow.anvaya_no !== row.anvaya_no ||
 					existingRow.kaaraka_sambandha !== row.kaaraka_sambandha ||
 					existingRow.possible_relations !== row.possible_relations;
+				if (!hasChanges) continue;
 
-				if (hasChanges) {
-					console.log(
-						`Updating row ${existingRow.anvaya_no} -> ${row.anvaya_no}`
-					);
-
-					// Update the row
-					const updatedRow = await Analysis.findByIdAndUpdate(
-						row._id,
-						{
-							$set: {
-								anvaya_no: row.anvaya_no,
-								kaaraka_sambandha: row.kaaraka_sambandha,
-								possible_relations: row.possible_relations,
-							},
-						},
-						{ new: true }
-					);
-
-					// Add to changes array with old values
-					allChanges.push({
-						field: "update_analysis",
-						oldValue: {
-							anvaya_no: existingRow.anvaya_no,
-							word: existingRow.word,
-							sentno: existingRow.sentno,
-							poem: existingRow.poem,
-							morph_analysis: existingRow.morph_analysis,
-							morph_in_context: existingRow.morph_in_context,
-							kaaraka_sambandha: existingRow.kaaraka_sambandha,
-							possible_relations: existingRow.possible_relations,
-							bgcolor: existingRow.bgcolor,
-							name_classification:
-								existingRow.name_classification,
-							sarvanAma: existingRow.sarvanAma,
-							prayoga: existingRow.prayoga,
-							samAsa: existingRow.samAsa,
-							english_meaning: existingRow.english_meaning,
-							sandhied_word: existingRow.sandhied_word,
-							hindi_meaning: existingRow.hindi_meaning,
-						},
-						newValue: {
-							anvaya_no: updatedRow.anvaya_no,
-							word: updatedRow.word,
-							sentno: updatedRow.sentno,
-							poem: updatedRow.poem,
-							morph_analysis: updatedRow.morph_analysis,
-							morph_in_context: updatedRow.morph_in_context,
-							kaaraka_sambandha: updatedRow.kaaraka_sambandha,
-							possible_relations: updatedRow.possible_relations,
-							bgcolor: updatedRow.bgcolor,
-							name_classification: updatedRow.name_classification,
-							sarvanAma: updatedRow.sarvanAma,
-							prayoga: updatedRow.prayoga,
-							samAsa: updatedRow.samAsa,
-							english_meaning: updatedRow.english_meaning,
-							sandhied_word: updatedRow.sandhied_word,
-							hindi_meaning: updatedRow.hindi_meaning,
-						},
+				const updatedRow = await Analysis.findByIdAndUpdate(
+					row._id,
+					{ $set: { anvaya_no: row.anvaya_no, kaaraka_sambandha: row.kaaraka_sambandha, possible_relations: row.possible_relations } },
+					{ new: true }
+				);
+				if (updatedRow) {
+					await logAnalysisEdit({
+						location: loc,
+						oldRow: existingRow.toObject ? existingRow.toObject() : { ...existingRow },
+						newRow: updatedRow.toObject ? updatedRow.toObject() : { ...updatedRow },
 					});
 				}
-			});
-
-			await Promise.all(updatePromises);
+			}
 		}
-
-		// Log all changes in a single history entry
-		await logHistory({
-			action: "create",
-			modelType: "Analysis",
-			details: {
-				book,
-				part1: part1 !== "null" ? part1 : undefined,
-				part2: part2 !== "null" ? part2 : undefined,
-				chaptno,
-				slokano,
-				changes: allChanges,
-			},
-		});
 
 		// Fetch final state of all rows
 		const finalRows = await Analysis.find({
@@ -594,34 +432,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
 			);
 		}
 
-		// Update all entries with the new slokano
-		const updatePromises = analysisEntries.map(async (entry) => {
-			const originalEntry = { ...entry.toObject() };
-			entry.slokano = newSlokano;
-			await entry.save();
-
-			// Log the change
-			await logHistory({
-				action: "edit",
-				modelType: "Analysis",
-				details: {
-					book,
-					part1: part1 !== "null" ? part1 : undefined,
-					part2: part2 !== "null" ? part2 : undefined,
-					chaptno,
-					slokano: originalEntry.slokano,
-					changes: [
-						{
-							field: "slokano",
-							oldValue: originalEntry.slokano,
-							newValue: newSlokano,
-						},
-					],
-				},
-			});
+		await logUsageHistory("shloka_rename", {
+			book,
+			part1: part1 !== "null" ? part1 : undefined,
+			part2: part2 !== "null" ? part2 : undefined,
+			chaptno,
+			oldSlokano: slokano,
+			newSlokano,
+			affectedCount: analysisEntries.length,
 		});
 
-		await Promise.all(updatePromises);
+		for (const entry of analysisEntries) {
+			entry.slokano = newSlokano;
+			await entry.save();
+		}
 
 		// Fetch updated entries
 		const updatedEntries = await Analysis.find({

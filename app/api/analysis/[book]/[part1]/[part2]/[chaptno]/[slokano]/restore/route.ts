@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
-import { logHistory } from "@/lib/utils/historyLogger";
+import { logAnalysisAdd } from "@/lib/utils/analysisHistoryLogger";
 
 interface Params {
 	book: string;
@@ -71,28 +71,15 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
 		const savedRow = await restoredRow.save();
 
-		// Log the restoration as a create action (since we're recreating the deleted row)
-		await logHistory({
-			action: "create",
-			modelType: "Analysis",
-			details: {
+		await logAnalysisAdd({
+			location: {
 				book,
 				part1: part1 !== "null" ? part1 : undefined,
 				part2: part2 !== "null" ? part2 : undefined,
 				chaptno,
 				slokano,
-				changes: [
-					{
-						field: "restored_analysis",
-						oldValue: null,
-						newValue: {
-							anvaya_no: savedRow.anvaya_no,
-							word: savedRow.word,
-							sentno: savedRow.sentno,
-						},
-					},
-				],
 			},
+			row: savedRow.toObject ? savedRow.toObject() : { ...savedRow },
 		});
 
 		console.log("Row restored successfully:", savedRow); // Log the restored row

@@ -302,14 +302,14 @@ export function useUsers(
 	});
 }
 
-// 5. History
-export function useHistory(page: number = 1, limit: number = 20) {
+// 5. History (type: "all" | "analysis" | "usage")
+export function useHistory(page: number = 1, limit: number = 20, type: "all" | "analysis" | "usage" = "all") {
 	return useQuery({
-		queryKey: ["history", page, limit],
+		queryKey: ["history", page, limit, type],
 		queryFn: async () => {
-			const response = await fetch(
-				`/api/history?page=${page}&limit=${limit}`
-			);
+			const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+			if (type !== "all") params.set("type", type);
+			const response = await fetch(`/api/history?${params.toString()}`);
 			if (!response.ok) throw new Error("Failed to fetch history");
 			return response.json();
 		},

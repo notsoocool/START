@@ -1,34 +1,38 @@
 import { NextResponse, NextRequest } from "next/server";
-import Perms from "@/lib/db/permissionsModel"; // Adjust the path as needed
+import Perms from "@/lib/db/permissionsModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 
 export async function POST(req: NextRequest) {
-    const authResponse = await verifyDBAccess(req);
+	const authResponse = await verifyDBAccess(req);
 	if (authResponse instanceof NextResponse && authResponse.status === 401) {
 		return authResponse;
 	}
 
-  try {
-    // Parse the incoming request JSON
-    const { userId, newPermission } = await req.json();
+	try {
+		const { userId, newPermission } = await req.json();
+		const oldUser = await Perms.findOne({ userID: userId });
 
-    // Find and update the user's permissions
-    const user = await Perms.findOneAndUpdate(
-      { userID: userId },
-      { perms: newPermission },
-      { new: true }
-    );
+		const user = await Perms.findOneAndUpdate(
+			{ userID: userId },
+			{ perms: newPermission },
+			{ new: true }
+		);
 
-    // Check if the user was found and updated
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
+		if (!user) {
+			return NextResponse.json({ error: "User not found" }, { status: 404 });
+		}
 
-    // Return the updated user information
-    return NextResponse.json({ success: true, user });
+		if (oldUser && oldUser.perms !== newPermission) {
+			await logUsageHistory("permission_change", {
+				userId,
+				userName: user.name,
+				oldPermission: oldUser.perms,
+				newPermission,
+			});
+		}
+
+		return NextResponse.json({ success: true, user });
   } catch (error) {
     // Handle any errors during the update process
     return NextResponse.json(

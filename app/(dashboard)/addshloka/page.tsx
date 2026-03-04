@@ -147,7 +147,7 @@ const SaveDialog = ({
 										</SelectItem>
 									))}
 									<SelectItem value="new">
-										Add New Book
+										Add new address
 									</SelectItem>
 								</SelectContent>
 							</Select>
@@ -164,7 +164,7 @@ const SaveDialog = ({
 						onClick={() => setIsNewBook(!isNewBook)}
 						className="mt-2"
 					>
-						{isNewBook ? "Select Existing Book" : "Add New Book"}
+						{isNewBook ? "Add in existing address" : "Add new address"}
 					</Button>
 				</div>
 
@@ -174,7 +174,10 @@ const SaveDialog = ({
 							<Label>Part 1 (Optional)</Label>
 							{!isNewBook && availablePart1s.length > 0 ? (
 								<Select
-									onValueChange={setSelectedPart1}
+									onValueChange={(val) => {
+										setSelectedPart1(val);
+										if (!val || val === "null") setSelectedPart2("");
+									}}
 									value={selectedPart1}
 								>
 									<SelectTrigger>
@@ -183,7 +186,7 @@ const SaveDialog = ({
 									<SelectContent>
 										{availablePart1s.map((part) => (
 											<SelectItem key={part} value={part}>
-												{part}
+												{part === "null" ? "None" : part}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -192,38 +195,52 @@ const SaveDialog = ({
 								<Input
 									placeholder="Enter part 1 (optional)"
 									value={selectedPart1}
-									onChange={(e) =>
-										setSelectedPart1(e.target.value)
-									}
+									onChange={(e) => {
+										const val = e.target.value;
+										setSelectedPart1(val);
+										if (!val) setSelectedPart2("");
+									}}
 								/>
 							)}
 						</div>
 
 						<div className="grid gap-2">
-							<Label>Part 2 (Optional)</Label>
+							<Label className={cn(!selectedPart1 && "text-muted-foreground")}>
+								Part 2 (Optional)
+								{!selectedPart1 && (
+									<span className="ml-1.5 text-xs font-normal">
+										— Select Part 1 first
+									</span>
+								)}
+							</Label>
 							{!isNewBook && availablePart2s.length > 0 ? (
 								<Select
 									onValueChange={setSelectedPart2}
 									value={selectedPart2}
 								>
-									<SelectTrigger>
-										<SelectValue placeholder="Select part 2" />
+									<SelectTrigger
+										disabled={!selectedPart1 || selectedPart1 === "null"}
+									>
+										<SelectValue placeholder={selectedPart1 ? "Select part 2" : "Part 1 required"} />
 									</SelectTrigger>
 									<SelectContent>
 										{availablePart2s.map((part) => (
 											<SelectItem key={part} value={part}>
-												{part}
+												{part === "null" ? "None" : part}
 											</SelectItem>
 										))}
 									</SelectContent>
 								</Select>
 							) : (
 								<Input
-									placeholder="Enter part 2 (optional)"
+									placeholder={selectedPart1 ? "Enter part 2 (optional)" : "Part 1 required"}
 									value={selectedPart2}
-									onChange={(e) =>
-										setSelectedPart2(e.target.value)
-									}
+									onChange={(e) => setSelectedPart2(e.target.value)}
+									disabled={!selectedPart1 || selectedPart1 === "null"}
+									className={cn(
+										(!selectedPart1 || selectedPart1 === "null") &&
+											"opacity-60 cursor-not-allowed"
+									)}
 								/>
 							)}
 						</div>
@@ -1189,24 +1206,22 @@ export default function ShlokaPage() {
 		[booksData]
 	);
 
-	// Get available part1 options for selected book
+	// Get available part1 options for selected book (include null, display as "None")
 	const availablePart1s = useMemo(() => {
 		const book = (booksData ?? []).find(
 			(b: BookData) => b.book === selectedBook
 		);
 		return (
-			book?.part1
-				.map(
-					(p: {
-						part: string | null;
-						part2: { part: string | null; chapters: string[] }[];
-					}) => p.part
-				)
-				.filter((p: string | null) => p !== null) || []
+			book?.part1.map(
+				(p: {
+					part: string | null;
+					part2: { part: string | null; chapters: string[] }[];
+				}) => (p.part === null ? "null" : p.part)
+			) ?? []
 		);
 	}, [booksData, selectedBook]);
 
-	// Get available part2 options for selected book and part1
+	// Get available part2 options for selected book and part1 (include null, display as "None")
 	const availablePart2s = useMemo(() => {
 		const book = (booksData ?? []).find(
 			(b: BookData) => b.book === selectedBook
@@ -1215,12 +1230,15 @@ export default function ShlokaPage() {
 			(p: {
 				part: string | null;
 				part2: { part: string | null; chapters: string[] }[];
-			}) => p.part === selectedPart1
+			}) =>
+				p.part === selectedPart1 ||
+				(p.part === null && selectedPart1 === "null")
 		);
 		return (
-			part1Data?.part2
-				.map((p: { part: string | null; chapters: string[] }) => p.part)
-				.filter((p: string | null) => p !== null) || []
+			part1Data?.part2.map(
+				(p: { part: string | null; chapters: string[] }) =>
+					p.part === null ? "null" : p.part
+			) ?? []
 		);
 	}, [booksData, selectedBook, selectedPart1]);
 
@@ -1233,11 +1251,14 @@ export default function ShlokaPage() {
 			(p: {
 				part: string | null;
 				part2: { part: string | null; chapters: string[] }[];
-			}) => p.part === selectedPart1
+			}) =>
+				p.part === selectedPart1 ||
+				(p.part === null && selectedPart1 === "null")
 		);
 		const part2Data = part1Data?.part2.find(
 			(p: { part: string | null; chapters: string[] }) =>
-				p.part === selectedPart2
+				p.part === selectedPart2 ||
+				(p.part === null && selectedPart2 === "null")
 		);
 		return part2Data?.chapters || [];
 	}, [booksData, selectedBook, selectedPart1, selectedPart2]);
@@ -1266,8 +1287,8 @@ export default function ShlokaPage() {
 				},
 				body: JSON.stringify({
 					book: selectedBook,
-					part1: selectedPart1 || null,
-					part2: selectedPart2 || null,
+					part1: selectedPart1 && selectedPart1 !== "null" ? selectedPart1 : null,
+					part2: selectedPart2 && selectedPart2 !== "null" ? selectedPart2 : null,
 					chaptno,
 					slokano,
 					currentShlokaId: null, // Since this is a new shloka
@@ -1292,19 +1313,19 @@ export default function ShlokaPage() {
 
 			// If no duplicate found, proceed with saving
 			// First, save the shloka
+			const part1Val = selectedPart1 && selectedPart1 !== "null" ? selectedPart1 : null;
+			const part2Val = selectedPart2 && selectedPart2 !== "null" ? selectedPart2 : null;
 			const shlokaData = {
 				book: selectedBook,
-				part1: selectedPart1 || null,
-				part2: selectedPart2 || null,
+				part1: part1Val,
+				part2: part2Val,
 				chaptno,
 				slokano,
 				spart: shlokaInput,
 			};
 
 			const shlokaResponse = await fetch(
-				`/api/books/${selectedBook}/${selectedPart1 || "null"}/${
-					selectedPart2 || "null"
-				}/${chaptno}`,
+				`/api/books/${selectedBook}/${part1Val ?? "null"}/${part2Val ?? "null"}/${chaptno}`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -1330,8 +1351,8 @@ export default function ShlokaPage() {
 
 				return {
 					book: selectedBook,
-					part1: selectedPart1 || null,
-					part2: selectedPart2 || null,
+					part1: part1Val,
+					part2: part2Val,
 					chaptno,
 					slokano,
 					sentno: item.sentno || "1",

@@ -4,7 +4,7 @@ import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 import { currentUser } from "@clerk/nextjs/server";
-import { logHistory } from "@/lib/utils/historyLogger";
+import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 
 interface Params {
 	book: string;
@@ -108,68 +108,14 @@ export async function DELETE(
 			try {
 				console.time("History logging");
 
-				if (shouldSkipDetailedLogging) {
-					// For large deletions, create a simple summary log
-					await logHistory({
-						action: "delete",
-						modelType: "Shloka",
-						details: {
-							book,
-							part1: isNullParam(part1) ? undefined : part1,
-							part2: isNullParam(part2) ? undefined : part2,
-							chaptno,
-							slokano: "multiple",
-							changes: [
-								{
-									field: "deleted_shlokas_summary",
-									oldValue: {
-										count: result.deletedCount,
-										summary: `Bulk deletion of ${result.deletedCount} shlokas`,
-									},
-									newValue: null,
-								},
-							],
-						},
-					});
-				} else {
-					// For smaller deletions, get the details for logging
-					const shlokasToDelete = await AHShloka.find(query);
-
-					// Create a single batch history entry for all deleted shlokas
-					await logHistory({
-						action: "delete",
-						modelType: "Shloka",
-						details: {
-							book,
-							part1: isNullParam(part1) ? undefined : part1,
-							part2: isNullParam(part2) ? undefined : part2,
-							chaptno,
-							slokano: "multiple",
-							changes: [
-								{
-									field: "deleted_shlokas",
-									oldValue: {
-										count: shlokasToDelete.length,
-										shlokas: shlokasToDelete.map(
-											(shloka) => ({
-												slokano: shloka.slokano,
-												spart: shloka.spart,
-												status: {
-													locked: shloka.locked,
-													userPublished:
-														shloka.userPublished,
-													groupPublished:
-														shloka.groupPublished,
-												},
-											})
-										),
-									},
-									newValue: null,
-								},
-							],
-						},
-					});
-				}
+				await logUsageHistory("shloka_bulk_delete", {
+					book,
+					part1: isNullParam(part1) ? undefined : part1,
+					part2: isNullParam(part2) ? undefined : part2,
+					chaptno,
+					deletedCount: result.deletedCount,
+					...(shouldSkipDetailedLogging ? {} : { slokano: "multiple" }),
+				});
 
 				console.timeEnd("History logging");
 				console.log("History logged successfully");
@@ -253,27 +199,13 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			owner,
 		});
 
-		// Log the creation
-		await logHistory({
-			action: "create",
-			modelType: "Shloka",
-			details: {
-				book,
-				part1: isNullParam(part1) ? undefined : part1,
-				part2: isNullParam(part2) ? undefined : part2,
-				chaptno,
-				slokano: data.slokano,
-				changes: [
-					{
-						field: "new_shloka",
-						oldValue: null,
-						newValue: {
-							slokano: data.slokano,
-							spart: data.spart,
-						},
-					},
-				],
-			},
+		await logUsageHistory("shloka_create", {
+			book,
+			part1: isNullParam(part1) ? undefined : part1,
+			part2: isNullParam(part2) ? undefined : part2,
+			chaptno,
+			slokano: data.slokano,
+			spart: data.spart,
 		});
 
 		return NextResponse.json(shloka, { headers: corsHeaders() });
