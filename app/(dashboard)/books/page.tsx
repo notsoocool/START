@@ -47,6 +47,8 @@ type Item = {
         groupPublished?: boolean;
         owner?: string | null;
     };
+    /** For sub-subpart: actual part2 value for URL (null -> "null") */
+    part2Value?: string | null;
 };
 
 // Mapping the icons and colors to types
@@ -533,9 +535,9 @@ const TreeNode = ({
                                                         : undefined)
                                                 }
                                                 part2={
-                                                    part2 ||
+                                                    part2 ??
                                                     (item.type === "sub-subpart"
-                                                        ? item.title
+                                                        ? (item.part2Value ?? item.title)
                                                         : undefined)
                                                 }
                                             />
@@ -893,16 +895,21 @@ function BooksContent() {
                                             })
                                         );
                                     }
-                                    if (!part1.part2?.[0]?.part) {
+                                    // part1.part2 can have BOTH { part: null, chapters } AND { part: "X", chapters }
+                                    // We must iterate ALL part2 entries, not just check part2[0]
+                                    const hasOnlyNullPart2 =
+                                        !part1.part2?.length ||
+                                        (part1.part2.length === 1 &&
+                                            (part1.part2[0].part === null ||
+                                                part1.part2[0].part === undefined));
+                                    if (hasOnlyNullPart2) {
                                         return {
                                             id: `${book.book}-${part1.part}`,
                                             title: part1.part,
                                             type: "subpart" as const,
                                             children:
-                                                part1.part2?.[0]?.chapters.map(
-                                                    (
-                                                        chapter: string
-                                                    ) => ({
+                                                part1.part2?.[0]?.chapters?.map(
+                                                    (chapter: string) => ({
                                                         id: `${book.book}-${part1.part}-chapter-${chapter}`,
                                                         title: `Chapter ${chapter}`,
                                                         type: "chapter" as const,
@@ -910,26 +917,42 @@ function BooksContent() {
                                                 ) || [],
                                         };
                                     }
+                                    // Multiple part2 entries (e.g. null + "भेषज चतुष्क") - show all
                                     return {
                                         id: `${book.book}-${part1.part}`,
                                         title: part1.part,
                                         type: "subpart" as const,
                                         children: part1.part2
-                                            .map((part2: any) => ({
-                                                id: `${book.book}-${part1.part}-${part2.part}`,
-                                                title: part2.part,
-                                                type: "sub-subpart" as const,
-                                                children:
-                                                    part2.chapters.map(
-                                                        (
-                                                            chapter: string
-                                                        ) => ({
-                                                            id: `${book.book}-${part1.part}-${part2.part}-chapter-${chapter}`,
+                                            .map((part2: any) => {
+                                                const part2Label =
+                                                    part2.part === null ||
+                                                    part2.part === undefined
+                                                        ? "None"
+                                                        : part2.part;
+                                                const part2Id =
+                                                    part2.part === null ||
+                                                    part2.part === undefined
+                                                        ? `${book.book}-${part1.part}-null`
+                                                        : `${book.book}-${part1.part}-${part2.part}`;
+                                                const part2Value =
+                                                    part2.part === null ||
+                                                    part2.part === undefined
+                                                        ? "null"
+                                                        : part2.part;
+                                                return {
+                                                    id: part2Id,
+                                                    title: part2Label,
+                                                    type: "sub-subpart" as const,
+                                                    part2Value,
+                                                    children: (part2.chapters || []).map(
+                                                        (chapter: string) => ({
+                                                            id: `${part2Id}-chapter-${chapter}`,
                                                             title: `Chapter ${chapter}`,
                                                             type: "chapter" as const,
                                                         })
                                                     ),
-                                            }))
+                                                };
+                                            })
                                             .flat(),
                                     };
                                 })

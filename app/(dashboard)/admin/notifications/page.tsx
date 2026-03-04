@@ -160,6 +160,8 @@ export default function NotificationsPage() {
 		}
 	};
 
+	const [markReadAllLoading, setMarkReadAllLoading] = useState(false);
+
 	const handleMarkAsRead = async (notificationId: string) => {
 		try {
 			const response = await fetch("/api/notifications/markRead", {
@@ -175,6 +177,20 @@ export default function NotificationsPage() {
 			}
 		} catch (error) {
 			console.error("Error marking notification as read:", error);
+		}
+	};
+
+	const handleMarkAllAsRead = async () => {
+		try {
+			setMarkReadAllLoading(true);
+			const response = await fetch("/api/notifications/markAllRead", { method: "POST" });
+			if (response.ok) {
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			}
+		} catch (error) {
+			console.error("Error marking all as read:", error);
+		} finally {
+			setMarkReadAllLoading(false);
 		}
 	};
 
@@ -265,7 +281,12 @@ export default function NotificationsPage() {
 									<CardTitle>All Notifications</CardTitle>
 									<CardDescription>View and manage all notifications. Old notifications (30+ days) are auto-deleted daily.</CardDescription>
 								</div>
-								<Button variant="outline" size="sm" onClick={handleRunCleanup} disabled={cleanupRunning}>
+								<div className="flex items-center gap-2">
+									<Button variant="outline" size="sm" onClick={handleMarkAllAsRead} disabled={markReadAllLoading}>
+										{markReadAllLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+										Read all
+									</Button>
+									<Button variant="outline" size="sm" onClick={handleRunCleanup} disabled={cleanupRunning}>
 									{cleanupRunning ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (
@@ -275,6 +296,7 @@ export default function NotificationsPage() {
 										</>
 									)}
 								</Button>
+								</div>
 							</div>
 							{cleanupResult && (
 								<div className="text-sm text-muted-foreground mt-2">

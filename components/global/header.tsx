@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { Moon, Sun } from "lucide-react";
@@ -31,9 +32,11 @@ interface Notification {
 
 export const Header = () => {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const { data: currentUser } = useCurrentUser();
 	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(1);
 	const markAsReadMutation = useMarkNotificationAsRead();
+	const [markAllReadLoading, setMarkAllReadLoading] = useState(false);
 	const { theme, setTheme, resolvedTheme } = useTheme();
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => setMounted(true), []);
@@ -44,6 +47,21 @@ export const Header = () => {
 	const handleMarkAsRead = async (notificationId: string, event: React.MouseEvent) => {
 		event.stopPropagation(); // Prevent navigation when clicking the check button
 		markAsReadMutation.mutate(notificationId);
+	};
+
+	const handleMarkAllAsRead = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		try {
+			setMarkAllReadLoading(true);
+			const response = await fetch("/api/notifications/markAllRead", { method: "POST" });
+			if (response.ok) {
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			}
+		} catch (err) {
+			console.error("Error marking all as read:", err);
+		} finally {
+			setMarkAllReadLoading(false);
+		}
 	};
 
 	const formatDate = (dateString: string) => {
@@ -116,13 +134,27 @@ export const Header = () => {
 											className="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-950 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800"
 										>
 											<div className="p-4 border-b border-gray-200 dark:border-gray-800">
-												<div className="flex items-center justify-between">
+												<div className="flex items-center justify-between gap-2">
 													<h3 className="font-semibold">Notifications</h3>
-													<Link href={getViewAllLink()}>
-														<Button variant="ghost" size="sm" className="text-xs" data-navigate="true">
-															View All
-														</Button>
-													</Link>
+													<div className="flex items-center gap-1">
+														{unreadCount > 0 && (
+															<Button
+																variant="ghost"
+																size="sm"
+																className="text-xs"
+																onClick={handleMarkAllAsRead}
+																disabled={markAllReadLoading}
+															>
+																{markAllReadLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-0.5" />}
+																Read all
+															</Button>
+														)}
+														<Link href={getViewAllLink()}>
+															<Button variant="ghost" size="sm" className="text-xs" data-navigate="true">
+																View All
+															</Button>
+														</Link>
+													</div>
 												</div>
 											</div>
 											<ScrollArea className="h-[400px]">

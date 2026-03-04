@@ -90,8 +90,24 @@ export default function UserNotificationsPage() {
 		sendMessageMutation.mutate({ subject, message });
 	};
 
+	const [markAllReadLoading, setMarkAllReadLoading] = useState(false);
+
 	const handleMarkAsRead = (notificationId: string) => {
 		markAsReadMutation.mutate(notificationId);
+	};
+
+	const handleMarkAllAsRead = async () => {
+		try {
+			setMarkAllReadLoading(true);
+			const response = await fetch("/api/notifications/markAllRead", { method: "POST" });
+			if (response.ok) {
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
+			}
+		} catch (error) {
+			console.error("Error marking all as read:", error);
+		} finally {
+			setMarkAllReadLoading(false);
+		}
 	};
 
 	const formatDate = (dateString: string) => {
@@ -149,8 +165,16 @@ export default function UserNotificationsPage() {
 				<TabsContent value="view">
 					<Card>
 						<CardHeader>
-							<CardTitle>Your Notifications</CardTitle>
-							<CardDescription>View notifications sent to you</CardDescription>
+							<div className="flex items-center justify-between">
+								<div>
+									<CardTitle>Your Notifications</CardTitle>
+									<CardDescription>View notifications sent to you</CardDescription>
+								</div>
+								<Button variant="outline" size="sm" onClick={handleMarkAllAsRead} disabled={markAllReadLoading}>
+									{markAllReadLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
+									Read all
+								</Button>
+							</div>
 						</CardHeader>
 						<CardContent>
 							{notificationsLoading ? (
