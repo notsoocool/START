@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { Loader2, ChevronLeft, ChevronRight, Info, RefreshCw, FileText, Settings } from "lucide-react";
 import { useHistory } from "@/lib/hooks/use-api";
+import { cn } from "@/lib/utils";
 
 type HistoryTypeFilter = "all" | "analysis" | "usage";
 
@@ -59,21 +60,21 @@ function toDisplayString(val: unknown): string {
 }
 
 const DIFF_COLUMNS = [
-	{ key: "anvaya_no", label: "Anvaya" },
-	{ key: "word", label: "Word" },
-	{ key: "poem", label: "Poem" },
-	{ key: "sandhied_word", label: "Sandhied" },
-	{ key: "morph_analysis", label: "Morph Analysis" },
-	{ key: "morph_in_context", label: "Morph" },
-	{ key: "kaaraka_sambandha", label: "Kaaraka" },
-	{ key: "possible_relations", label: "Possible Relations" },
-	{ key: "bgcolor", label: "Bgcolor" },
-	{ key: "name_classification", label: "Name" },
-	{ key: "sarvanAma", label: "SarvanAma" },
-	{ key: "prayoga", label: "Prayoga" },
-	{ key: "samAsa", label: "SamAsa" },
-	{ key: "english_meaning", label: "English" },
-	{ key: "hindi_meaning", label: "Hindi" },
+	{ key: "anvaya_no", label: "Anvaya", wide: false },
+	{ key: "word", label: "Word", wide: false },
+	{ key: "poem", label: "Poem", wide: false },
+	{ key: "sandhied_word", label: "Sandhied", wide: false },
+	{ key: "morph_analysis", label: "Morph Analysis", wide: true },
+	{ key: "morph_in_context", label: "Morph", wide: true },
+	{ key: "kaaraka_sambandha", label: "Kaaraka", wide: true },
+	{ key: "possible_relations", label: "Possible Relations", wide: true },
+	{ key: "bgcolor", label: "Bgcolor", wide: false },
+	{ key: "name_classification", label: "Name", wide: false },
+	{ key: "sarvanAma", label: "SarvanAma", wide: false },
+	{ key: "prayoga", label: "Prayoga", wide: false },
+	{ key: "samAsa", label: "SamAsa", wide: false },
+	{ key: "english_meaning", label: "English", wide: true },
+	{ key: "hindi_meaning", label: "Hindi", wide: true },
 ] as const;
 
 function getEntryLocation(entry: HistoryEntry): string {
@@ -89,14 +90,29 @@ function getEntryLocation(entry: HistoryEntry): string {
 	return toDisplayString(d?.book || d?.groupId || d?.shlokaId || entry.action);
 }
 
+// Scrollable cell wrapper: max-height + overflow, prevents overlap
+function CellWrapper({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+	return (
+		<div
+			className={cn(
+				"min-w-0 max-h-24 overflow-auto overscroll-contain rounded p-1.5",
+				"text-xs break-words",
+				className
+			)}
+		>
+			{children}
+		</div>
+	);
+}
+
 function DiffCell({ oldVal, newVal }: { oldVal: string; newVal: string }) {
 	const changed = oldVal !== newVal;
 	if (!changed) return <span className="text-xs">{oldVal || "-"}</span>;
 	return (
-		<div className="text-xs space-y-0.5">
+		<div className="text-xs space-y-1.5">
 			{oldVal ? (
 				<div
-					className="bg-red-500/20 text-red-800 dark:text-red-200 rounded px-1 break-words"
+					className="bg-red-500/20 text-red-800 dark:text-red-200 rounded px-1.5 py-0.5 break-words"
 					title={oldVal}
 				>
 					− {oldVal}
@@ -104,7 +120,7 @@ function DiffCell({ oldVal, newVal }: { oldVal: string; newVal: string }) {
 			) : null}
 			{newVal ? (
 				<div
-					className="bg-green-500/20 text-green-800 dark:text-green-200 rounded px-1 break-words"
+					className="bg-green-500/20 text-green-800 dark:text-green-200 rounded px-1.5 py-0.5 break-words"
 					title={newVal}
 				>
 					+ {newVal}
@@ -271,30 +287,25 @@ export default function HistoryPage() {
 										const oldVal = toDisplayString(r.oldRow?.[col.key]);
 										const newVal = toDisplayString(r.row[col.key]);
 										const isChanged = r.changedFields?.includes(col.key);
-										if (r.action === "edit" && isChanged) {
-											return (
-												<TableCell key={col.key} className="max-w-[120px] align-top">
-													<DiffCell oldVal={oldVal} newVal={newVal} />
-												</TableCell>
-											);
-										}
-										if (r.action === "add") {
-											return (
-												<TableCell key={col.key} className="max-w-[120px] align-top">
-													<span className="text-xs text-green-700 dark:text-green-300">{newVal || "-"}</span>
-												</TableCell>
-											);
-										}
-										if (r.action === "delete") {
-											return (
-												<TableCell key={col.key} className="max-w-[120px] align-top">
-													<span className="text-xs text-red-700 dark:text-red-300">{oldVal || newVal || "-"}</span>
-												</TableCell>
-											);
-										}
+										const cellClass = cn(
+											"align-top p-2 min-w-0",
+											col.wide ? "min-w-[140px] max-w-[200px]" : "min-w-[80px] max-w-[140px]"
+										);
+										const content = (() => {
+											if (r.action === "edit" && isChanged) {
+												return <DiffCell oldVal={oldVal} newVal={newVal} />;
+											}
+											if (r.action === "add") {
+												return <span className="text-xs text-green-700 dark:text-green-300">{newVal || "-"}</span>;
+											}
+											if (r.action === "delete") {
+												return <span className="text-xs text-red-700 dark:text-red-300">{oldVal || newVal || "-"}</span>;
+											}
+											return <span className="text-xs">{newVal || "-"}</span>;
+										})();
 										return (
-											<TableCell key={col.key} className="max-w-[120px] align-top">
-												<span className="text-xs">{newVal || "-"}</span>
+											<TableCell key={col.key} className={cellClass}>
+												<CellWrapper>{content}</CellWrapper>
 											</TableCell>
 										);
 									})}
