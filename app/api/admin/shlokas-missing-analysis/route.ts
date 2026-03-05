@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { PipelineStage } from "mongoose";
 import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel";
 import { currentUser } from "@clerk/nextjs/server";
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 		// Get all shlokas, then find those without analysis
 		// Use aggregation: left join with analysis, filter where analysis is null
 		// Normalize null/undefined for part1/part2 comparison
-		const pipeline: object[] = [
+		const pipeline: PipelineStage[] = [
 			{ $match: shlokaMatch },
 			{
 				$lookup: {
@@ -114,7 +115,7 @@ export async function DELETE(request: NextRequest) {
 		const shlokaMatch: Record<string, unknown> = {};
 		if (book) shlokaMatch.book = book;
 
-		const pipeline: object[] = [
+		const deletePipeline: PipelineStage[] = [
 			{ $match: shlokaMatch },
 			{
 				$lookup: {
@@ -149,7 +150,7 @@ export async function DELETE(request: NextRequest) {
 			{ $project: { _id: 1 } },
 		];
 
-		const shlokasToDelete = await AHShloka.aggregate(pipeline);
+		const shlokasToDelete = await AHShloka.aggregate(deletePipeline);
 		const ids = shlokasToDelete.map((s: { _id: unknown }) => s._id);
 
 		if (ids.length === 0) {

@@ -289,28 +289,28 @@ function findRow(
 }
 
 function checkKartaSambandha(
-	kaaraka: string,
-	morph: string,
-	data: AnalysisRow[],
-	sentno: string,
-	slokano: string,
-	anvaya: string,
-	errors: SanityError[]
+    kaaraka: string,
+    morph: string,
+    data: AnalysisRow[],
+    sentno: string,
+    slokano: string,
+    anvaya: string,
+    errors: SanityError[]
 ) {
-	const match = kaaraka.match(/कर्ता,(\d+\.\d+(?:\.\d+)?)/);
-	if (!match || kaaraka.includes("अभिहित_कर्ता")) return;
-	const targetIndex = match[1];
-	const target = findRow(data, targetIndex, sentno, slokano);
-	if (!target) return;
-	const targetMorph = String(target.morph_in_context ?? "");
+    const match = kaaraka.match(/कर्ता,(\d+\.\d+(?:\.\d+)?)/);
+    if (!match || kaaraka.includes("अभिहित_कर्ता")) return;
+    const targetIndex = match[1];
+    const target = findRow(data, targetIndex, sentno, slokano);
+    if (!target) return;
+    const targetMorph = String(target.morph_in_context ?? "");
 
-	if (morph.includes("1") && !/क्तवतु|क्त|कर्तरि/.test(targetMorph)) {
-		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्तरि or क्तवतु or क्त`);
-	} else if (morph.includes("3") && !/कर्मणि|क्त|तव्यत्|अनीयर्|यत्/.test(targetMorph)) {
-		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर् or यत्`);
-	} else if (morph.includes("6") && !/ल्युट्|घञ्/.test(targetMorph)) {
-		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have ल्युट् or घञ्`);
-	}
+    if (morph.includes("1") && !/क्तवतु|क्त|कर्तरि/.test(targetMorph)) {
+        pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्तरि or क्तवतु or क्त`);
+    } else if (morph.includes("3") && !/कर्मणि|क्त|तव्यत्|अनीयर्|यत्/.test(targetMorph)) {
+        pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर् or यत्`);
+    } else if (morph.includes("6") && !/ल्युट्|घञ्/.test(targetMorph)) {
+        pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have ल्युट् or घञ्`);
+    }
 }
 
 function kaarakaMatchesPossible(kaarakaItem: string, possibleList: Array<{ relation: string; ref: string }>): boolean {
@@ -394,8 +394,8 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
             continue;
         }
 
-		// check_kaaraka_sambandha (कर्ता target validation)
-		checkKartaSambandha(kaaraka, morph, data, sentno, slokano, anvaya, errors);
+        // check_kaaraka_sambandha (कर्ता target validation)
+        checkKartaSambandha(kaaraka, morph, data, sentno, slokano, anvaya, errors);
 
         // Hanging node (Python def): kaaraka is "-" or "" and never referenced by others in same sentno/slokano
         if (kaaraka === "-" || kaaraka === "") {

@@ -354,6 +354,13 @@ const ContributorSection = ({
 
 const BOOK_SECTION_ORDER = ["experts", "validators", "ayurvedaExpert", "annotators"] as const;
 
+type BookToShow = {
+	bookKey: string;
+	bookName: string;
+	bookNameEnglish?: string;
+	contributorData?: BookContributors;
+};
+
 export default function AboutPage() {
 	const { data: booksData, isLoading, error } = useBooks();
 	const searchParams = useSearchParams();
@@ -367,7 +374,7 @@ export default function AboutPage() {
 	);
 
 	// Merge with bookData: for each user-published book, use bookData if available
-	const booksToShow = userPublishedBooks.map(
+	const booksToShow: BookToShow[] = userPublishedBooks.map(
 		(item: { book?: string }) => {
 			const bookKey = item.book ?? "";
 			const contributorData = bookData[bookKey];
