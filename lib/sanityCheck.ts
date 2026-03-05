@@ -73,6 +73,7 @@ export const VALID_STRINGS = new Set(
         "समासः",
         "समानकालः",
         "प्रयोजनम्_द्योतकः",
+        "प्रयोजन_द्योतकः",
         "सहार्थ_द्योतकः",
         "विनार्थ_द्योतकः",
         "ल्यप्कर्माधिकरणम्",
@@ -305,8 +306,8 @@ function checkKartaSambandha(
 
 	if (morph.includes("1") && !/क्तवतु|क्त|कर्तरि/.test(targetMorph)) {
 		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्तरि or क्तवतु or क्त`);
-	} else if (morph.includes("3") && !/कर्मणि|क्त|तव्यत्|अनीयर्/.test(targetMorph)) {
-		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर्`);
+	} else if (morph.includes("3") && !/कर्मणि|क्त|तव्यत्|अनीयर्|यत्/.test(targetMorph)) {
+		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर् or यत्`);
 	} else if (morph.includes("6") && !/ल्युट्|घञ्/.test(targetMorph)) {
 		pushErr(errors, slokano, sentno, anvaya, `कर्ता present but target does not have ल्युट् or घञ्`);
 	}

@@ -11,6 +11,7 @@ import {
 	Bookmark,
 	PenSquare,
 	GitBranch,
+	FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -129,6 +130,20 @@ const MainPage = () => {
 									Learn More
 								</Button>
 							</Link>
+							<a
+								href="https://aclanthology.org/2024.iscls-1.9/"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<Button
+									size="lg"
+									variant="outline"
+									className={resolvedTheme === "dark" ? "border-white/50 text-white hover:bg-white/10" : "border-gray-300 text-gray-900 hover:bg-gray-100"}
+								>
+									<FileText className="mr-2 h-4 w-4" />
+									Read our Paper
+								</Button>
+							</a>
 						</div>
 					</div>
 				</WavyBackground>

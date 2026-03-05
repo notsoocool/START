@@ -27,7 +27,7 @@ When a row has `कर्ता,X.Y` or `कर्ता,X.Y.Z` (not अभि�
 | # | Condition | Error Message |
 |---|-----------|---------------|
 | 3 | Source morph has "1", target morph lacks कर्तरि / क्तवतु / क्त | `कर्ता present but target does not have कर्तरि or क्तवतु or क्त` |
-| 4 | Source morph has "3", target morph lacks कर्मणि / क्त / तव्यत् / अनीयर् | `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर्` |
+| 4 | Source morph has "3", target morph lacks कर्मणि / क्त / तव्यत् / अनीयर् / यत् | `कर्ता present but target does not have कर्मणि or क्त or तव्यत् or अनीयर् or यत्` |
 | 5 | Source morph has "6", target morph lacks ल्युट् / घञ् | `कर्ता present but target does not have ल्युट् or घञ्` |
 
 ---

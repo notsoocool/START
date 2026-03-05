@@ -19,6 +19,7 @@ import DeleteEntry from "@/components/global/deleteEntry";
 import HistoryPage from "@/components/global/history";
 import DataDownload from "@/components/global/dataDownload";
 import SanityCheck from "@/components/global/sanityCheck";
+import MissingAnalysisShlokas from "@/components/global/missingAnalysisShlokas";
 import LanguageManagement from "@/components/global/languageManagement";
 import OnlineUsers from "@/components/global/onlineUsers";
 import { TreeNode } from "@/types/treeNode";
@@ -46,7 +47,7 @@ export default function AdminPage() {
 
 	// Open tab from URL (?tab=sanity etc.)
 	useEffect(() => {
-		if (tabParam && ["permissions", "replace", "delete", "group", "publish", "languages", "history", "download", "sanity", "online"].includes(tabParam)) {
+		if (tabParam && ["permissions", "replace", "delete", "group", "publish", "languages", "history", "download", "sanity", "missing-analysis", "online"].includes(tabParam)) {
 			setActiveTab(tabParam);
 		}
 	}, [tabParam]);
@@ -181,6 +182,9 @@ export default function AdminPage() {
 									Data Download
 								</SelectItem>
 								<SelectItem value="sanity">Sanity Check</SelectItem>
+								<SelectItem value="missing-analysis">
+									Missing Analysis
+								</SelectItem>
 								<SelectItem value="online">
 									Online Users
 								</SelectItem>
@@ -263,6 +267,12 @@ export default function AdminPage() {
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Sanity Check
+							</TabsTrigger>
+							<TabsTrigger
+								value="missing-analysis"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Missing Analysis
 							</TabsTrigger>
 							<TabsTrigger
 								value="online"
@@ -392,6 +402,11 @@ export default function AdminPage() {
 						<SanityCheck />
 					</CardContent>
 				</Card>
+			</TabsContent>
+			<TabsContent value="missing-analysis">
+				<div className="mt-4">
+					<MissingAnalysisShlokas />
+				</div>
 			</TabsContent>
 			<TabsContent value="online">
 				<Card className="mt-4">

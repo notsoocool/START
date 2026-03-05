@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -15,8 +16,25 @@ import {
 	CheckCircle2,
 	Sparkles,
 	Heart,
+	Loader2,
+	ExternalLink,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useBooks } from "@/lib/hooks/use-api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+function getInitials(name: string): string {
+	const cleaned = name.replace(/^(Dr\.|Mr\.|Ms\.|Mrs\.|Prof\.)\s*/i, "").trim();
+	const parts = cleaned.split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return "?";
+	const first = parts[0]?.[0] ?? "";
+	const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : parts[0]?.[1] ?? "";
+	return (first + last).toUpperCase().slice(0, 2) || "?";
+}
+
+function isFemale(name: string): boolean {
+	return /^Ms\.?\s/i.test(name) || /^Mrs\.?\s/i.test(name);
+}
 
 interface Contributor {
 	name: string;
@@ -26,31 +44,37 @@ interface Contributor {
 	location?: string;
 	email?: string;
 	phone?: string;
+	website?: string;
 	validated?: string;
 }
 
 interface BookContributors {
 	bookName: string;
 	bookNameEnglish?: string;
-	projectInfo: string;
-	softwareDevelopment?: Contributor[];
 	annotators?: Contributor[];
 	experts?: Contributor[];
 	validators?: Contributor[];
 	ayurvedaExpert?: Contributor[];
 }
 
+const PROJECT_INFO_TEMPLATE = (bookName: string) =>
+	`The E-reader for ${bookName} is developed under the project 'Sanskrit Knowledge Accessor' funded by Ministry of Electronics and Information Technology as a part of Bhashini project, during 2024-26. Prof. Amba Kulkarni, Department of Sanskrit Studies, University of Hyderabad led the consortium project 'Sanskrit Knowledge Accessor'.`;
+
+// Shared across all books
+const SHARED_SOFTWARE_DEVELOPMENT: Contributor[] = [
+	{
+		name: "Yajush Vyas",
+		title: "Full Stack Developer",
+		location: "New Delhi, India",
+		email: "vyasyajush@gmail.com",
+		website: "https://www.yajushvyas.in",
+	},
+];
+
 const bookData: Record<string, BookContributors> = {
 	अष्टाङ्गहृदयम्: {
 		bookName: "अष्टाङ्गहृदयम्",
 		bookNameEnglish: "Ashtanga Hridayam",
-		projectInfo:
-			"The E-reader for Ashtanga Hridayam is developed under the project 'Sanskrit Knowledge Accessor' funded by Ministry of Electronics and Information Technology as a part of Bhashini project, during 2024-26. Prof. Amba Kulkarni, Department of Sanskrit Studies, University of Hyderabad led the consortium project 'Sanskrit Knowledge Accessor'.",
-		softwareDevelopment: [
-			{
-				name: "Yajush Vyas",
-			},
-		],
 		annotators: [
 			{
 				name: "Ms Vasudha Neelamana",
@@ -206,75 +230,76 @@ const bookData: Record<string, BookContributors> = {
 };
 
 const ContributorCard = ({ contributor }: { contributor: Contributor }) => {
+	const initials = getInitials(contributor.name);
+	const female = isFemale(contributor.name);
 	return (
-		<Card className="group relative overflow-hidden border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 bg-gradient-to-br from-card to-card/50">
-			{/* Decorative gradient overlay on hover */}
-			<div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-primary/5 transition-all duration-300 pointer-events-none" />
-
-			<CardContent className="pt-6 relative z-10">
-				<div className="space-y-3">
-					<div className="flex items-start justify-between gap-2">
-						<h4 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
+		<Card className="group relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-md transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5">
+			<CardContent className="p-6">
+				<div className="flex gap-4">
+					{/* Avatar with initials - blue for men, pink for women */}
+					<div
+						className={`shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-sm font-semibold text-white transition-colors ${
+							female
+								? "bg-gradient-to-br from-pink-500 to-pink-600"
+								: "bg-gradient-to-br from-blue-500 to-blue-600"
+						}`}
+					>
+						{initials}
+					</div>
+					<div className="min-w-0 flex-1 space-y-2">
+						<h4 className="font-semibold text-base text-foreground">
 							{contributor.name}
 						</h4>
-						{contributor.validated && (
-							<Badge
-								variant="secondary"
-								className="ml-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-green-700 dark:text-green-400 border-green-500/20 flex items-center gap-1"
+						{contributor.title && (
+							<p className="text-sm text-muted-foreground flex items-start gap-2">
+								<GraduationCap className="h-3.5 w-3.5 mt-0.5 text-primary/80 flex-shrink-0" />
+								<span className="leading-relaxed">{contributor.title}</span>
+							</p>
+						)}
+						{contributor.affiliation && (
+							<p className="text-sm text-muted-foreground flex items-start gap-2">
+								<Building2 className="h-3.5 w-3.5 mt-0.5 text-primary/80 flex-shrink-0" />
+								<span className="leading-relaxed line-clamp-2">{contributor.affiliation}</span>
+							</p>
+						)}
+						{contributor.location && (
+							<p className="text-xs text-muted-foreground flex items-start gap-2">
+								<MapPin className="h-3 w-3 mt-0.5 text-primary/80 flex-shrink-0" />
+								<span className="leading-relaxed line-clamp-2">{contributor.location}</span>
+							</p>
+						)}
+						{contributor.email && (
+							<p className="text-sm flex items-center gap-2">
+								<Mail className="h-3.5 w-3.5 text-primary/80 flex-shrink-0" />
+								{contributor.email.includes(" / ") ? (
+									<span className="text-muted-foreground leading-relaxed truncate">{contributor.email}</span>
+								) : (
+									<a
+										href={`mailto:${contributor.email.trim()}`}
+										className="text-primary hover:underline leading-relaxed truncate"
+									>
+										{contributor.email}
+									</a>
+								)}
+							</p>
+						)}
+						{contributor.phone && (
+							<p className="text-sm text-muted-foreground">
+								{contributor.phone}
+							</p>
+						)}
+						{contributor.website && (
+							<a
+								href={contributor.website}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm flex items-center gap-2 text-primary hover:underline"
 							>
-								<CheckCircle2 className="h-3 w-3" />
-								{contributor.validated}
-							</Badge>
+								<ExternalLink className="h-3.5 w-3.5 shrink-0" />
+								Portfolio
+							</a>
 						)}
 					</div>
-					{contributor.title && (
-						<p className="text-sm text-muted-foreground flex items-start gap-2 group-hover:text-foreground transition-colors">
-							<GraduationCap className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
-							<span className="leading-relaxed">
-								{contributor.title}
-							</span>
-						</p>
-					)}
-					{contributor.affiliation && (
-						<p className="text-sm text-muted-foreground flex items-start gap-2 group-hover:text-foreground transition-colors">
-							<Building2 className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
-							<span className="leading-relaxed">
-								{contributor.affiliation}
-							</span>
-						</p>
-					)}
-					{contributor.location && (
-						<p className="text-sm text-muted-foreground flex items-start gap-2 group-hover:text-foreground transition-colors">
-							<MapPin className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
-							<span className="leading-relaxed">
-								{contributor.location}
-							</span>
-						</p>
-					)}
-					{contributor.email && (
-						<p className="text-sm text-muted-foreground flex items-start gap-2">
-							<Mail className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
-							{contributor.email.includes(" / ") ? (
-								<span className="leading-relaxed">
-									{contributor.email}
-								</span>
-							) : (
-								<a
-									href={`mailto:${contributor.email.trim()}`}
-									className="text-primary hover:underline leading-relaxed transition-all duration-200 hover:text-primary/80"
-								>
-									{contributor.email}
-								</a>
-							)}
-						</p>
-					)}
-					{contributor.phone && (
-						<p className="text-sm text-muted-foreground flex items-center gap-2">
-							<span className="leading-relaxed">
-								{contributor.phone}
-							</span>
-						</p>
-					)}
 				</div>
 			</CardContent>
 		</Card>
@@ -292,7 +317,6 @@ const ContributorSection = ({
 }) => {
 	if (!contributors || contributors.length === 0) return null;
 
-	// Get appropriate icon based on title
 	const getSectionIcon = () => {
 		if (title.toLowerCase().includes("software")) return Code;
 		if (title.toLowerCase().includes("annotator")) return BookOpen;
@@ -306,22 +330,20 @@ const ContributorSection = ({
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center gap-4 pb-2 border-b-2 border-primary/20">
-				<div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-					<SectionIcon className="h-6 w-6 text-primary" />
+			<div className="flex flex-wrap items-center gap-3">
+				<div className="flex items-center gap-3">
+					<div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+						<SectionIcon className="h-5 w-5 text-primary" />
+					</div>
+					<h3 className="text-xl font-semibold text-foreground">
+						{title}
+					</h3>
 				</div>
-				<h3 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-					{title}
-				</h3>
-				<Badge
-					variant="outline"
-					className="ml-auto px-4 py-1.5 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 text-primary font-semibold"
-				>
-					{contributors.length}{" "}
-					{contributors.length === 1 ? "Contributor" : "Contributors"}
+				<Badge variant="secondary" className="text-xs font-medium">
+					{contributors.length} {contributors.length === 1 ? "contributor" : "contributors"}
 				</Badge>
 			</div>
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 				{contributors.map((contributor, index) => (
 					<ContributorCard key={index} contributor={contributor} />
 				))}
@@ -330,19 +352,82 @@ const ContributorSection = ({
 	);
 };
 
-export default function AboutPage() {
-	// For now, we only have data for अष्टाङ्गहृदयम्
-	// In the future, this could be dynamic based on URL params or selection
-	const selectedBook = "अष्टाङ्गहृदयम्";
-	const bookInfo = bookData[selectedBook];
+const BOOK_SECTION_ORDER = ["experts", "validators", "ayurvedaExpert", "annotators"] as const;
 
-	if (!bookInfo) {
+export default function AboutPage() {
+	const { data: booksData, isLoading, error } = useBooks();
+	const searchParams = useSearchParams();
+	const router = useRouter();
+	const pathname = usePathname();
+
+	// Filter to user-published books only
+	const userPublishedBooks = (booksData ?? []).filter(
+		(item: { book?: string; status?: { userPublished?: boolean } }) =>
+			item.status?.userPublished === true
+	);
+
+	// Merge with bookData: for each user-published book, use bookData if available
+	const booksToShow = userPublishedBooks.map(
+		(item: { book?: string }) => {
+			const bookKey = item.book ?? "";
+			const contributorData = bookData[bookKey];
+			return {
+				bookKey,
+				bookName: contributorData?.bookName ?? bookKey,
+				bookNameEnglish: contributorData?.bookNameEnglish,
+				contributorData: contributorData ?? undefined,
+			};
+		}
+	);
+
+	const validTabValues = ["software", ...booksToShow.map((b) => b.bookKey)];
+	const tabFromUrl = searchParams.get("tab");
+	const initialTab = validTabValues.includes(tabFromUrl ?? "") ? tabFromUrl! : "software";
+	const [activeTab, setActiveTab] = useState(initialTab);
+
+	// Sync tab state with URL
+	useEffect(() => {
+		if (validTabValues.includes(tabFromUrl ?? "") && tabFromUrl !== activeTab) {
+			setActiveTab(tabFromUrl!);
+		}
+	}, [tabFromUrl]);
+
+	const handleTabChange = (value: string) => {
+		setActiveTab(value);
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("tab", value);
+		router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+	};
+
+	if (isLoading) {
 		return (
-			<div className="container mx-auto py-8">
-				<Card>
-					<CardContent className="pt-6">
-						<p className="text-center text-muted-foreground">
-							Contributor information not available for this book.
+			<div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+				<Loader2 className="h-10 w-10 animate-spin text-primary" />
+				<p className="text-muted-foreground">Loading books...</p>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="container mx-auto py-24 px-4">
+				<Card className="rounded-2xl border border-border/50 max-w-md mx-auto">
+					<CardContent className="py-12 text-center">
+						<p className="text-destructive">Failed to load books.</p>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	if (booksToShow.length === 0) {
+		return (
+			<div className="container mx-auto py-24 px-4">
+				<Card className="rounded-2xl border border-border/50 max-w-md mx-auto">
+					<CardContent className="py-12 text-center">
+						<Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+						<p className="text-muted-foreground">
+							No user-published books yet. Contributor information will appear here when books are published.
 						</p>
 					</CardContent>
 				</Card>
@@ -354,141 +439,151 @@ export default function AboutPage() {
 		<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
 			{/* Hero Section */}
 			<div className="relative overflow-hidden">
-				{/* Decorative background elements */}
 				<div
-					className="absolute inset-0 opacity-5"
+					className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
 					style={{
-						backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+						backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
 						backgroundSize: "40px 40px",
 					}}
 				/>
-				<div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-				<div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+				<div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+				<div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+				<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl" />
 
-				<div className="container mx-auto py-12 px-4 max-w-7xl relative z-10">
-					<div className="text-center space-y-6 mb-12">
-						<div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4 animate-pulse">
-							<Sparkles className="h-4 w-4 text-primary" />
-							<span className="text-sm font-medium text-primary">
-								Contributors & Team
-							</span>
-						</div>
-						<h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600">
-							{bookInfo.bookName}
-						</h1>
-						{bookInfo.bookNameEnglish && (
-							<p className="text-2xl md:text-3xl text-muted-foreground font-light">
-								{bookInfo.bookNameEnglish}
-							</p>
-						)}
-					</div>
-
-					{/* Project Information */}
-					<Card className="mb-12 border-2 shadow-xl bg-gradient-to-br from-card via-card to-card/95 backdrop-blur-sm">
-						<CardHeader className="pb-4">
-							<CardTitle className="flex items-center gap-3 text-2xl">
-								<div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
-									<Users className="h-6 w-6 text-primary" />
-								</div>
-								<span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-									Project Information
+				<div className="container mx-auto px-4 max-w-7xl relative z-10">
+					<div className="py-16 lg:py-24">
+						<div className="space-y-6 max-w-3xl">
+							<div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm w-fit">
+								<Sparkles className="h-3.5 w-3.5 text-primary" />
+								<span className="text-xs font-medium text-primary uppercase tracking-wider">
+									Contributors & Team
 								</span>
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<p className="text-muted-foreground leading-relaxed text-lg">
-								{bookInfo.projectInfo}
+							</div>
+							<h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
+								<span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">
+									About
+								</span>
+							</h1>
+							<p className="text-muted-foreground leading-relaxed">
+								The platform creators and the scholars behind each Sanskrit e-reader. A collaborative effort to make classical knowledge accessible through structured analysis and expert validation.
 							</p>
-						</CardContent>
-					</Card>
+						</div>
+					</div>
 				</div>
 			</div>
 
-			{/* Contributors Sections */}
-			<div className="container mx-auto px-4 max-w-7xl space-y-12 pb-12">
-				{/* Software Development */}
-				{bookInfo.softwareDevelopment && (
-					<>
+			{/* Tabbed content */}
+			<div className="container mx-auto px-4 max-w-7xl pb-16">
+				<Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+					<TabsList className="w-full flex-wrap h-auto gap-1 p-2 bg-muted/50 mb-6">
+						<TabsTrigger value="software" className="flex items-center gap-2 px-4 py-2">
+							<Code className="h-4 w-4" />
+							Software
+						</TabsTrigger>
+						{booksToShow.map(({ bookKey, bookName, bookNameEnglish }) => (
+							<TabsTrigger key={bookKey} value={bookKey} className="flex items-center gap-2 px-4 py-2">
+								<BookOpen className="h-4 w-4" />
+								{bookNameEnglish ?? bookName}
+							</TabsTrigger>
+						))}
+					</TabsList>
+
+					<TabsContent value="software" className="mt-0">
 						<ContributorSection
 							title="Software Development"
-							contributors={bookInfo.softwareDevelopment}
+							contributors={SHARED_SOFTWARE_DEVELOPMENT}
 							icon={Code}
 						/>
-						<Separator className="my-8 opacity-30" />
-					</>
-				)}
+					</TabsContent>
 
-				{/* Annotators */}
-				{bookInfo.annotators && (
-					<>
-						<ContributorSection
-							title="Annotators"
-							contributors={bookInfo.annotators}
-							icon={BookOpen}
-						/>
-						<Separator className="my-8 opacity-30" />
-					</>
-				)}
+					{booksToShow.map(({ bookKey, bookName, bookNameEnglish, contributorData }) => {
+						const projectInfo = PROJECT_INFO_TEMPLATE(bookNameEnglish ?? bookName);
+						return (
+							<TabsContent key={bookKey} value={bookKey} className="mt-0 space-y-12">
+								{/* Book header */}
+								<div className="space-y-2">
+									<h2 className="text-2xl md:text-3xl font-bold text-foreground">
+										{bookName}
+									</h2>
+									{bookNameEnglish && (
+										<p className="text-lg text-muted-foreground font-light">
+											{bookNameEnglish}
+										</p>
+									)}
+								</div>
 
-				{/* Ayurveda Expert */}
-				{bookInfo.ayurvedaExpert && (
-					<>
-						<ContributorSection
-							title="Ayurveda Expert"
-							contributors={bookInfo.ayurvedaExpert}
-							icon={Stethoscope}
-						/>
-						<Separator className="my-8 opacity-30" />
-					</>
-				)}
+								{/* Project Information */}
+								<Card className="rounded-2xl border-2 border-white/20 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl shadow-xl overflow-hidden">
+									<CardHeader className="pb-2">
+										<CardTitle className="flex items-center gap-3 text-lg font-semibold">
+											<div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+												<Users className="h-5 w-5 text-primary" />
+											</div>
+											Project Information
+										</CardTitle>
+									</CardHeader>
+									<CardContent>
+										<p className="text-muted-foreground leading-relaxed">
+											{projectInfo}
+										</p>
+									</CardContent>
+								</Card>
 
-				{/* Validators */}
-				{bookInfo.validators && (
-					<>
-						<ContributorSection
-							title="Validators"
-							contributors={bookInfo.validators}
-							icon={CheckCircle2}
-						/>
-						<Separator className="my-8 opacity-30" />
-					</>
-				)}
-
-				{/* Experts */}
-				{bookInfo.experts && (
-					<>
-						<ContributorSection
-							title="Experts"
-							contributors={bookInfo.experts}
-							icon={Sparkles}
-						/>
-					</>
-				)}
+								{/* Contributors */}
+								{contributorData ? (
+									<div className="space-y-14">
+										{BOOK_SECTION_ORDER.map((sectionKey) => {
+											const contributors = contributorData[sectionKey];
+											if (!contributors || contributors.length === 0) return null;
+											const titles: Record<(typeof BOOK_SECTION_ORDER)[number], string> = {
+												experts: "Experts",
+												validators: "Validators",
+												ayurvedaExpert: "Ayurveda Expert",
+												annotators: "Annotators",
+											};
+											const icons: Record<(typeof BOOK_SECTION_ORDER)[number], React.ElementType> = {
+												experts: Sparkles,
+												validators: CheckCircle2,
+												ayurvedaExpert: Stethoscope,
+												annotators: BookOpen,
+											};
+											return (
+												<div key={sectionKey}>
+													<ContributorSection
+														title={titles[sectionKey]}
+														contributors={contributors}
+														icon={icons[sectionKey]}
+													/>
+												</div>
+											);
+										})}
+									</div>
+								) : (
+									<p className="text-sm text-muted-foreground italic">
+										Contributor information will be added soon.
+									</p>
+								)}
+							</TabsContent>
+						);
+					})}
+				</Tabs>
 			</div>
 
-			{/* Footer Note */}
-			<div className="container mx-auto px-4 max-w-7xl pb-12">
-				<Card className="border-2 shadow-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 backdrop-blur-sm">
-					<CardContent className="pt-8 pb-8">
-						<div className="flex flex-col items-center gap-4 text-center">
-							<div className="p-3 rounded-full bg-primary/20 border border-primary/30">
-								<Heart className="h-6 w-6 text-primary fill-primary" />
-							</div>
-							<p className="text-base md:text-lg text-foreground/80 leading-relaxed max-w-2xl font-medium">
-								We extend our heartfelt gratitude to all
-								contributors who have made this project possible
-								through their dedication and expertise.
-							</p>
-							<div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-								<Sparkles className="h-4 w-4" />
-								<span>
-									Thank you for your invaluable contributions
-								</span>
-								<Sparkles className="h-4 w-4" />
-							</div>
-						</div>
-					</CardContent>
-				</Card>
+			{/* Footer Note - compact & catchy */}
+			<div className="container mx-auto px-4 max-w-7xl pb-16">
+				<div className="group relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10/50 to-primary/5 px-5 py-3.5 flex items-center justify-center gap-3 text-center hover:border-primary/30 transition-colors duration-300">
+					<Heart className="h-5 w-5 text-primary fill-primary shrink-0 animate-pulse transition-transform group-hover:scale-110" />
+					<p className="text-sm text-foreground/90 font-medium">
+						Thank you to all contributors for making this possible
+						<span className="inline-flex ml-1.5 gap-0.5 opacity-80">
+							<Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" style={{ animationDelay: "0.2s" }} />
+							<Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" style={{ animationDelay: "0.4s" }} />
+							<Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" style={{ animationDelay: "0.6s" }} />
+						</span>
+					</p>
+					{/* Shimmer sweep on hover */}
+					<div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+				</div>
 			</div>
 		</div>
 	);
