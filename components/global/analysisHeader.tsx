@@ -222,6 +222,11 @@ export function Header({
                                             <SelectItem value="Monier Williams' Skt-Eng Dict">Monier Williams Sanskrit-English</SelectItem>
                                             <SelectItem value="Heritage Skt-French Dict">Heritage Sanskrit-French</SelectItem>
                                             <SelectItem value="Cappeller's Skt-Ger Dict">Cappeller Sanskrit-German</SelectItem>
+                                            {book === "अष्टाङ्गहृदयम्" && (
+                                                <SelectItem value="Ayurveda (NIIMH)">
+                                                    Ayurveda Dictionary (NIIMH, Ashtanga only)
+                                                </SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>

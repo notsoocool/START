@@ -237,6 +237,8 @@ export default function AnalysisPage() {
 	const MIN_ZOOM = 0.5;
 	const MAX_ZOOM = 2;
 	const ZOOM_STEP = 0.1;
+	const AYURVEDA_DICTIONARY_KEY = "Ayurveda (NIIMH)";
+
 	const [selectedDictionary, setSelectedDictionary] = useState<string>(
 		"Apte's Skt-Hnd Dict"
 	); // Default dictionary
@@ -1027,26 +1029,47 @@ export default function AnalysisPage() {
 
 	const fetchMeaning = async (word: string, procIndex: number) => {
 		try {
-			// Make API request to get dictionary meanings
-			const response = await fetch(
+			// Always fetch SCL dictionaries (used for non-Ayurveda options & allMeanings)
+			const sclResponse = await fetch(
 				`https://scl.samsaadhanii.in/cgi-bin/scl/MT/dict_help_json.cgi?word=${word}`
 			);
-			const dictionaries = await response.json();
+			const dictionaries = await sclResponse.json();
 
-			// Update all available meanings
+			// Keep SCL dictionaries around for other options / debugging
 			setAllMeanings(dictionaries);
 
-			// Handle response data
-			if (!dictionaries?.length) {
-				throw new Error("No meanings found");
+			let meaning: string | undefined;
+
+			// If user selected Ayurveda and we're on Ashtanga Hridayam, prefer the local Ayurveda dictionary
+			if (
+				decodedBook === "अष्टाङ्गहृदयम्" &&
+				selectedDictionary === AYURVEDA_DICTIONARY_KEY
+			) {
+				const ayurvedaResponse = await fetch(
+					`/api/ayurveda-dictionary?word=${encodeURIComponent(
+						word
+					)}&book=${encodeURIComponent(decodedBook)}`
+				);
+
+				if (ayurvedaResponse.ok) {
+					const ayurvedaData = await ayurvedaResponse.json();
+					if (ayurvedaData?.found && ayurvedaData.definition) {
+						meaning = ayurvedaData.definition as string;
+					}
+				}
 			}
 
-			// Find meaning from currently selected dictionary
-			const meaning = dictionaries.find(
-				(dict: any) => dict.DICT === selectedDictionary
-			)?.Meaning;
+			// Fallback to SCL dictionaries (for non-Ayurveda selections or if Ayurveda has no match)
+			if (!meaning) {
+				if (!dictionaries?.length) {
+					throw new Error("No meanings found");
+				}
+				meaning = dictionaries.find(
+					(dict: any) => dict.DICT === selectedDictionary
+				)?.Meaning as string | undefined;
+			}
 
-			// Update meaning for this word
+			// Update meaning for this word based on the selected dictionary
 			setSelectedMeaning((prev) => ({
 				...prev,
 				[procIndex]: meaning || "Meaning not found",
@@ -1801,7 +1824,8 @@ export default function AnalysisPage() {
 		procIndex: number,
 		currentProcessedData: any,
 		isHovered: any,
-		lookupWord: any
+		lookupWord: any,
+		ayurvedaWord: string
 	) => {
 		if (!permissions) return <TableCell></TableCell>;
 
@@ -2072,11 +2096,18 @@ export default function AnalysisPage() {
 								<TooltipTrigger asChild>
 									<div
 										onMouseEnter={() => {
-											if (lookupWord)
-												fetchMeaning(
-													lookupWord,
-													procIndex
-												);
+											// For Ayurveda dictionary on Ashtanga Hridayam, use the explicit word field.
+											// Otherwise, use the traditional morph_in_context-based lookupWord.
+											const queryWord =
+												decodedBook === "अष्टाङ्गहृदयम्" &&
+												selectedDictionary ===
+													AYURVEDA_DICTIONARY_KEY
+													? ayurvedaWord || lookupWord
+													: lookupWord;
+
+											if (queryWord) {
+												fetchMeaning(queryWord, procIndex);
+											}
 										}}
 									>
 										{isDeleted
@@ -2290,7 +2321,20 @@ export default function AnalysisPage() {
 			{chapter?.map((processed: any, procIndex: number) => {
 				const currentProcessedData = updatedData[procIndex];
 				const isHovered = hoveredRowIndex === procIndex;
-				const lookupWord = extractWord(processed.morph_in_context);
+
+				// Default dictionary lookup word from morph_in_context (historical behavior)
+				const lookupWord = processed.morph_in_context
+					? extractWord(String(processed.morph_in_context))
+					: "";
+
+				// Explicit word field (used preferentially for Ayurveda dictionary lookups)
+				const ayurvedaWord =
+					(
+						(currentProcessedData?.word as string | undefined) ??
+						(processed.word as string | undefined) ??
+						""
+					).trim();
+
 				const rowErrors = getRowErrors(processed, procIndex);
 
 				return (
@@ -2333,7 +2377,8 @@ export default function AnalysisPage() {
 							procIndex,
 							currentProcessedData,
 							isHovered,
-							lookupWord
+							lookupWord,
+							ayurvedaWord
 						)}
 					</TableRow>
 				);
