@@ -73,7 +73,7 @@ const MainPage = () => {
 			<section className="relative min-h-[85vh] overflow-hidden rounded-2xl">
 				<WavyBackground
 					containerClassName="absolute inset-0 min-h-[85vh]"
-					className="w-full px-4 py-24 sm:px-6 sm:py-32 lg:px-8"
+					className="w-full px-4 pt-28 pb-20 sm:px-6 sm:pt-32 sm:pb-32 lg:px-8"
 					backgroundFill={resolvedTheme === "dark" ? "rgb(3 7 18)" : "rgb(248 250 252)"}
 					colors={["#38bdf8", "#818cf8", "#c084fc", "#e879f9", "#22d3ee"]}
 					waveOpacity={0.5}
@@ -150,7 +150,7 @@ const MainPage = () => {
 			</section>
 
 			{/* Hero images - light/dark mode */}
-			<section className="relative -mt-4 overflow-hidden rounded-2xl px-4">
+			<section className="relative mt-6 overflow-hidden rounded-2xl px-4">
 				<div className="container mx-auto max-w-4xl">
 					<img
 						src="/images/hero-light.png"
