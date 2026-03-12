@@ -80,15 +80,16 @@ const bookData: Record<string, BookContributors> = {
 				name: "Ms Vasudha Neelamana",
 			},
 			{
-				name: "Ms Sandra",
+				name: "Ms Sandhra K.R.",
 			},
 			{
-				name: "Ms Krishnapriya",
+				name: "Ms Krishnapriya P.S",
 			},
 		],
 		ayurvedaExpert: [
 			{
-				name: "Dr. Saraswati Sarma",
+				name: "Dr. K Saraswathi Himabala",
+                title: "Senior Research Scientist"
 			},
 		],
 		validators: [

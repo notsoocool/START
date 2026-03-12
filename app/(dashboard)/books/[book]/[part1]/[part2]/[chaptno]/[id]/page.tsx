@@ -238,10 +238,44 @@ export default function AnalysisPage() {
 	const MAX_ZOOM = 2;
 	const ZOOM_STEP = 0.1;
 	const AYURVEDA_DICTIONARY_KEY = "Ayurveda (NIIMH)";
+	const DICTIONARY_PREF_KEY = "start_selected_dictionary";
 
-	const [selectedDictionary, setSelectedDictionary] = useState<string>(
-		"Apte's Skt-Hnd Dict"
-	); // Default dictionary
+	const [selectedDictionary, setSelectedDictionary] = useState<string>(() => {
+		if (typeof window === "undefined") {
+			return "Apte's Skt-Hnd Dict";
+		}
+		try {
+			const stored = window.localStorage.getItem(DICTIONARY_PREF_KEY);
+			return stored || "Apte's Skt-Hnd Dict";
+		} catch {
+			return "Apte's Skt-Hnd Dict";
+		}
+	}); // Default dictionary
+
+	const decodeDictionaryMeaning = (raw: string | undefined | null): string => {
+		if (!raw) return "";
+		// Use the browser to decode HTML entities and strip tags
+		if (typeof window !== "undefined" && window.document) {
+			const div = window.document.createElement("div");
+			div.innerHTML = raw;
+			const text = div.textContent || div.innerText || "";
+			return text.replace(/\s+/g, " ").trim();
+		}
+		// Fallback: basic numeric entity cleanup
+		return raw.replace(/&#(\d+);/g, (_, code) =>
+			String.fromCharCode(parseInt(code, 10))
+		);
+	};
+
+	// Persist dictionary preference across shlokas
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			window.localStorage.setItem(DICTIONARY_PREF_KEY, selectedDictionary);
+		} catch {
+			// ignore storage errors
+		}
+	}, [selectedDictionary, DICTIONARY_PREF_KEY]);
 	const [chapters, setChapters] = useState<string[]>([]);
 	const [shlokas, setShlokas] = useState<string[]>([]);
 	const [availableShlokas, setAvailableShlokas] = useState<Shloka[]>([]);
@@ -1054,7 +1088,9 @@ export default function AnalysisPage() {
 				if (ayurvedaResponse.ok) {
 					const ayurvedaData = await ayurvedaResponse.json();
 					if (ayurvedaData?.found && ayurvedaData.definition) {
-						meaning = ayurvedaData.definition as string;
+						meaning = decodeDictionaryMeaning(
+							ayurvedaData.definition as string
+						);
 					}
 				}
 			}
@@ -1064,9 +1100,12 @@ export default function AnalysisPage() {
 				if (!dictionaries?.length) {
 					throw new Error("No meanings found");
 				}
-				meaning = dictionaries.find(
+				const sclMeaning = dictionaries.find(
 					(dict: any) => dict.DICT === selectedDictionary
 				)?.Meaning as string | undefined;
+				if (sclMeaning) {
+					meaning = decodeDictionaryMeaning(sclMeaning);
+				}
 			}
 
 			// Update meaning for this word based on the selected dictionary

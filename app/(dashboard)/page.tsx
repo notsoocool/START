@@ -87,7 +87,7 @@ const MainPage = () => {
 									: "border border-gray-300 bg-white/80 text-gray-700 hover:border-purple-300 hover:bg-white"
 							}`}
 						>
-							Explore 1000+ shlokas with word-by-word analysis →
+							Explore 10,000+ shlokas with word-by-word analysis →
 						</a>
 
 						<h1
