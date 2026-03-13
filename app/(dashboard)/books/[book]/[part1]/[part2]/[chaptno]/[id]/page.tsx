@@ -1070,7 +1070,10 @@ export default function AnalysisPage() {
 			: morphInContext.slice(0, bracketIndex).trim();
 	};
 
-	const fetchMeaning = async (word: string, procIndex: number) => {
+	const fetchMeaning = async (
+		word: string,
+		procIndex: number
+	): Promise<string | undefined> => {
 		try {
 			// Always fetch SCL dictionaries (used for non-Ayurveda options & allMeanings)
 			const sclResponse = await fetch(
@@ -1118,10 +1121,12 @@ export default function AnalysisPage() {
 			}
 
 			// Update meaning for this word based on the selected dictionary
+			const finalMeaning = meaning || "Meaning not found";
 			setSelectedMeaning((prev) => ({
 				...prev,
-				[procIndex]: meaning || "Meaning not found",
+				[procIndex]: finalMeaning,
 			}));
+			return finalMeaning;
 		} catch (error) {
 			console.error("Error fetching meaning:", error);
 
@@ -2155,6 +2160,24 @@ export default function AnalysisPage() {
 
 											if (queryWord) {
 												fetchMeaning(queryWord, procIndex);
+											}
+										}}
+										onClick={async () => {
+											// Mobile/tap support: fetch meaning and open full dialog directly
+											const queryWord =
+												decodedBook === "अष्टाङ्गहृदयम्" &&
+												selectedDictionary ===
+													AYURVEDA_DICTIONARY_KEY
+													? ayurvedaWord || lookupWord
+													: lookupWord;
+											if (!queryWord) return;
+											const fullMeaning = await fetchMeaning(
+												queryWord,
+												procIndex
+											);
+											if (fullMeaning) {
+												setSelectedWordMeaning(fullMeaning);
+												setOpenDialog("meaning");
 											}
 										}}
 									>
