@@ -109,7 +109,7 @@ const MainPage = () => {
 								resolvedTheme === "dark" ? "text-white/80" : "text-gray-600"
 							}`}
 						>
-							Our platform brings you structured morphological analysis, multiple language meanings, and interactive learning—so you can understand every word instead of memorizing verses.
+							Our platform brings you structured morphological analysis, multiple language meanings, and interactive learning—so you can understand every word in addition to memorising verses.
 						</p>
 
 						<div className="mt-10 flex flex-wrap gap-4">
