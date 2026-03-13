@@ -257,7 +257,7 @@ export function useDiscussions(shlokaId: string) {
 export function useAddDiscussion() {
 	const queryClient = useQueryClient();
 	return useMutation({
-		mutationFn: async (data: { shlokaId: string; message: string }) => {
+		mutationFn: async (data: { shlokaId: string; message: string; parentId?: string | null }) => {
 			const response = await fetch("/api/discussions", {
 				method: "POST",
 				headers: {

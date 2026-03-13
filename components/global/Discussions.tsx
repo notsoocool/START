@@ -43,7 +43,7 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 			return;
 		}
 		addDiscussion.mutate(
-			{ shlokaId, message: commentText },
+			{ shlokaId, message: commentText, parentId: replyTo ?? null },
 			{
 				onSuccess: () => {
 					setNewComment("");
@@ -95,25 +95,69 @@ export function Discussions({ shlokaId }: DiscussionProps) {
 		return isOwner || isAdminOrRoot;
 	};
 
-	const renderDiscussions = (parentId: string | null = null, depth: number = 0): JSX.Element[] => {
-		const filteredDiscussions = discussions.filter((d: Discussion) => d.parentId === parentId);
+	const renderDiscussions = (
+		parentId: string | null = null,
+		depth: number = 0
+	): JSX.Element[] => {
+		const filteredDiscussions = discussions.filter(
+			(d: Discussion) => d.parentId === parentId
+		);
 		return filteredDiscussions.map((discussion: Discussion) => {
-			const parentDiscussion = discussions.find((d: Discussion) => d._id === discussion.parentId);
+			const parentDiscussion = discussions.find(
+				(d: Discussion) => d._id === discussion.parentId
+			);
 			const isReplying = replyTo === discussion._id;
+			const isChild = depth > 0;
 			return (
-				<div key={discussion._id} className={`${depth > 0 ? "ml-8 border-l-2 border-muted pl-4" : ""}`}>
-					<Card className="mb-4">
+				<div
+					key={discussion._id}
+					className={
+						isChild
+							? "ml-10 mt-2 border-l-2 border-primary/25 pl-4 space-y-2"
+							: "space-y-2"
+					}
+				>
+					<Card
+						className={`mb-3 ${
+							isChild
+								? "bg-primary/5 dark:bg-primary/10/40 border-primary/20"
+								: ""
+						}`}
+					>
 						<CardContent className="pt-4">
 							<div className="flex items-start gap-4">
 								<Avatar>
-									<AvatarFallback>{discussion.userName[0]}</AvatarFallback>
+									<AvatarFallback>
+										{discussion.userName[0]}
+									</AvatarFallback>
 								</Avatar>
 								<div className="flex-1">
 									<div className="flex items-center justify-between">
 										<div>
-											<p className="font-semibold">{discussion.userName}</p>
-											{parentDiscussion && <p className="text-sm text-muted-foreground">Replying to {parentDiscussion.userName}</p>}
-											<p className="text-sm text-muted-foreground">{formatDistanceToNow(new Date(discussion.createdAt), { addSuffix: true })}</p>
+											<div className="flex items-center gap-2">
+												<p className="font-semibold">
+													{discussion.userName}
+												</p>
+												{isChild && (
+													<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+														Reply
+													</span>
+												)}
+											</div>
+											{parentDiscussion && isChild && (
+												<p className="text-xs italic text-muted-foreground">
+													↳ Replying to{" "}
+													<span className="font-medium">
+														{parentDiscussion.userName}
+													</span>
+												</p>
+											)}
+											<p className="text-xs text-muted-foreground">
+												{formatDistanceToNow(
+													new Date(discussion.createdAt),
+													{ addSuffix: true }
+												)}
+											</p>
 										</div>
 										{canDeleteComment(discussion) && (
 											<Button variant="ghost" size="icon" onClick={() => handleDelete(discussion._id)}>
