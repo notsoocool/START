@@ -240,6 +240,15 @@ export default function AnalysisPage() {
 	const AYURVEDA_DICTIONARY_KEY = "Ayurveda (NIIMH)";
 	const DICTIONARY_PREF_KEY = "start_selected_dictionary";
 
+	// Track the currently selected chapter in UI (can differ from route chaptno
+	// until a specific shloka is selected and navigation occurs)
+	const [activeChapter, setActiveChapter] = useState(decodedChaptno);
+
+	useEffect(() => {
+		// When route chapter changes (after navigation), sync UI chapter
+		setActiveChapter(decodedChaptno);
+	}, [decodedChaptno]);
+
 	const [selectedDictionary, setSelectedDictionary] = useState<string>(() => {
 		if (typeof window === "undefined") {
 			return "Apte's Skt-Hnd Dict";
@@ -3285,6 +3294,7 @@ export default function AnalysisPage() {
 	const handleChapterChange = async (newChapter: string) => {
 		try {
 			setLoading(true);
+			setActiveChapter(newChapter);
 			console.log("Fetching shlokas for chapter:", newChapter);
 			const response = await fetch(
 				`/api/books/${decodedBook}/${decodedPart1}/${decodedPart2}/${newChapter}`
@@ -3494,24 +3504,24 @@ export default function AnalysisPage() {
 							</Link>
 						)}
 						<Header
-						book={decodedBook}
-						part1={decodedPart1}
-						part2={decodedPart2}
-						chaptno={decodedChaptno}
-						id={decodedId}
-						shloka={shloka}
-						availableShlokas={availableShlokas}
-						selectedColumns={selectedColumns}
-						columnOptions={columnOptions}
-						selectedDictionary={selectedDictionary}
-						handleShlokaChange={handleShlokaChange}
-						handleColumnSelect={handleColumnSelect}
-						handleOpacityChange={handleOpacityChange}
-						setSelectedDictionary={setSelectedDictionary}
-						handleGenerateGraph={handleGenerateGraph}
-						chapters={chapters}
-						onChapterChange={handleChapterChange}
-					/>
+							book={decodedBook}
+							part1={decodedPart1}
+							part2={decodedPart2}
+							chaptno={activeChapter}
+							id={decodedId}
+							shloka={shloka}
+							availableShlokas={availableShlokas}
+							selectedColumns={selectedColumns}
+							columnOptions={columnOptions}
+							selectedDictionary={selectedDictionary}
+							handleShlokaChange={handleShlokaChange}
+							handleColumnSelect={handleColumnSelect}
+							handleOpacityChange={handleOpacityChange}
+							setSelectedDictionary={setSelectedDictionary}
+							handleGenerateGraph={handleGenerateGraph}
+							chapters={chapters}
+							onChapterChange={handleChapterChange}
+						/>
 					</div>
 				</div>
 

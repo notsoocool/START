@@ -55,11 +55,6 @@ export function Header({
     const [isChangingChapter, setIsChangingChapter] = useState(false);
     const [displayChapter, setDisplayChapter] = useState(chaptno);
 
-    // Update displayChapter when chaptno prop changes
-    useEffect(() => {
-        setDisplayChapter(chaptno);
-    }, [chaptno]);
-
     const handleChapterSelect = async (newChapter: string) => {
         if (newChapter === displayChapter) return;
         console.log("Changing chapter from", displayChapter, "to", newChapter);
@@ -95,6 +90,8 @@ export function Header({
 
         // Use the shloka's own chapter number instead of the selected chapter
         const shlokaChapter = selectedShloka.chaptno;
+        // Ensure the chapter dropdown reflects the shloka's chapter
+        setDisplayChapter(shlokaChapter);
         // Use the shloka's part1 and part2 values, or fallback to current values
         const part1Value = selectedShloka.part1 || part1;
         const part2Value = selectedShloka.part2 || part2;
@@ -128,19 +125,36 @@ export function Header({
         <div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-center w-full">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold tracking-tight">Analysis Dashboard</h1>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+                    {/* Chapter selection - Shadcn Select */}
                     <div className="relative">
-                        <Select value={displayChapter} onValueChange={handleChapterSelect} disabled={isLoading}>
-                            <SelectTrigger className={`w-[150px] transition-all duration-300 ${isChangingChapter ? "bg-muted" : ""}`}>
+                        <Select
+                            value={displayChapter}
+                            onValueChange={handleChapterSelect}
+                            disabled={isLoading || isChangingChapter}
+                        >
+                            <SelectTrigger
+                                className={`w-[150px] transition-all duration-300 ${
+                                    isChangingChapter ? "bg-muted" : ""
+                                }`}
+                            >
                                 <div className="flex items-center gap-2">
-                                    {isChangingChapter && <Loader2 className="h-4 w-4 animate-spin" />}
+                                    {isChangingChapter && (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    )}
                                     <SelectValue>Chapter {displayChapter}</SelectValue>
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
                                 {chapters && chapters.length > 0 ? (
                                     chapters.map((chapter) => (
-                                        <SelectItem key={chapter} value={chapter} className={chapter === displayChapter ? "bg-muted" : ""}>
+                                        <SelectItem
+                                            key={chapter}
+                                            value={chapter}
+                                            className={
+                                                chapter === displayChapter ? "bg-muted" : ""
+                                            }
+                                        >
                                             Chapter {chapter}
                                         </SelectItem>
                                     ))
@@ -151,7 +165,9 @@ export function Header({
                                 )}
                             </SelectContent>
                         </Select>
-                        {isChangingChapter && <div className="absolute inset-0 bg-muted/50 rounded-md animate-pulse" />}
+                        {isChangingChapter && (
+                            <div className="absolute inset-0 rounded-md bg-muted/50 animate-pulse" />
+                        )}
                     </div>
 
                     <div className="relative">
