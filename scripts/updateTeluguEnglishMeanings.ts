@@ -22,7 +22,7 @@ async function updateTeluguEnglishMeanings() {
 		const BOOK = "अष्टाङ्गहृदयम्";
 		const PART1 = null;
 		const PART2 = null;
-		const CHAPTER = "02";
+		const CHAPTER = "04";
 		const TELUGU_LANG_CODE = "te";
 
 		// Get TSV file path from command line argument or use default
@@ -65,26 +65,49 @@ async function updateTeluguEnglishMeanings() {
 				continue;
 			}
 
-			// Split by comma (CSV format)
-			const parts = line.split(",");
+			// Tab-separated (meaning.tsv): index, word, morph_in_context, telugu, english (last two optional).
+			// If the line has no tabs, fall back to legacy CSV parsing (quoted commas supported).
+			let word: string;
+			let morph_in_context: string;
+			let telugu_meaning: string;
+			let english_meaning: string;
 
-			if (parts.length < 4) {
-				// Try to handle cases where there might be fewer columns (empty values at the end)
-				if (parts.length < 2) {
+			if (line.includes("\t")) {
+				const parts = line.split("\t").map((c) => c.trim());
+				while (parts.length < 5) {
+					parts.push("");
+				}
+				// 0: index (ignored), 1–4: word, morph, telugu, english
+				const [, w, m, te, en] = parts;
+				word = w ?? "";
+				morph_in_context = m ?? "";
+				telugu_meaning = te ?? "";
+				english_meaning = en ?? "";
+			} else {
+				const parts = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+				if (parts.length < 5) {
 					console.warn(
-						`Skipping line ${lineNumber}: Expected at least 2 columns, got ${parts.length}`
+						`Skipping line ${lineNumber}: Expected at least 5 columns, got ${parts.length}`
 					);
 					continue;
 				}
-				// Pad with empty strings if needed
-				while (parts.length < 4) {
-					parts.push("");
-				}
+				const [, rawWord, rawMorphInContext, rawTeluguMeaning, rawEnglishMeaning] =
+					parts;
+				const unquote = (value: string) =>
+					value.trim().replace(/^"(.*)"$/, "$1");
+				word = unquote(rawWord ?? "");
+				morph_in_context = unquote(rawMorphInContext ?? "");
+				telugu_meaning = unquote(rawTeluguMeaning ?? "");
+				english_meaning = unquote(rawEnglishMeaning ?? "");
 			}
 
-			// Extract: word, morph_in_context, telugu_meaning, english_meaning
-			const [word, morph_in_context, telugu_meaning, english_meaning] = parts;
-
+			// Skip separator / filler rows (e.g. ".	-" or "-	-")
+			if (
+				(word === "-" && morph_in_context === "-") ||
+				(word === "." && morph_in_context === "-")
+			) {
+				continue;
+			}
 			// Skip if word or morph_in_context is missing (required for matching)
 			if (
 				!word ||

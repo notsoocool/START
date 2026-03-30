@@ -49,7 +49,7 @@ interface Contributor {
 }
 
 interface BookContributors {
-	bookName: string;
+	/** Optional English subtitle; tab label is `bookNameEnglish ?? API book` (see merge below). */
 	bookNameEnglish?: string;
 	annotators?: Contributor[];
 	experts?: Contributor[];
@@ -71,9 +71,7 @@ const SHARED_SOFTWARE_DEVELOPMENT: Contributor[] = [
 	},
 ];
 
-const bookData: Record<string, BookContributors> = {
-	अष्टाङ्गहृदयम्: {
-		bookName: "अष्टाङ्गहृदयम्",
+const bookDataAstanga: BookContributors = {
 		bookNameEnglish: "Ashtanga Hridayam",
 		annotators: [
 			{
@@ -227,8 +225,154 @@ const bookData: Record<string, BookContributors> = {
 					"1A Radha Govind apts, 433 Narayan peth, Near patrya maruti, Pune 411030",
 			},
 		],
-	},
 };
+
+/** Register the same contributor block under multiple API `book` string variants. */
+function registerBookVariants(
+	map: Record<string, BookContributors>,
+	keys: string[],
+	entry: BookContributors
+) {
+	for (const k of keys) {
+		map[k] = entry;
+	}
+}
+
+const bookData: Record<string, BookContributors> = {
+	अष्टाङ्गहृदयम्: bookDataAstanga,
+};
+
+// --- Additional published books: keys must match the `book` field from `/api/books` (MongoDB). ---
+registerBookVariants(bookData, ["1000 Sentences"], {
+	annotators: [
+		{ name: "Amruta Malvade" },
+		{ name: "Malay Maity" },
+		{ name: "Sri Vani Potluri" },
+		{ name: "Aditi" },
+		{ name: "Rugved Deshpande" },
+	],
+	validators: [
+		{ name: "Amruta Malvade" },
+		{ name: "Malay Maity" },
+		{ name: "Sri Vani Potluri" },
+		{ name: "Aditi" },
+		{ name: "Rugved Deshpande" },
+	],
+});
+
+registerBookVariants(
+	bookData,
+	["Sankshepa Ramayanam", "संक्षेपरामायणम्", "संक्षेप रामायणम्"],
+	{
+		annotators: [
+			{ name: "Anilkumar" },
+			{ name: "Monali Das" },
+			{ name: "Saee Vaze" },
+			{ name: "Aditi" },
+		],
+		validators: [
+			{ name: "Anilkumar" },
+			{ name: "Monali Das" },
+			{ name: "Saee Vaze" },
+			{ name: "Aditi" },
+		],
+	}
+);
+
+registerBookVariants(
+	bookData,
+	[
+		"Srimad Bhagvad Geeta",
+		"Srimad Bhagavad Gita",
+		"श्रीमद्भगवद्गीता",
+		"श्रीमद् भगवद् गीता",
+	],
+	{
+		annotators: [
+			{ name: "Preeti Shukl" },
+			{ name: "Malay Maity" },
+			{ name: "Sri Vani Potluri" },
+			{ name: "Aditi" },
+		],
+		validators: [
+			{ name: "Preeti Shukl" },
+			{ name: "Malay Maity" },
+			{ name: "Sri Vani Potluri" },
+			{ name: "Aditi" },
+		],
+	}
+);
+
+registerBookVariants(bookData, ["Raghuvamsham", "रघुवंशम्"], {
+	annotators: [
+		{
+			name: "Participants of the online Sanskrit Bharati course level 5 (2019–20)",
+		},
+		{ name: "Aditi Anand" },
+		{ name: "Bishnu" },
+		{ name: "Amruta Barbadikar" },
+		{ name: "Amruta Malvade" },
+		{ name: "Arjuna S R" },
+		{ name: "Jaydeep Mohonty" },
+		{ name: "Malay Maity" },
+		{ name: "Pavankumar Satuluri" },
+		{ name: "Saee Vaze" },
+		{ name: "Sanal Vikram" },
+		{ name: "Saraswati Nimma" },
+		{ name: "Shailaja Nakkawar" },
+		{ name: "Sri Vani Potuluri" },
+	],
+	validators: [
+		{ name: "Aditi Anand" },
+		{ name: "Bishnu" },
+		{ name: "Amruta Barbadikar" },
+		{ name: "Amruta Malvade" },
+		{ name: "Arjuna S R" },
+		{ name: "Jaydeep Mohonty" },
+		{ name: "Malay Maity" },
+		{ name: "Pavankumar Satuluri" },
+		{ name: "Saee Vaze" },
+		{ name: "Sanal Vikram" },
+		{ name: "Saraswati Nimma" },
+		{ name: "Shailaja Nakkawar" },
+		{ name: "Sri Vani Potuluri" },
+	],
+});
+
+registerBookVariants(
+	bookData,
+	["Upanishadas", "Upanishads", "उपनिषद्", "उपनिषदः", "उपनिषदाः"],
+	{
+		annotators: [
+			{ name: "Aditi" },
+			{ name: "Bishnu" },
+			{ name: "Joydeep Mohonty" },
+			{ name: "Rugved Deshpande" },
+			{ name: "Sri Vani Potluri" },
+		],
+		validators: [
+			{ name: "Aditi" },
+			{ name: "Bishnu" },
+			{ name: "Joydeep Mohonty" },
+			{ name: "Rugved Deshpande" },
+			{ name: "Sri Vani Potluri" },
+		],
+	}
+);
+
+registerBookVariants(bookData, ["Leelavati", "Līlāvatī", "लीलावती"], {
+	annotators: [{ name: "Nidhi Bhatia" }, { name: "Sandra K R" }],
+	validators: [{ name: "Nidhi Bhatia" }, { name: "Sandra K R" }],
+});
+
+registerBookVariants(bookData, ["Veda", "वेद", "वेदाः"], {
+	annotators: [
+		{ name: "Gayathri", title: "Editor" },
+		{ name: "Bhagyalata Pataskar", title: "Consultant" },
+		{ name: "Jayashree Sathye", title: "Consultant" },
+	],
+	validators: [],
+});
 
 const ContributorCard = ({ contributor }: { contributor: Contributor }) => {
 	const initials = getInitials(contributor.name);
@@ -381,7 +525,8 @@ export default function AboutPage() {
 			const contributorData = bookData[bookKey];
 			return {
 				bookKey,
-				bookName: contributorData?.bookName ?? bookKey,
+				// Titles always match DB/API `book` (see app/api/books/route.ts aggregate).
+				bookName: bookKey,
 				bookNameEnglish: contributorData?.bookNameEnglish,
 				contributorData: contributorData ?? undefined,
 			};
