@@ -618,7 +618,16 @@ export default function AboutPage() {
 								</span>
 							</h1>
 							<p className="text-muted-foreground leading-relaxed">
-								The platform creators and the scholars behind each Sanskrit e-reader. A collaborative effort to make classical knowledge accessible through structured analysis and expert validation.
+								The platform creators and the scholars behind each Sanskrit e-reader. A collaborative effort to make classical knowledge accessible through structured analysis and expert validation.{" "}
+								<a
+									href="/E-reader.pdf"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-primary font-medium hover:underline inline-flex items-center gap-1"
+								>
+									What is an e-reader?
+									<ExternalLink className="h-3.5 w-3.5 opacity-80" />
+								</a>
 							</p>
 						</div>
 					</div>

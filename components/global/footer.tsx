@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Github, FileText, Mail, ExternalLink } from "lucide-react";
+import { Github, FileText, Mail, ExternalLink, BookOpen } from "lucide-react";
 
 const productLinks = [
 	{ href: "/", label: "Home" },
@@ -13,6 +13,11 @@ const productLinks = [
 ];
 
 const resourceLinks = [
+	{
+		href: "/E-reader.pdf",
+		label: "What is an e-reader?",
+		icon: BookOpen,
+	},
 	{ href: "https://aclanthology.org/2024.iscls-1.9/", label: "Paper", icon: FileText },
 	{ href: "https://github.com/notsoocool/start", label: "GitHub", icon: Github },
 ];
@@ -80,6 +85,7 @@ export const Footer = () => {
 							<ul className="space-y-3">
 								{resourceLinks.map((link) => {
 									const Icon = link.icon;
+									const isExternal = link.href.startsWith("http");
 									return (
 										<li key={link.href}>
 											<a
@@ -90,7 +96,9 @@ export const Footer = () => {
 											>
 												<Icon className="h-4 w-4 shrink-0" />
 												{link.label}
-												<ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+												{isExternal && (
+													<ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+												)}
 											</a>
 										</li>
 									);

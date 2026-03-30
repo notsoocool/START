@@ -1084,9 +1084,20 @@ export default function SacredTexts() {
     return (
         <div className="p-8">
             <div className="w-full max-w-7xl mx-auto space-y-6">
-                <h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-8">
+                <h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-3">
                     Sanskrit Texts
                 </h2>
+                <p className="text-center text-sm text-muted-foreground mb-8 max-w-xl mx-auto">
+                    <a
+                        href="/E-reader.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+                    >
+                        <FileText className="h-4 w-4 shrink-0" />
+                        What is an e-reader? (PDF)
+                    </a>
+                </p>
                 <div className="w-full">
                     {!isSignedIn ? (
                         <div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">
