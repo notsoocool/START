@@ -33,7 +33,7 @@ export default function ReplaceBookPage() {
 
       if (response.ok) {
         toast.success(
-          `Book name replaced successfully. Updated ${data.analysisUpdated} analysis entries and ${data.shlokasUpdated} shlokas.`
+          `Book name replaced successfully. Analysis: ${data.analysisUpdated}, shlokas: ${data.shlokasUpdated}, groups: ${data.groupsUpdated ?? 0}.`
         );
         setOldBook("");
         setNewBook("");

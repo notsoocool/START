@@ -4,7 +4,8 @@ export interface Group extends Document {
 	name: string;
 	type: "A" | "B";
 	members: string[]; // Array of userIDs from permissions model
-	assignedBooks: string[]; // Array of book values from analysis/shloka models
+	/** Must match `book` on Shloka/Analysis. Group-only renames: `scripts/renameBookTitlesMigration.ts`; full rename: POST /api/books/replace. */
+	assignedBooks: string[];
 	supervisedGroups?: string[]; // For Group B (Editors), this will be the Group A (Annotators) they supervise
 }
 
