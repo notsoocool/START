@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import UploadJsonPage from "@/components/global/upload-json"; // Import your JSON upload component
 import UserPerms from "@/components/global/user-perms"; // Import your permission change component
 import ReplaceBook from "@/components/global/replaceBook";
+import RenameChapter from "@/components/global/renameChapter";
 import GroupsPage from "@/components/global/groupAdmin";
 import BookPublishPage from "@/components/global/manageStatus";
 import DeleteEntry from "@/components/global/deleteEntry";
@@ -47,7 +48,23 @@ export default function AdminPage() {
 
 	// Open tab from URL (?tab=sanity etc.)
 	useEffect(() => {
-		if (tabParam && ["permissions", "replace", "delete", "group", "publish", "languages", "history", "download", "sanity", "missing-analysis", "online"].includes(tabParam)) {
+		if (
+			tabParam &&
+			[
+				"permissions",
+				"replace",
+				"rename-chapter",
+				"delete",
+				"group",
+				"publish",
+				"languages",
+				"history",
+				"download",
+				"sanity",
+				"missing-analysis",
+				"online",
+			].includes(tabParam)
+		) {
 			setActiveTab(tabParam);
 		}
 	}, [tabParam]);
@@ -165,6 +182,9 @@ export default function AdminPage() {
 								<SelectItem value="replace">
 									Replace Book Name
 								</SelectItem>
+								<SelectItem value="rename-chapter">
+									Rename chapter
+								</SelectItem>
 								<SelectItem value="delete">
 									Delete Entries
 								</SelectItem>
@@ -208,12 +228,12 @@ export default function AdminPage() {
 						className="overflow-x-auto scrollbar-hide"
 					>
 						<TabsList className="min-w-max space-x-1">
-							{/* <TabsTrigger
+							<TabsTrigger
 								value="upload"
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Upload JSON
-							</TabsTrigger> */}
+							</TabsTrigger>
 							<TabsTrigger
 								value="permissions"
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
@@ -225,6 +245,12 @@ export default function AdminPage() {
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Replace Book Name
+							</TabsTrigger>
+							<TabsTrigger
+								value="rename-chapter"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								Rename chapter
 							</TabsTrigger>
 							<TabsTrigger
 								value="delete"
@@ -320,6 +346,19 @@ export default function AdminPage() {
 					</CardHeader>
 					<CardContent>
 						<ReplaceBook />
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			<TabsContent value="rename-chapter">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							Rename chapter number
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<RenameChapter />
 					</CardContent>
 				</Card>
 			</TabsContent>
