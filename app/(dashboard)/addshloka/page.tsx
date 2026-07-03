@@ -43,6 +43,11 @@ import {
 import { useBooks } from "@/lib/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import {
+	splitKaarakaSambandha,
+	combineKaarakaSambandha,
+} from "@/lib/utils/kaarakaSambandha";
+import { KaarakaRelationCombobox } from "@/components/global/KaarakaRelationCombobox";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -837,20 +842,60 @@ export default function ShlokaPage() {
 									/>
 								</TableCell>
 							)}
-							{selectedColumns.includes("kaaraka_sambandha") && (
-								<TableCell>
-									<Input
-										value={processed.kaaraka_sambandha}
-										onChange={(e) =>
-											handleInputChange(
-												e,
-												procIndex,
-												"kaaraka_sambandha"
-											)
-										}
-									/>
-								</TableCell>
-							)}
+							{selectedColumns.includes("kaaraka_sambandha") &&
+								(() => {
+									const {
+										relations: kaarakaRelations,
+										toIndexes: kaarakaToIndexes,
+									} = splitKaarakaSambandha(
+										processed.kaaraka_sambandha
+									);
+
+									const emitCombined = (
+										nextRelations: string,
+										nextToIndexes: string
+									) => {
+										const combined = combineKaarakaSambandha(
+											nextRelations,
+											nextToIndexes
+										);
+										handleInputChange(
+											{
+												target: { value: combined },
+											} as React.ChangeEvent<HTMLInputElement>,
+											procIndex,
+											"kaaraka_sambandha"
+										);
+									};
+
+									return (
+										<>
+											<TableCell>
+												<KaarakaRelationCombobox
+													value={kaarakaRelations}
+													onChange={(nextRelations) =>
+														emitCombined(
+															nextRelations,
+															kaarakaToIndexes
+														)
+													}
+												/>
+											</TableCell>
+											<TableCell>
+												<Input
+													value={kaarakaToIndexes}
+													placeholder="Enter To Index"
+													onChange={(e) =>
+														emitCombined(
+															kaarakaRelations,
+															e.target.value
+														)
+													}
+												/>
+											</TableCell>
+										</>
+									);
+								})()}
 							{selectedColumns.includes("possible_relations") && (
 								<TableCell>
 									<Input
@@ -1715,9 +1760,12 @@ export default function ShlokaPage() {
 										{selectedColumns.includes(
 											"kaaraka_sambandha"
 										) && (
-											<TableHead>
-												Kaaraka Relation
-											</TableHead>
+											<>
+												<TableHead>
+													Kaaraka Relation
+												</TableHead>
+												<TableHead>To Index</TableHead>
+											</>
 										)}
 										{selectedColumns.includes(
 											"possible_relations"

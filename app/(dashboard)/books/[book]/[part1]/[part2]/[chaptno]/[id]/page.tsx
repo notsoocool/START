@@ -68,6 +68,11 @@ import {
 import { Header } from "@/components/global/analysisHeader";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import {
+	splitKaarakaSambandha,
+	combineKaarakaSambandha,
+} from "@/lib/utils/kaarakaSambandha";
+import { KaarakaRelationCombobox } from "@/components/global/KaarakaRelationCombobox";
 
 const ShlokaCard = dynamic(
 	() => import("@/components/global/ShlokaCard").then((m) => ({ default: m.ShlokaCard })),
@@ -820,6 +825,16 @@ export default function AnalysisPage() {
 			);
 			if (response.ok) {
 				setChangedRows((prev) => {
+					const newSet = new Set(prev);
+					newSet.delete(index);
+					return newSet;
+				});
+				setKaarakaRelationChanges((prev) => {
+					const newSet = new Set(prev);
+					newSet.delete(index);
+					return newSet;
+				});
+				setMorphInContextChanges((prev) => {
 					const newSet = new Set(prev);
 					newSet.delete(index);
 					return newSet;
@@ -2266,15 +2281,118 @@ export default function AnalysisPage() {
 						)
 					)}
 				{selectedColumns.includes("kaaraka_sambandha") &&
-					renderCell(
-						"kaaraka_sambandha",
-						renderInput(
-							"kaaraka_sambandha",
-							currentProcessedData?.kaaraka_sambandha,
-							"w-[180px]",
-							"Enter Kaaraka Sambandha"
-						)
-					)}
+					(() => {
+						const combinedKaaraka =
+							currentProcessedData?.kaaraka_sambandha ??
+							processed?.kaaraka_sambandha ??
+							"";
+						const {
+							relations: kaarakaRelations,
+							toIndexes: kaarakaToIndexes,
+						} = splitKaarakaSambandha(combinedKaaraka);
+
+						const editable = isFieldEditable("kaaraka_sambandha");
+
+						if (isDeleted) {
+							return (
+								<>
+									<TableCell style={deletedStyle}>
+										{deletedContent}
+									</TableCell>
+									<TableCell style={deletedStyle}>
+										{deletedContent}
+									</TableCell>
+								</>
+							);
+						}
+
+						if (!editable) {
+							return (
+								<>
+									<TableCell style={deletedStyle}>
+										<span className="px-2">
+											{kaarakaRelations || "-"}
+										</span>
+									</TableCell>
+									<TableCell style={deletedStyle}>
+										<span className="px-2">
+											{kaarakaToIndexes || "-"}
+										</span>
+									</TableCell>
+								</>
+							);
+						}
+
+						return (
+							<>
+								<TableCell style={deletedStyle}>
+									<div className="flex gap-2 items-center">
+										<KaarakaRelationCombobox
+											value={kaarakaRelations}
+											onChange={(nextRelations) =>
+												handleValueChange(
+													procIndex,
+													"kaaraka_sambandha",
+													combineKaarakaSambandha(
+														nextRelations,
+														kaarakaToIndexes
+													)
+												)
+											}
+											className="w-[220px]"
+										/>
+										{showAnalysisButtons &&
+											kaarakaRelationChanges.has(
+												procIndex
+											) && (
+												<TooltipProvider>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Button
+																variant="outline"
+																size="icon"
+																className="size-8"
+																onClick={() =>
+																	handleAddToPossibleRelations(
+																		procIndex
+																	)
+																}
+															>
+																<PlusCircleIcon className="size-4" />
+															</Button>
+														</TooltipTrigger>
+														<TooltipContent>
+															<p>
+																Add to Possible
+																Relations
+															</p>
+														</TooltipContent>
+													</Tooltip>
+												</TooltipProvider>
+											)}
+									</div>
+								</TableCell>
+								<TableCell style={deletedStyle}>
+									<Input
+										type="text"
+										value={kaarakaToIndexes}
+										onChange={(e) =>
+											handleValueChange(
+												procIndex,
+												"kaaraka_sambandha",
+												combineKaarakaSambandha(
+													kaarakaRelations,
+													e.target.value
+												)
+											)
+										}
+										className="w-[100px]"
+										placeholder="Enter To Index"
+									/>
+								</TableCell>
+							</>
+						);
+					})()}
 				{selectedColumns.includes("possible_relations") &&
 					renderCell(
 						"possible_relations",
@@ -3927,11 +4045,14 @@ export default function AnalysisPage() {
 									) && (
 										<TableHead>Morph In Context</TableHead>
 									)}
-									{selectedColumns.includes(
-										"kaaraka_sambandha"
-									) && (
+								{selectedColumns.includes(
+									"kaaraka_sambandha"
+								) && (
+									<>
 										<TableHead>Kaaraka Relation</TableHead>
-									)}
+										<TableHead>To Index</TableHead>
+									</>
+								)}
 									{selectedColumns.includes(
 										"possible_relations"
 									) && (
