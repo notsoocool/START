@@ -57,7 +57,7 @@ export const Footer = () => {
 								</span>
 							</Link>
 							<p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-								Sanskrit Text Analysis and Reading Tool — making classical knowledge accessible through structured analysis.
+                            Sanskrit Teaching, Annotation and Research Tool — making classical knowledge accessible through structured analysis.
 							</p>
 						</div>
 

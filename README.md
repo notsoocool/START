@@ -1,4 +1,4 @@
-# START - Sanskrit Text Analysis and Reading Tool
+# START - Sanskrit Teaching, Annotation and Research Tool.
 
 A modern web application for exploring, analyzing, and learning Sanskrit literature with an interactive interface and comprehensive analysis tools.
 
