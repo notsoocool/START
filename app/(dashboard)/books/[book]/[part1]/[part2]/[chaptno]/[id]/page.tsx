@@ -970,7 +970,7 @@ export default function AnalysisPage() {
 
 		try {
 			const response = await fetch(
-				"https://scl.samsaadhanii.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi",
+				"https://sanskrit.uohyd.ac.in/cgi-bin/scl/Post-editing/ViewGraph_Sentno.cgi",
 				{
 					method: "POST",
 					body: formData,
