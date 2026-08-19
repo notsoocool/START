@@ -14,6 +14,7 @@ export const VALID_STRINGS = new Set(
         "भावलक्षणसप्तमी_अनन्तरकालः",
         "कर्ता_बे_वेर्ब्स्",
         "कर्ता",
+        "अभिहित_कर्ता",
         "कर्तृरहितकर्तृसमानाधिकरणम्",
         "विधेय_विशेषणम्",
         "मुख्यकर्म",
@@ -21,6 +22,7 @@ export const VALID_STRINGS = new Set(
         "वाक्यकर्म",
         "कर्मसमानाधिकरणम्",
         "कर्म",
+        "अभिहित_कर्म",
         "प्रयोजककर्ता",
         "प्रयोज्यकर्ता",
         "मध्यस्थकर्ता",
@@ -153,8 +155,153 @@ export const VALID_STRINGS = new Set(
         "सप्तम्यर्थ-बहुव्रीहिः",
         "अस्त्यर्थ-मध्यमपदलोपी(नञ्)-बहुव्रीहिः",
         "केवलसमासः",
+        "केवल_समासः",
         "विभक्तम्",
-    ].map((s) => s.trim())
+    
+        // Short tag names
+        "A",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "B",
+        "Bb",
+        "Bs",
+        "Bs2",
+        "Bs3",
+        "Bs4",
+        "Bs5",
+        "Bs6",
+        "Bs7",
+        "Bsd",
+        "Bsg",
+        "Bsmn",
+        "Bsp",
+        "Bss",
+        "Bsu",
+        "Bv",
+        "BvS",
+        "BvU",
+        "Bvp",
+        "Bvs",
+        "D",
+        "Di",
+        "Ds",
+        "E",
+        "K",
+        "K1",
+        "K2",
+        "K3",
+        "K4",
+        "K5",
+        "K6",
+        "K7",
+        "Km",
+        "S",
+        "T",
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "Tb",
+        "Tds",
+        "Tdt",
+        "Tdu",
+        "Tg",
+        "Tk",
+        "Tm",
+        "Tn",
+        "Tp",
+        "U",
+        "U2",
+        "U3",
+        "U4",
+        "U5",
+        "U7",
+        "d",
+        "अङ्ग_वि",
+        "अत्यन्त_सं",
+        "अधिकरण",
+        "अनन्तर_का",
+        "अन्यतर",
+        "अन्यतर_द्यो",
+        "अपवर्ग_सं",
+        "अपा",
+        "अपा_वीप्सा",
+        "अभि_कर्ता",
+        "अभि_कर्म",
+        "अवधि_अन्त",
+        "अवधि_आदि",
+        "आभि",
+        "उत्प्रेक्षा_द्यो",
+        "उद्गार",
+        "उपमान",
+        "उपमान_द्यो",
+        "करण",
+        "करण_वीप्सा",
+        "कर्ता_स",
+        "कर्म_प्र",
+        "कर्म_प्र_अन्वितम्",
+        "कर्म_स",
+        "काल_अधि",
+        "क्रि_वि",
+        "गौण_कर्म",
+        "घटक_द्यो",
+        "तीव्रता",
+        "तुमुन्_कर्म",
+        "तुलना",
+        "देश_अधि",
+        "नित्य_सं",
+        "निर्धा",
+        "परिणाम_द्यो",
+        "पू_का",
+        "प्रतिषेध",
+        "प्रयो",
+        "प्रयो_द्यो",
+        "प्रयोजक_कर्ता",
+        "प्रयोज्य_कर्ता",
+        "भाव_अनन्तर",
+        "भाव_पू",
+        "भाव_समान",
+        "म_कर्ता",
+        "मुख्य_कर्म",
+        "ल्यप्_कर्म_अधि",
+        "वर्त_समान",
+        "वाक्य:आवश्य_द्यो",
+        "वाक्य:आवश्य_परि",
+        "वाक्य:कर्म",
+        "वाक्य:कर्म_द्यो",
+        "वाक्य:कारण_द्यो",
+        "वाक्य:कार्य_कारण",
+        "वाक्य:कार्य_द्यो",
+        "वाक्य:विरोध_द्यो",
+        "वाक्य:विरोधक",
+        "वाक्य:व्यभिचार",
+        "वाक्य:स_का",
+        "वि_विशे",
+        "विनार्थ",
+        "विनार्थ_द्यो",
+        "विशे",
+        "विषय_अधि",
+        "षष्ठी_सं",
+        "सं",
+        "सञ्ज्ञा_द्यो",
+        "सन्दर्भ",
+        "समु",
+        "समु_द्यो",
+        "सम्प्र",
+        "सम्बो_द्यो",
+        "सम्बोध्य",
+        "सहार्थ",
+        "सहार्थ_द्यो",
+        "हेतु",
+].map((s) => s.trim())
 );
 
 const VALID_BGCOLORS = new Set([
@@ -298,7 +445,7 @@ function checkKartaSambandha(
     errors: SanityError[]
 ) {
     const match = kaaraka.match(/कर्ता,(\d+\.\d+(?:\.\d+)?)/);
-    if (!match || kaaraka.includes("अभिहित_कर्ता")) return;
+    if (!match || kaaraka.includes("अभिहित_कर्ता") || kaaraka.includes("अभि_कर्ता")) return;
     const targetIndex = match[1];
     const target = findRow(data, targetIndex, sentno, slokano);
     if (!target) return;
@@ -477,7 +624,7 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
         }
 
         // Morph-kaaraka rules (from Python)
-        if (kaaraka.includes("हेतुः") && !/[35]|तसिल्/.test(morph)) {
+        if (/हेतुः|हेतु/.test(kaaraka) && !/[35]|तसिल्/.test(morph)) {
             pushErr(errors, slokano, sentno, anvaya, "हेतुः requires 3 or 5 or तसिल् in morph_in_context");
         }
         // करणम् as standalone relation (not विषयाधिकरणम् etc. which end with करणम्)
@@ -488,31 +635,31 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
         if (hasKaranam && !morph.includes("3")) {
             pushErr(errors, slokano, sentno, anvaya, "करणम् requires 3 in morph_in_context");
         }
-        if (/विषयाधिकरणम्|देशाधिकरणम्|कालाधिकरणम्|अधिकरणम्/.test(kaaraka) && !/[7]|अव्य/.test(morph)) {
+        if (/विषयाधिकरणम्|देशाधिकरणम्|कालाधिकरणम्|अधिकरणम्|विषय_अधि|देश_अधि|काल_अधि|अधिकरण/.test(kaaraka) && !/[7]|अव्य/.test(morph)) {
             pushErr(errors, slokano, sentno, anvaya, "अधिकरणम् variants require 7 or अव्य in morph_in_context");
         }
-        if (kaaraka.includes("सम्प्रदानम्") && !morph.includes("4")) {
+        if (/सम्प्रदानम्|सम्प्र/.test(kaaraka) && !morph.includes("4")) {
             pushErr(errors, slokano, sentno, anvaya, "सम्प्रदानम् requires 4 in morph_in_context");
         }
-        if (kaaraka.includes("अपादानम्") && !morph.includes("5")) {
+        if (/अपादानम्|अपा/.test(kaaraka) && !morph.includes("5")) {
             pushErr(errors, slokano, sentno, anvaya, "अपादानम् requires 5 in morph_in_context");
         }
-        if (kaaraka.includes("पूर्वकालः") && !/क्त्वा|ल्यप्/.test(morph)) {
+        if (/पूर्वकालः|पू_का/.test(kaaraka) && !/क्त्वा|ल्यप्/.test(morph)) {
             pushErr(errors, slokano, sentno, anvaya, "पूर्वकालः requires क्त्वा or ल्यप् in morph_in_context");
         }
-        if (kaaraka.includes("षष्ठीसम्बन्धः") && !morph.includes("6")) {
+        if (/षष्ठीसम्बन्धः|षष्ठी_सं/.test(kaaraka) && !morph.includes("6")) {
             pushErr(errors, slokano, sentno, anvaya, "षष्ठीसम्बन्धः requires 6 in morph_in_context");
         }
-        if (kaaraka.includes("भावलक्षणसप्तमी") && !morph.includes("7")) {
+        if (/भावलक्षणसप्तमी|भाव_/.test(kaaraka) && !morph.includes("7")) {
             pushErr(errors, slokano, sentno, anvaya, "भावलक्षणसप्तमी requires 7 in morph_in_context");
         }
-        if (kaaraka.includes("वर्तमानसमानकालः") && !/शतृ|शानच्/.test(morph)) {
+        if (/वर्तमानसमानकालः|वर्त_समान/.test(kaaraka) && !/शतृ|शानच्/.test(morph)) {
             pushErr(errors, slokano, sentno, anvaya, "वर्तमानसमानकालः requires शतृ or शानच् in morph_in_context");
         }
 
         // प्रयोजककर्ता
-        if (kaaraka.includes("प्रयोजककर्ता")) {
-            const m = kaaraka.match(/प्रयोजककर्ता,(\d+\.\d+(?:\.\d+)?)/);
+        if (/प्रयोजककर्ता|प्रयोजक_कर्ता/.test(kaaraka)) {
+            const m = kaaraka.match(/(?:प्रयोजककर्ता|प्रयोजक_कर्ता),(\d+\.\d+(?:\.\d+)?)/);
             if (m) {
                 const target = findRow(data, m[1], sentno, slokano);
                 if (morph.includes("1") && target && !target.morph_in_context?.includes("णिच्")) {
@@ -525,8 +672,8 @@ export function runSanityCheck(rows: AnalysisRow[]): SanityResult {
         }
 
         // प्रयोज्यकर्ता
-        if (kaaraka.includes("प्रयोज्यकर्ता")) {
-            const m = kaaraka.match(/प्रयोज्यकर्ता,(\d+\.\d+(?:\.\d+)?)/);
+        if (/प्रयोज्यकर्ता|प्रयोज्य_कर्ता/.test(kaaraka)) {
+            const m = kaaraka.match(/(?:प्रयोज्यकर्ता|प्रयोज्य_कर्ता),(\d+\.\d+(?:\.\d+)?)/);
             if (m) {
                 const target = findRow(data, m[1], sentno, slokano);
                 if (morph.includes("3") && target && !target.morph_in_context?.includes("णिच्")) {

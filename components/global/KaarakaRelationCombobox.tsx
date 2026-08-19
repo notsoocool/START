@@ -50,15 +50,17 @@ export function KaarakaRelationCombobox({
 		);
 	}, [query]);
 
-	const handleSelect = (selectedLong: string) => {
+	const lastPart = value ? value.split(";").pop()?.trim() || "" : "";
+
+	const handleSelect = (selectedShort: string) => {
 		if (!value) {
-			onChange(selectedLong);
+			onChange(selectedShort);
 		} else {
 			// Preserve any preceding `;`-separated pairs and replace only the
-			// final relation slot with the chosen Long_Name. This keeps
+			// final relation slot with the chosen Short_Name. This keeps
 			// multi-relation rows editable without wiping other pairs.
 			const parts = value.split(";");
-			parts[parts.length - 1] = selectedLong;
+			parts[parts.length - 1] = selectedShort;
 			onChange(parts.join(";"));
 		}
 		setOpen(false);
@@ -107,7 +109,7 @@ export function KaarakaRelationCombobox({
 						autoFocus
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
-						placeholder="Search relation (long or short)..."
+						placeholder="Search relation (short or long)..."
 						className="h-8"
 					/>
 				</div>
@@ -118,22 +120,24 @@ export function KaarakaRelationCombobox({
 						</div>
 					) : (
 						filteredTags.map((tag) => {
-							const isSelected = value.endsWith(tag.long);
+							const isSelected =
+								lastPart === tag.short ||
+								lastPart === tag.long;
 							return (
 								<button
 									key={`${tag.long}-${tag.short}`}
 									type="button"
-									onClick={() => handleSelect(tag.long)}
+									onClick={() => handleSelect(tag.short)}
 									className={cn(
 										"flex w-full items-center justify-between gap-3 px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
 										isSelected && "bg-accent/50"
 									)}
 								>
-									<span className="flex-1 truncate text-left">
-										{tag.long}
-									</span>
-									<span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+									<span className="flex-1 truncate text-left font-medium">
 										{tag.short}
+									</span>
+									<span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+										{tag.long}
 									</span>
 									<Check
 										className={cn(

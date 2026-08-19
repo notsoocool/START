@@ -112,6 +112,10 @@ export const KAARAKA_TAGS: KaarakaTag[] = [
     "short": "कर्म"
   },
   {
+    "long": "अभिहित_कर्म",
+    "short": "अभि_कर्म"
+  },
+  {
     "long": "कर्मप्रवचनीय_अन्वितम्",
     "short": "कर्म_प्र_अन्वितम्"
   },
@@ -126,6 +130,10 @@ export const KAARAKA_TAGS: KaarakaTag[] = [
   {
     "long": "कर्ता",
     "short": "कर्ता"
+  },
+  {
+    "long": "अभिहित_कर्ता",
+    "short": "अभि_कर्ता"
   },
   {
     "long": "कर्तृसमानाधिकरणम्",
@@ -549,6 +557,10 @@ export const KAARAKA_TAGS: KaarakaTag[] = [
   },
   {
     "long": "केवल_समासः",
+    "short": "S"
+  },
+  {
+    "long": "केवलसमासः",
     "short": "S"
   },
   {

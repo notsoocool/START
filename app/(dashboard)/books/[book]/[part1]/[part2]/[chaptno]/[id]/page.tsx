@@ -193,26 +193,41 @@ export default function AnalysisPage() {
 		[availableLanguages]
 	);
 
-	// Filter out restricted columns for "User" permission
+	// Filter out restricted columns for "User" permission and unprivileged users
 	// Users with "User" permission cannot see: morph_analysis, possible_relations, bgcolor
 	const restrictedColumnsForUser = [
 		"morph_analysis",
 		"possible_relations",
 		"bgcolor",
 	];
+
+	const isUserRestricted =
+		permissions === "User" ||
+		(permissions !== "Root" &&
+			permissions !== "Admin" &&
+			permissions !== "Editor" &&
+			permissions !== "Annotator");
+
 	const columnOptions = useMemo(
 		() =>
-			permissions === "User"
+			isUserRestricted
 				? baseColumnOptions.filter(
 						(col) => !restrictedColumnsForUser.includes(col.id)
 				  )
 				: baseColumnOptions,
-		[permissions, baseColumnOptions]
+		[isUserRestricted, baseColumnOptions]
 	);
 
 	// Persisted column preferences (shared across all shlokas)
 	const COLUMN_PREF_KEY = "column_prefs_all_shlokas";
-	const DEFAULT_SELECTED_COLUMNS = [
+	const DEFAULT_SELECTED_COLUMNS_USER = [
+		"index",
+		"word",
+		"poem",
+		"morph_in_context",
+		"kaaraka_sambandha",
+	];
+	const DEFAULT_SELECTED_COLUMNS_PRIVILEGED = [
 		"index",
 		"word",
 		"poem",
@@ -226,15 +241,18 @@ export default function AnalysisPage() {
 		(cols: string[]) => {
 			const allowedIds = new Set(columnOptions.map((c) => c.id));
 			const restricted =
-				permissions === "User" ? restrictedColumnsForUser : [];
+				isUserRestricted ? restrictedColumnsForUser : [];
 			const filtered = cols.filter(
 				(id) => allowedIds.has(id) && !restricted.includes(id)
 			);
+			const fallback = isUserRestricted
+				? DEFAULT_SELECTED_COLUMNS_USER
+				: DEFAULT_SELECTED_COLUMNS_PRIVILEGED;
 			return filtered.length > 0
 				? filtered
-				: DEFAULT_SELECTED_COLUMNS.filter((id) => allowedIds.has(id));
+				: fallback.filter((id) => allowedIds.has(id));
 		},
-		[columnOptions, permissions]
+		[columnOptions, isUserRestricted]
 	);
 
 	const [zoomLevels, setZoomLevels] = useState<{ [key: string]: number }>({});
@@ -1015,10 +1033,9 @@ export default function AnalysisPage() {
 		});
 	}, [graphUrls]); // Re-run the effect when graphUrls change
 
-	// Handle node toggling directly inside the SVG
 	// Initialize with base columns, language columns will be added dynamically
 	const [selectedColumns, setSelectedColumns] = useState<string[]>(
-		DEFAULT_SELECTED_COLUMNS
+		DEFAULT_SELECTED_COLUMNS_USER
 	);
 	const [didLoadColumnPrefs, setDidLoadColumnPrefs] = useState(false);
 
@@ -1036,7 +1053,7 @@ export default function AnalysisPage() {
 					setSelectedColumns(sanitizeColumns(parsed));
 				}
 			} else {
-				setSelectedColumns(sanitizeColumns(DEFAULT_SELECTED_COLUMNS));
+				setSelectedColumns(sanitizeColumns(DEFAULT_SELECTED_COLUMNS_USER));
 			}
 		} catch (err) {
 			console.warn("Failed to load column preferences", err);
@@ -2261,6 +2278,7 @@ export default function AnalysisPage() {
 						)
 					)}
 				{selectedColumns.includes("morph_analysis") &&
+					!isUserRestricted &&
 					renderCell(
 						"morph_analysis",
 						renderInput(
@@ -2394,6 +2412,7 @@ export default function AnalysisPage() {
 						);
 					})()}
 				{selectedColumns.includes("possible_relations") &&
+					!isUserRestricted &&
 					renderCell(
 						"possible_relations",
 						renderInput(
@@ -2447,7 +2466,9 @@ export default function AnalysisPage() {
 						)
 					);
 				})}
-				{selectedColumns.includes("bgcolor") && renderBgColor()}
+				{selectedColumns.includes("bgcolor") &&
+					!isUserRestricted &&
+					renderBgColor()}
 				{isFieldEditable("word") && (
 					<TableCell
 						className="flex flex-col gap-3 items-center"
@@ -4039,7 +4060,10 @@ export default function AnalysisPage() {
 									) && <TableHead>Sandhied Word</TableHead>}
 									{selectedColumns.includes(
 										"morph_analysis"
-									) && <TableHead>Morph Analysis</TableHead>}
+									) &&
+										!isUserRestricted && (
+											<TableHead>Morph Analysis</TableHead>
+										)}
 									{selectedColumns.includes(
 										"morph_in_context"
 									) && (
@@ -4055,11 +4079,12 @@ export default function AnalysisPage() {
 								)}
 									{selectedColumns.includes(
 										"possible_relations"
-									) && (
-										<TableHead>
-											Possible Relations
-										</TableHead>
-									)}
+									) &&
+										!isUserRestricted && (
+											<TableHead>
+												Possible Relations
+											</TableHead>
+										)}
 									{selectedColumns.includes(
 										"hindi_meaning"
 									) && <TableHead>Hindi Meaning</TableHead>}
@@ -4077,9 +4102,10 @@ export default function AnalysisPage() {
 											</TableHead>
 										);
 									})}
-									{selectedColumns.includes("bgcolor") && (
-										<TableHead>Color Code</TableHead>
-									)}
+									{selectedColumns.includes("bgcolor") &&
+										!isUserRestricted && (
+											<TableHead>Color Code</TableHead>
+										)}
 									{isFieldEditable("word") && (
 										<TableHead className="w-[100px]">
 											Actions
