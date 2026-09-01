@@ -13,18 +13,9 @@ import { cn } from "@/lib/utils";
 import { KAARAKA_TAGS } from "@/lib/data/kaarakaTags";
 
 interface KaarakaRelationComboboxProps {
-	/**
-	 * The current relations string as it appears in the DB (i.e. the
-	 * `;`-joined Short_Name / Long_Name text before the comma / to_index).
-	 * When there are multiple pairs, this is `;`-separated.
-	 */
+	/** Current relation label for this pair slot (before the comma / to_index). */
 	value: string;
-	/**
-	 * Called with the new relations string. If the current `value` contains
-	 * multiple `;`-separated entries and the user picks a single option,
-	 * only the *last* segment is replaced so the other pairs stay intact.
-	 */
-	onChange: (nextRelations: string) => void;
+	onChange: (nextRelation: string) => void;
 	disabled?: boolean;
 	placeholder?: string;
 	className?: string;
@@ -50,19 +41,8 @@ export function KaarakaRelationCombobox({
 		);
 	}, [query]);
 
-	const lastPart = value ? value.split(";").pop()?.trim() || "" : "";
-
 	const handleSelect = (selectedShort: string) => {
-		if (!value) {
-			onChange(selectedShort);
-		} else {
-			// Preserve any preceding `;`-separated pairs and replace only the
-			// final relation slot with the chosen Short_Name. This keeps
-			// multi-relation rows editable without wiping other pairs.
-			const parts = value.split(";");
-			parts[parts.length - 1] = selectedShort;
-			onChange(parts.join(";"));
-		}
+		onChange(selectedShort);
 		setOpen(false);
 		setQuery("");
 	};
@@ -121,8 +101,7 @@ export function KaarakaRelationCombobox({
 					) : (
 						filteredTags.map((tag) => {
 							const isSelected =
-								lastPart === tag.short ||
-								lastPart === tag.long;
+								value === tag.short || value === tag.long;
 							return (
 								<button
 									key={`${tag.long}-${tag.short}`}

@@ -2304,110 +2304,146 @@ export default function AnalysisPage() {
 							currentProcessedData?.kaaraka_sambandha ??
 							processed?.kaaraka_sambandha ??
 							"";
-						const {
-							relations: kaarakaRelations,
-							toIndexes: kaarakaToIndexes,
-						} = splitKaarakaSambandha(combinedKaaraka);
+						const { kaaraka, discourse } =
+							splitKaarakaSambandha(combinedKaaraka);
 
 						const editable = isFieldEditable("kaaraka_sambandha");
 
-						if (isDeleted) {
-							return (
-								<>
-									<TableCell style={deletedStyle}>
-										{deletedContent}
-									</TableCell>
-									<TableCell style={deletedStyle}>
-										{deletedContent}
-									</TableCell>
-								</>
+						const updateKaaraka = (
+							nextKaaraka: typeof kaaraka,
+							nextDiscourse: typeof discourse = discourse
+						) =>
+							handleValueChange(
+								procIndex,
+								"kaaraka_sambandha",
+								combineKaarakaSambandha(nextKaaraka, nextDiscourse)
 							);
-						}
 
-						if (!editable) {
+						const renderPairCells = (
+							pair: typeof kaaraka,
+							onRelationChange: (relation: string) => void,
+							onToIndexChange: (toIndex: string) => void,
+							relationPlaceholder: string,
+							showAddButton = false
+						) => {
+							if (isDeleted) {
+								return (
+									<>
+										<TableCell style={deletedStyle}>
+											{deletedContent}
+										</TableCell>
+										<TableCell style={deletedStyle}>
+											{deletedContent}
+										</TableCell>
+									</>
+								);
+							}
+
+							if (!editable) {
+								return (
+									<>
+										<TableCell style={deletedStyle}>
+											<span className="px-2">
+												{pair.relation || "-"}
+											</span>
+										</TableCell>
+										<TableCell style={deletedStyle}>
+											<span className="px-2">
+												{pair.toIndex || "-"}
+											</span>
+										</TableCell>
+									</>
+								);
+							}
+
 							return (
 								<>
 									<TableCell style={deletedStyle}>
-										<span className="px-2">
-											{kaarakaRelations || "-"}
-										</span>
+										<div className="flex gap-2 items-center">
+											<KaarakaRelationCombobox
+												value={pair.relation}
+												onChange={onRelationChange}
+												placeholder={relationPlaceholder}
+												className="w-[220px]"
+											/>
+											{showAddButton &&
+												showAnalysisButtons &&
+												kaarakaRelationChanges.has(
+													procIndex
+												) && (
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Button
+																	variant="outline"
+																	size="icon"
+																	className="size-8"
+																	onClick={() =>
+																		handleAddToPossibleRelations(
+																			procIndex
+																		)
+																	}
+																>
+																	<PlusCircleIcon className="size-4" />
+																</Button>
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>
+																	Add to Possible
+																	Relations
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+												)}
+										</div>
 									</TableCell>
 									<TableCell style={deletedStyle}>
-										<span className="px-2">
-											{kaarakaToIndexes || "-"}
-										</span>
+										<Input
+											type="text"
+											value={pair.toIndex}
+											onChange={(e) =>
+												onToIndexChange(e.target.value)
+											}
+											className="w-[100px]"
+											placeholder="Enter To Index"
+										/>
 									</TableCell>
 								</>
 							);
-						}
+						};
 
 						return (
 							<>
-								<TableCell style={deletedStyle}>
-									<div className="flex gap-2 items-center">
-										<KaarakaRelationCombobox
-											value={kaarakaRelations}
-											onChange={(nextRelations) =>
-												handleValueChange(
-													procIndex,
-													"kaaraka_sambandha",
-													combineKaarakaSambandha(
-														nextRelations,
-														kaarakaToIndexes
-													)
-												)
-											}
-											className="w-[220px]"
-										/>
-										{showAnalysisButtons &&
-											kaarakaRelationChanges.has(
-												procIndex
-											) && (
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<Button
-																variant="outline"
-																size="icon"
-																className="size-8"
-																onClick={() =>
-																	handleAddToPossibleRelations(
-																		procIndex
-																	)
-																}
-															>
-																<PlusCircleIcon className="size-4" />
-															</Button>
-														</TooltipTrigger>
-														<TooltipContent>
-															<p>
-																Add to Possible
-																Relations
-															</p>
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-											)}
-									</div>
-								</TableCell>
-								<TableCell style={deletedStyle}>
-									<Input
-										type="text"
-										value={kaarakaToIndexes}
-										onChange={(e) =>
-											handleValueChange(
-												procIndex,
-												"kaaraka_sambandha",
-												combineKaarakaSambandha(
-													kaarakaRelations,
-													e.target.value
-												)
-											)
-										}
-										className="w-[100px]"
-										placeholder="Enter To Index"
-									/>
-								</TableCell>
+								{renderPairCells(
+									kaaraka,
+									(nextRelation) =>
+										updateKaaraka({
+											...kaaraka,
+											relation: nextRelation,
+										}),
+									(nextToIndex) =>
+										updateKaaraka({
+											...kaaraka,
+											toIndex: nextToIndex,
+										}),
+									"Select Kaaraka Relation",
+									true
+								)}
+								{renderPairCells(
+									discourse,
+									(nextRelation) =>
+										updateKaaraka(kaaraka, {
+											...discourse,
+											relation: nextRelation,
+										}),
+									(nextToIndex) =>
+										updateKaaraka(kaaraka, {
+											...discourse,
+											toIndex: nextToIndex,
+										}),
+									"Select Discourse Relation"
+								)}
 							</>
 						);
 					})()}
@@ -4074,6 +4110,8 @@ export default function AnalysisPage() {
 								) && (
 									<>
 										<TableHead>Kaaraka Relation</TableHead>
+										<TableHead>To Index</TableHead>
+										<TableHead>Discourse Relation</TableHead>
 										<TableHead>To Index</TableHead>
 									</>
 								)}

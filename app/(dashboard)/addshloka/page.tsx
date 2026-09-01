@@ -844,20 +844,18 @@ export default function ShlokaPage() {
 							)}
 							{selectedColumns.includes("kaaraka_sambandha") &&
 								(() => {
-									const {
-										relations: kaarakaRelations,
-										toIndexes: kaarakaToIndexes,
-									} = splitKaarakaSambandha(
-										processed.kaaraka_sambandha
-									);
+									const { kaaraka, discourse } =
+										splitKaarakaSambandha(
+											processed.kaaraka_sambandha
+										);
 
 									const emitCombined = (
-										nextRelations: string,
-										nextToIndexes: string
+										nextKaaraka: typeof kaaraka,
+										nextDiscourse: typeof discourse = discourse
 									) => {
 										const combined = combineKaarakaSambandha(
-											nextRelations,
-											nextToIndexes
+											nextKaaraka,
+											nextDiscourse
 										);
 										handleInputChange(
 											{
@@ -868,31 +866,64 @@ export default function ShlokaPage() {
 										);
 									};
 
-									return (
+									const renderPairCells = (
+										pair: typeof kaaraka,
+										onRelationChange: (relation: string) => void,
+										onToIndexChange: (toIndex: string) => void,
+										relationPlaceholder: string
+									) => (
 										<>
 											<TableCell>
 												<KaarakaRelationCombobox
-													value={kaarakaRelations}
-													onChange={(nextRelations) =>
-														emitCombined(
-															nextRelations,
-															kaarakaToIndexes
-														)
-													}
+													value={pair.relation}
+													onChange={onRelationChange}
+													placeholder={relationPlaceholder}
 												/>
 											</TableCell>
 											<TableCell>
 												<Input
-													value={kaarakaToIndexes}
+													value={pair.toIndex}
 													placeholder="Enter To Index"
 													onChange={(e) =>
-														emitCombined(
-															kaarakaRelations,
+														onToIndexChange(
 															e.target.value
 														)
 													}
 												/>
 											</TableCell>
+										</>
+									);
+
+									return (
+										<>
+											{renderPairCells(
+												kaaraka,
+												(nextRelation) =>
+													emitCombined({
+														...kaaraka,
+														relation: nextRelation,
+													}),
+												(nextToIndex) =>
+													emitCombined({
+														...kaaraka,
+														toIndex: nextToIndex,
+													}),
+												"Select Kaaraka Relation"
+											)}
+											{renderPairCells(
+												discourse,
+												(nextRelation) =>
+													emitCombined(kaaraka, {
+														...discourse,
+														relation: nextRelation,
+													}),
+												(nextToIndex) =>
+													emitCombined(kaaraka, {
+														...discourse,
+														toIndex: nextToIndex,
+													}),
+												"Select Discourse Relation"
+											)}
 										</>
 									);
 								})()}
@@ -1763,6 +1794,10 @@ export default function ShlokaPage() {
 											<>
 												<TableHead>
 													Kaaraka Relation
+												</TableHead>
+												<TableHead>To Index</TableHead>
+												<TableHead>
+													Discourse Relation
 												</TableHead>
 												<TableHead>To Index</TableHead>
 											</>

@@ -1,63 +1,67 @@
 /**
- * Utilities for presenting the `kaaraka_sambandha` field as two logical
- * columns (relation + to-index) without changing the underlying DB storage.
+ * Utilities for presenting the `kaaraka_sambandha` field as UI columns without
+ * changing the underlying DB storage.
  *
  * The DB stores `kaaraka_sambandha` as a single string. Multiple pairs are
  * joined by `;`, and each pair uses `,` between the relation label and the
  * anvaya index it points to. Example: "कर्ता,4.1;कर्म,5.2".
+ *
+ * The first pair is shown as Kaaraka Relation + To Index.
+ * The second pair (after `;`) is shown as Discourse Relation + To Index.
  */
 
-export interface SplitKaaraka {
-	relations: string;
-	toIndexes: string;
+export interface KaarakaPair {
+	relation: string;
+	toIndex: string;
 }
 
+export interface SplitKaarakaPairs {
+	kaaraka: KaarakaPair;
+	discourse: KaarakaPair;
+}
+
+const emptyPair = (): KaarakaPair => ({ relation: "", toIndex: "" });
+
 /**
- * Splits a `kaaraka_sambandha` string into two parallel `;`-separated strings:
- * one for the relations and one for the `to_index` targets.
- *
- * Empty / missing halves are preserved so the two outputs stay index-aligned.
+ * Parses `kaaraka_sambandha` into the first (kaaraka) and second (discourse)
+ * relation pairs.
  */
-export const splitKaarakaSambandha = (value: unknown): SplitKaaraka => {
+export const splitKaarakaSambandha = (value: unknown): SplitKaarakaPairs => {
 	if (typeof value !== "string" || value.trim() === "") {
-		return { relations: "", toIndexes: "" };
+		return { kaaraka: emptyPair(), discourse: emptyPair() };
 	}
 
-	const pairs = value.split(";");
-	const relations: string[] = [];
-	const toIndexes: string[] = [];
+	const parsePair = (segment: string): KaarakaPair => {
+		const [relation = "", toIndex = ""] = segment.split(",");
+		return {
+			relation: relation.trim(),
+			toIndex: toIndex.trim(),
+		};
+	};
 
-	for (const pair of pairs) {
-		const [rel = "", idx = ""] = pair.split(",");
-		relations.push(rel.trim());
-		toIndexes.push(idx.trim());
-	}
-
+	const segments = value.split(";");
 	return {
-		relations: relations.join(";"),
-		toIndexes: toIndexes.join(";"),
+		kaaraka: parsePair(segments[0] ?? ""),
+		discourse: parsePair(segments[1] ?? ""),
 	};
 };
 
 /**
- * Recombines the two `;`-separated halves back into the DB storage format
- * (`relation,to_index` pairs joined by `;`). Fully empty pairs are dropped.
+ * Recombines kaaraka and discourse pairs back into DB storage format.
+ * Fully empty pairs are dropped.
  */
 export const combineKaarakaSambandha = (
-	relations: string,
-	toIndexes: string
+	kaaraka: KaarakaPair,
+	discourse: KaarakaPair = emptyPair()
 ): string => {
-	const rels = (relations ?? "").split(";");
-	const idxs = (toIndexes ?? "").split(";");
-	const max = Math.max(rels.length, idxs.length);
-	const combined: string[] = [];
+	const formatPair = (pair: KaarakaPair) => {
+		const relation = (pair.relation ?? "").trim();
+		const toIndex = (pair.toIndex ?? "").trim();
+		if (!relation && !toIndex) return null;
+		return `${relation},${toIndex}`;
+	};
 
-	for (let i = 0; i < max; i++) {
-		const r = (rels[i] ?? "").trim();
-		const x = (idxs[i] ?? "").trim();
-		if (!r && !x) continue;
-		combined.push(`${r},${x}`);
-	}
-
-	return combined.join(";");
+	return [formatPair(kaaraka), formatPair(discourse)]
+		.filter(Boolean)
+		.join(";");
 };
