@@ -10,7 +10,6 @@ import {
 	Table,
 	TableBody,
 	TableCell,
-	TableHead,
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
@@ -48,6 +47,12 @@ import {
 	combineKaarakaSambandha,
 } from "@/lib/utils/kaarakaSambandha";
 import { KaarakaRelationCombobox } from "@/components/global/KaarakaRelationCombobox";
+import { ResizableTableHead } from "@/components/global/ResizableTableHead";
+import { useResizableColumns } from "@/lib/hooks/useResizableColumns";
+import {
+	ADD_SHLOKA_COLUMN_WIDTH_KEY,
+	DEFAULT_ANALYSIS_COLUMN_WIDTHS,
+} from "@/lib/constants/analysisTableColumnWidths";
 
 const jsonToTsv = (data: any[]): string => {
 	const tsvRows = data.map(
@@ -394,6 +399,25 @@ export default function ShlokaPage() {
 		"possible_relations",
 		"hindi_meaning",
 	]);
+	const { getColumnStyle, startColumnResize } = useResizableColumns(
+		ADD_SHLOKA_COLUMN_WIDTH_KEY,
+		DEFAULT_ANALYSIS_COLUMN_WIDTHS
+	);
+
+	const renderResizableHead = (
+		columnId: string,
+		label: React.ReactNode,
+		className?: string
+	) => (
+		<ResizableTableHead
+			columnId={columnId}
+			width={getColumnStyle(columnId).width}
+			onResizeStart={startColumnResize}
+			className={className}
+		>
+			{label}
+		</ResizableTableHead>
+	);
 	const [showSandhiEdit, setShowSandhiEdit] = useState(false);
 	const [editableSandhiResults, setEditableSandhiResults] = useState<
 		string[]
@@ -759,8 +783,9 @@ export default function ShlokaPage() {
 							}}
 						>
 							{selectedColumns.includes("anvaya_no") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("anvaya_no")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.anvaya_no}
 										onChange={(e) =>
 											handleInputChange(
@@ -773,8 +798,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("word") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("word")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.word}
 										onChange={(e) =>
 											handleInputChange(
@@ -787,8 +813,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("poem") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("poem")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.poem}
 										onChange={(e) =>
 											handleInputChange(
@@ -801,8 +828,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("sandhied_word") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("sandhied_word")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.sandhied_word}
 										onChange={(e) =>
 											handleInputChange(
@@ -815,8 +843,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("morph_analysis") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("morph_analysis")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.morph_analysis}
 										onChange={(e) =>
 											handleInputChange(
@@ -829,8 +858,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("morph_in_context") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("morph_in_context")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.morph_in_context}
 										onChange={(e) =>
 											handleInputChange(
@@ -870,18 +900,26 @@ export default function ShlokaPage() {
 										pair: typeof kaaraka,
 										onRelationChange: (relation: string) => void,
 										onToIndexChange: (toIndex: string) => void,
-										relationPlaceholder: string
+										relationPlaceholder: string,
+										relationColumnId: string,
+										toIndexColumnId: string
 									) => (
 										<>
-											<TableCell>
+											<TableCell
+												style={getColumnStyle(relationColumnId)}
+											>
 												<KaarakaRelationCombobox
 													value={pair.relation}
 													onChange={onRelationChange}
 													placeholder={relationPlaceholder}
+													className="w-full min-w-0"
 												/>
 											</TableCell>
-											<TableCell>
+											<TableCell
+												style={getColumnStyle(toIndexColumnId)}
+											>
 												<Input
+													className="w-full min-w-0"
 													value={pair.toIndex}
 													placeholder="Enter To Index"
 													onChange={(e) =>
@@ -908,7 +946,9 @@ export default function ShlokaPage() {
 														...kaaraka,
 														toIndex: nextToIndex,
 													}),
-												"Select Kaaraka Relation"
+												"Select Kaaraka Relation",
+												"kaaraka_relation",
+												"kaaraka_to_index"
 											)}
 											{renderPairCells(
 												discourse,
@@ -922,14 +962,17 @@ export default function ShlokaPage() {
 														...discourse,
 														toIndex: nextToIndex,
 													}),
-												"Select Discourse Relation"
+												"Select Discourse Relation",
+												"discourse_relation",
+												"discourse_to_index"
 											)}
 										</>
 									);
 								})()}
 							{selectedColumns.includes("possible_relations") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("possible_relations")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.possible_relations}
 										onChange={(e) =>
 											handleInputChange(
@@ -942,8 +985,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("hindi_meaning") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("hindi_meaning")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.hindi_meaning}
 										onChange={(e) =>
 											handleInputChange(
@@ -956,8 +1000,9 @@ export default function ShlokaPage() {
 								</TableCell>
 							)}
 							{selectedColumns.includes("english_meaning") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("english_meaning")}>
 									<Input
+										className="w-full min-w-0"
 										value={processed.english_meaning || ""}
 										onChange={(e) =>
 											handleInputChange(
@@ -985,8 +1030,12 @@ export default function ShlokaPage() {
 										meanings[lang.code] || "";
 
 									return (
-										<TableCell key={columnId}>
+										<TableCell
+											key={columnId}
+											style={getColumnStyle(columnId)}
+										>
 											<Input
+												className="w-full min-w-0"
 												value={meaningValue}
 												onChange={(e) =>
 													handleInputChange(
@@ -1001,7 +1050,7 @@ export default function ShlokaPage() {
 									);
 								})}
 							{selectedColumns.includes("bgcolor") && (
-								<TableCell>
+								<TableCell style={getColumnStyle("bgcolor")}>
 									<Select
 										value={
 											processed.bgcolor || "transparent"
@@ -1017,7 +1066,7 @@ export default function ShlokaPage() {
 											setAnalysisData(updatedData);
 										}}
 									>
-										<SelectTrigger className="w-[180px]">
+										<SelectTrigger className="w-full min-w-0">
 											<span
 												style={{
 													backgroundColor:
@@ -1757,99 +1806,96 @@ export default function ShlokaPage() {
 				}
 			>
 				<div className="rounded-md border">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										{selectedColumns.includes(
-											"anvaya_no"
-										) && <TableHead>Index</TableHead>}
-										{selectedColumns.includes("word") && (
-											<TableHead>Word</TableHead>
+					<div className="border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+						Drag the grip icon on the right edge of any column header to
+						resize it.
+					</div>
+					<Table className="table-fixed min-w-[900px]">
+						<TableHeader>
+							<TableRow>
+								{selectedColumns.includes("anvaya_no") &&
+									renderResizableHead("anvaya_no", "Index")}
+								{selectedColumns.includes("word") &&
+									renderResizableHead("word", "Word")}
+								{selectedColumns.includes("poem") &&
+									renderResizableHead("poem", "Prose Index")}
+								{selectedColumns.includes("sandhied_word") &&
+									renderResizableHead(
+										"sandhied_word",
+										"Sandhied Word"
+									)}
+								{selectedColumns.includes("morph_analysis") &&
+									renderResizableHead(
+										"morph_analysis",
+										"Morph Analysis"
+									)}
+								{selectedColumns.includes("morph_in_context") &&
+									renderResizableHead(
+										"morph_in_context",
+										"Morph In Context"
+									)}
+								{selectedColumns.includes("kaaraka_sambandha") && (
+									<>
+										{renderResizableHead(
+											"kaaraka_relation",
+											"Kaaraka Relation"
 										)}
-										{selectedColumns.includes("poem") && (
-											<TableHead>Prose Index</TableHead>
+										{renderResizableHead(
+											"kaaraka_to_index",
+											"To Index"
 										)}
-										{selectedColumns.includes(
-											"sandhied_word"
-										) && (
-											<TableHead>Sandhied Word</TableHead>
+										{renderResizableHead(
+											"discourse_relation",
+											"Discourse Relation"
 										)}
-										{selectedColumns.includes(
-											"morph_analysis"
-										) && (
-											<TableHead>
-												Morph Analysis
-											</TableHead>
+										{renderResizableHead(
+											"discourse_to_index",
+											"To Index"
 										)}
-										{selectedColumns.includes(
-											"morph_in_context"
-										) && (
-											<TableHead>
-												Morph In Context
-											</TableHead>
-										)}
-										{selectedColumns.includes(
-											"kaaraka_sambandha"
-										) && (
-											<>
-												<TableHead>
-													Kaaraka Relation
-												</TableHead>
-												<TableHead>To Index</TableHead>
-												<TableHead>
-													Discourse Relation
-												</TableHead>
-												<TableHead>To Index</TableHead>
-											</>
-										)}
-										{selectedColumns.includes(
-											"possible_relations"
-										) && (
-											<TableHead>
-												Possible Relations
-											</TableHead>
-										)}
-										{selectedColumns.includes(
-											"hindi_meaning"
-										) && (
-											<TableHead>Hindi Meaning</TableHead>
-										)}
-										{selectedColumns.includes(
-											"english_meaning"
-										) && (
-											<TableHead>
-												English Meaning
-											</TableHead>
-										)}
-										{/* Render dynamic language column headers */}
-										{availableLanguages
-											.filter(
-												(lang) =>
-													lang.code !== "hi" &&
-													lang.code !== "en"
-											)
-											.map((lang) => {
-												const columnId = `meaning_${lang.code}`;
-												if (
-													!selectedColumns.includes(
-														columnId
-													)
-												)
-													return null;
-												return (
-													<TableHead key={columnId}>
-														{lang.name} Meaning
-													</TableHead>
-												);
-											})}
-										{selectedColumns.includes(
-											"bgcolor"
-										) && <TableHead>Color Code</TableHead>}
-									</TableRow>
-								</TableHeader>
-								{renderTableContent()}
-							</Table>
-						</div>
+									</>
+								)}
+								{selectedColumns.includes("possible_relations") &&
+									renderResizableHead(
+										"possible_relations",
+										"Possible Relations"
+									)}
+								{selectedColumns.includes("hindi_meaning") &&
+									renderResizableHead(
+										"hindi_meaning",
+										"Hindi Meaning"
+									)}
+								{selectedColumns.includes("english_meaning") &&
+									renderResizableHead(
+										"english_meaning",
+										"English Meaning"
+									)}
+								{availableLanguages
+									.filter(
+										(lang) =>
+											lang.code !== "hi" && lang.code !== "en"
+									)
+									.map((lang) => {
+										const columnId = `meaning_${lang.code}`;
+										if (!selectedColumns.includes(columnId))
+											return null;
+										return (
+											<ResizableTableHead
+												key={columnId}
+												columnId={columnId}
+												width={getColumnStyle(columnId).width}
+												onResizeStart={startColumnResize}
+											>
+												{lang.name} Meaning
+											</ResizableTableHead>
+										);
+									})}
+								{selectedColumns.includes("bgcolor") &&
+									renderResizableHead("bgcolor", "Color Code")}
+							</TableRow>
+						</TableHeader>
+						{renderTableContent()}
+					</Table>
+				</div>
 			</StepCard>
 
 			{/* Step 5: Generated Graphs - unlocked when graphs generated */}

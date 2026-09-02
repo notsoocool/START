@@ -1,8 +1,10 @@
 export const ANALYSIS_COLUMN_WIDTH_KEY = "analysis_table_column_widths_v1";
+export const ADD_SHLOKA_COLUMN_WIDTH_KEY = "add_shloka_table_column_widths_v1";
 
 export const DEFAULT_ANALYSIS_COLUMN_WIDTHS: Record<string, number> = {
 	sanity: 32,
 	index: 100,
+	anvaya_no: 100,
 	word: 120,
 	poem: 100,
 	sandhied_word: 120,
