@@ -73,6 +73,12 @@ import {
 	combineKaarakaSambandha,
 } from "@/lib/utils/kaarakaSambandha";
 import { KaarakaRelationCombobox } from "@/components/global/KaarakaRelationCombobox";
+import { ResizableTableHead } from "@/components/global/ResizableTableHead";
+import { useResizableColumns } from "@/lib/hooks/useResizableColumns";
+import {
+	ANALYSIS_COLUMN_WIDTH_KEY,
+	DEFAULT_ANALYSIS_COLUMN_WIDTHS,
+} from "@/lib/constants/analysisTableColumnWidths";
 
 const ShlokaCard = dynamic(
 	() => import("@/components/global/ShlokaCard").then((m) => ({ default: m.ShlokaCard })),
@@ -1076,6 +1082,26 @@ export default function AnalysisPage() {
 		}
 	}, [selectedColumns, COLUMN_PREF_KEY, didLoadColumnPrefs]);
 
+	const { getColumnStyle, startColumnResize } = useResizableColumns(
+		ANALYSIS_COLUMN_WIDTH_KEY,
+		DEFAULT_ANALYSIS_COLUMN_WIDTHS
+	);
+
+	const renderResizableHead = (
+		columnId: string,
+		label: React.ReactNode,
+		className?: string
+	) => (
+		<ResizableTableHead
+			columnId={columnId}
+			width={getColumnStyle(columnId).width}
+			onResizeStart={startColumnResize}
+			className={className}
+		>
+			{label}
+		</ResizableTableHead>
+	);
+
 	// Re-sanitize when permissions or available columns change
 	useEffect(() => {
 		setSelectedColumns((prev) => sanitizeColumns(prev));
@@ -1987,7 +2013,7 @@ export default function AnalysisPage() {
 		const renderInput = (
 			field: string,
 			value: string,
-			width: string = "w-[180px]",
+			width: string = "w-full min-w-0",
 			placeholder: string
 		) => {
 			// If user doesn't have edit permissions, just return the value as text
@@ -2065,25 +2091,33 @@ export default function AnalysisPage() {
 			);
 		};
 
-		const renderCell = (field: string, content: React.ReactNode) => {
+		const renderCell = (
+			field: string,
+			content: React.ReactNode,
+			columnId?: string
+		) => {
+			const cellStyle = columnId
+				? { ...deletedStyle, ...getColumnStyle(columnId) }
+				: deletedStyle;
+
 			if (isDeleted)
 				return (
-					<TableCell style={deletedStyle}>{deletedContent}</TableCell>
+					<TableCell style={cellStyle}>{deletedContent}</TableCell>
 				);
 
 			if (isFieldEditable(field)) {
-				return <TableCell style={deletedStyle}>{content}</TableCell>;
+				return <TableCell style={cellStyle}>{content}</TableCell>;
 			}
 
 			return (
-				<TableCell style={deletedStyle}>
+				<TableCell style={cellStyle}>
 					{currentProcessedData?.[field] || processed[field]}
 				</TableCell>
 			);
 		};
 
 		const renderBgColor = () => (
-			<TableCell style={deletedStyle}>
+			<TableCell style={{ ...deletedStyle, ...getColumnStyle("bgcolor") }}>
 				{isDeleted ? (
 					deletedContent
 				) : isFieldEditable("bgcolor") ? (
@@ -2094,7 +2128,7 @@ export default function AnalysisPage() {
 						}
 						disabled={!isFieldEditable("bgcolor")}
 					>
-						<SelectTrigger className="w-[180px]">
+						<SelectTrigger className="w-full min-w-0">
 							<span
 								style={{
 									backgroundColor:
@@ -2147,7 +2181,7 @@ export default function AnalysisPage() {
 		return (
 			<>
 				{selectedColumns.includes("index") && (
-					<TableCell style={deletedStyle}>
+					<TableCell style={{ ...deletedStyle, ...getColumnStyle("index") }}>
 						{isDeleted ? (
 							<span className="text-gray-500">Deleted</span>
 						) : isFieldEditable("anvaya_no") ? ( // Use isFieldEditable to check group membership
@@ -2166,7 +2200,7 @@ export default function AnalysisPage() {
 										e.target.value
 									)
 								}
-								className="w-[60px]"
+								className="w-full min-w-0"
 								placeholder="Enter Index"
 							/>
 						) : (
@@ -2175,7 +2209,7 @@ export default function AnalysisPage() {
 					</TableCell>
 				)}
 				{selectedColumns.includes("word") && (
-					<TableCell style={deletedStyle}>
+					<TableCell style={{ ...deletedStyle, ...getColumnStyle("word") }}>
 						<TooltipProvider>
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -2221,7 +2255,7 @@ export default function AnalysisPage() {
 														undefined
 														? currentProcessedData.word
 														: processed.word,
-													"w-[90px]",
+													"w-full min-w-0",
 													"Enter Word"
 											  )}
 									</div>
@@ -2263,9 +2297,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"poem",
 							currentProcessedData?.poem,
-							"w-[100px]",
+							"w-full min-w-0",
 							"Enter Prose Index"
-						)
+						),
+						"poem"
 					)}
 				{selectedColumns.includes("sandhied_word") &&
 					renderCell(
@@ -2273,9 +2308,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"sandhied_word",
 							currentProcessedData?.sandhied_word,
-							"w-[100px]",
+							"w-full min-w-0",
 							"Enter Sandhied Word"
-						)
+						),
+						"sandhied_word"
 					)}
 				{selectedColumns.includes("morph_analysis") &&
 					!isUserRestricted &&
@@ -2284,9 +2320,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"morph_analysis",
 							currentProcessedData?.morph_analysis,
-							"w-[180px]",
+							"w-full min-w-0",
 							"Enter Morph Analysis"
-						)
+						),
+						"morph_analysis"
 					)}
 				{selectedColumns.includes("morph_in_context") &&
 					renderCell(
@@ -2294,9 +2331,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"morph_in_context",
 							currentProcessedData?.morph_in_context,
-							"w-[180px]",
+							"w-full min-w-0",
 							"Enter Morph in Context"
-						)
+						),
+						"morph_in_context"
 					)}
 				{selectedColumns.includes("kaaraka_sambandha") &&
 					(() => {
@@ -2324,15 +2362,26 @@ export default function AnalysisPage() {
 							onRelationChange: (relation: string) => void,
 							onToIndexChange: (toIndex: string) => void,
 							relationPlaceholder: string,
+							relationColumnId: string,
+							toIndexColumnId: string,
 							showAddButton = false
 						) => {
+							const relationCellStyle = {
+								...deletedStyle,
+								...getColumnStyle(relationColumnId),
+							};
+							const toIndexCellStyle = {
+								...deletedStyle,
+								...getColumnStyle(toIndexColumnId),
+							};
+
 							if (isDeleted) {
 								return (
 									<>
-										<TableCell style={deletedStyle}>
+										<TableCell style={relationCellStyle}>
 											{deletedContent}
 										</TableCell>
-										<TableCell style={deletedStyle}>
+										<TableCell style={toIndexCellStyle}>
 											{deletedContent}
 										</TableCell>
 									</>
@@ -2342,12 +2391,12 @@ export default function AnalysisPage() {
 							if (!editable) {
 								return (
 									<>
-										<TableCell style={deletedStyle}>
+										<TableCell style={relationCellStyle}>
 											<span className="px-2">
 												{pair.relation || "-"}
 											</span>
 										</TableCell>
-										<TableCell style={deletedStyle}>
+										<TableCell style={toIndexCellStyle}>
 											<span className="px-2">
 												{pair.toIndex || "-"}
 											</span>
@@ -2358,13 +2407,13 @@ export default function AnalysisPage() {
 
 							return (
 								<>
-									<TableCell style={deletedStyle}>
-										<div className="flex gap-2 items-center">
+									<TableCell style={relationCellStyle}>
+										<div className="flex gap-2 items-center min-w-0">
 											<KaarakaRelationCombobox
 												value={pair.relation}
 												onChange={onRelationChange}
 												placeholder={relationPlaceholder}
-												className="w-[220px]"
+												className="w-full min-w-0"
 											/>
 											{showAddButton &&
 												showAnalysisButtons &&
@@ -2377,7 +2426,7 @@ export default function AnalysisPage() {
 																<Button
 																	variant="outline"
 																	size="icon"
-																	className="size-8"
+																	className="size-8 shrink-0"
 																	onClick={() =>
 																		handleAddToPossibleRelations(
 																			procIndex
@@ -2398,14 +2447,14 @@ export default function AnalysisPage() {
 												)}
 										</div>
 									</TableCell>
-									<TableCell style={deletedStyle}>
+									<TableCell style={toIndexCellStyle}>
 										<Input
 											type="text"
 											value={pair.toIndex}
 											onChange={(e) =>
 												onToIndexChange(e.target.value)
 											}
-											className="w-[100px]"
+											className="w-full min-w-0"
 											placeholder="Enter To Index"
 										/>
 									</TableCell>
@@ -2428,6 +2477,8 @@ export default function AnalysisPage() {
 											toIndex: nextToIndex,
 										}),
 									"Select Kaaraka Relation",
+									"kaaraka_relation",
+									"kaaraka_to_index",
 									true
 								)}
 								{renderPairCells(
@@ -2442,7 +2493,9 @@ export default function AnalysisPage() {
 											...discourse,
 											toIndex: nextToIndex,
 										}),
-									"Select Discourse Relation"
+									"Select Discourse Relation",
+									"discourse_relation",
+									"discourse_to_index"
 								)}
 							</>
 						);
@@ -2454,9 +2507,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"possible_relations",
 							currentProcessedData?.possible_relations,
-							"w-[180px]",
+							"w-full min-w-0",
 							"Enter Possible Relations"
-						)
+						),
+						"possible_relations"
 					)}
 				{selectedColumns.includes("hindi_meaning") &&
 					renderCell(
@@ -2464,9 +2518,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"hindi_meaning",
 							currentProcessedData?.hindi_meaning,
-							"w-[180px]",
+							"w-full min-w-0",
 							"Enter Hindi Meaning"
-						)
+						),
+						"hindi_meaning"
 					)}
 				{selectedColumns.includes("english_meaning") &&
 					renderCell(
@@ -2474,9 +2529,10 @@ export default function AnalysisPage() {
 						renderInput(
 							"english_meaning",
 							currentProcessedData?.english_meaning,
-							"w-[180px]",
+							"w-full min-w-0",
 							"Enter English Meaning"
-						)
+						),
+						"english_meaning"
 					)}
 				{/* Render dynamic language columns */}
 				{availableLanguages.map((lang) => {
@@ -2497,9 +2553,10 @@ export default function AnalysisPage() {
 						renderInput(
 							`meaning_${lang.code}`,
 							meaningValue,
-							"w-[180px]",
+							"w-full min-w-0",
 							`Enter ${lang.name} Meaning`
-						)
+						),
+						columnId
 					);
 				})}
 				{selectedColumns.includes("bgcolor") &&
@@ -2508,7 +2565,7 @@ export default function AnalysisPage() {
 				{isFieldEditable("word") && (
 					<TableCell
 						className="flex flex-col gap-3 items-center"
-						style={deletedStyle}
+						style={{ ...deletedStyle, ...getColumnStyle("actions") }}
 					>
 						<Button
 							size="icon"
@@ -2597,7 +2654,10 @@ export default function AnalysisPage() {
 						}}
 					>
 						{sanityErrors.length > 0 && (
-							<TableCell className="w-8 p-1 align-top">
+							<TableCell
+								className="p-1 align-top"
+								style={getColumnStyle("sanity")}
+							>
 								{rowErrors.length > 0 ? (
 									<TooltipProvider>
 										<Tooltip>
@@ -4073,82 +4133,94 @@ export default function AnalysisPage() {
 				</div>
 				{/* Main Content */}
 				<div className="rounded-lg border bg-card shadow-sm">
+					<div className="border-b bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+						Drag the grip icon on the right edge of any column header to
+						resize it.
+					</div>
 					<div className="w-full overflow-x-auto">
-						<Table className="min-w-[900px]">
+						<Table className="min-w-[900px] table-fixed">
 							<TableHeader>
 								<TableRow className="bg-muted/50">
-									{sanityErrors.length > 0 && (
-										<TableHead className="w-8 p-1" />
-									)}
-									{selectedColumns.includes("index") && (
-										<TableHead className="w-[100px]">
-											Index
-										</TableHead>
-									)}
-									{selectedColumns.includes("word") && (
-										<TableHead>Word</TableHead>
-									)}
-									{selectedColumns.includes("poem") && (
-										<TableHead>Prose Index</TableHead>
-									)}
-									{selectedColumns.includes(
-										"sandhied_word"
-									) && <TableHead>Sandhied Word</TableHead>}
-									{selectedColumns.includes(
-										"morph_analysis"
-									) &&
-										!isUserRestricted && (
-											<TableHead>Morph Analysis</TableHead>
+									{sanityErrors.length > 0 &&
+										renderResizableHead("sanity", "", "p-1")}
+									{selectedColumns.includes("index") &&
+										renderResizableHead("index", "Index")}
+									{selectedColumns.includes("word") &&
+										renderResizableHead("word", "Word")}
+									{selectedColumns.includes("poem") &&
+										renderResizableHead("poem", "Prose Index")}
+									{selectedColumns.includes("sandhied_word") &&
+										renderResizableHead(
+											"sandhied_word",
+											"Sandhied Word"
 										)}
-									{selectedColumns.includes(
-										"morph_in_context"
-									) && (
-										<TableHead>Morph In Context</TableHead>
-									)}
-								{selectedColumns.includes(
-									"kaaraka_sambandha"
-								) && (
-									<>
-										<TableHead>Kaaraka Relation</TableHead>
-										<TableHead>To Index</TableHead>
-										<TableHead>Discourse Relation</TableHead>
-										<TableHead>To Index</TableHead>
-									</>
-								)}
-									{selectedColumns.includes(
-										"possible_relations"
-									) &&
-										!isUserRestricted && (
-											<TableHead>
-												Possible Relations
-											</TableHead>
+									{selectedColumns.includes("morph_analysis") &&
+										!isUserRestricted &&
+										renderResizableHead(
+											"morph_analysis",
+											"Morph Analysis"
 										)}
-									{selectedColumns.includes(
-										"hindi_meaning"
-									) && <TableHead>Hindi Meaning</TableHead>}
-									{selectedColumns.includes(
-										"english_meaning"
-									) && <TableHead>English Meaning</TableHead>}
-									{/* Render dynamic language column headers */}
+									{selectedColumns.includes("morph_in_context") &&
+										renderResizableHead(
+											"morph_in_context",
+											"Morph In Context"
+										)}
+									{selectedColumns.includes("kaaraka_sambandha") && (
+										<>
+											{renderResizableHead(
+												"kaaraka_relation",
+												"Kaaraka Relation"
+											)}
+											{renderResizableHead(
+												"kaaraka_to_index",
+												"To Index"
+											)}
+											{renderResizableHead(
+												"discourse_relation",
+												"Discourse Relation"
+											)}
+											{renderResizableHead(
+												"discourse_to_index",
+												"To Index"
+											)}
+										</>
+									)}
+									{selectedColumns.includes("possible_relations") &&
+										!isUserRestricted &&
+										renderResizableHead(
+											"possible_relations",
+											"Possible Relations"
+										)}
+									{selectedColumns.includes("hindi_meaning") &&
+										renderResizableHead(
+											"hindi_meaning",
+											"Hindi Meaning"
+										)}
+									{selectedColumns.includes("english_meaning") &&
+										renderResizableHead(
+											"english_meaning",
+											"English Meaning"
+										)}
 									{availableLanguages.map((lang) => {
 										const columnId = `meaning_${lang.code}`;
 										if (!selectedColumns.includes(columnId))
 											return null;
 										return (
-											<TableHead key={columnId}>
+											<ResizableTableHead
+												key={columnId}
+												columnId={columnId}
+												width={getColumnStyle(columnId).width}
+												onResizeStart={startColumnResize}
+											>
 												{lang.name} Meaning
-											</TableHead>
+											</ResizableTableHead>
 										);
 									})}
 									{selectedColumns.includes("bgcolor") &&
-										!isUserRestricted && (
-											<TableHead>Color Code</TableHead>
-										)}
-									{isFieldEditable("word") && (
-										<TableHead className="w-[100px]">
-											Actions
-										</TableHead>
-									)}
+										!isUserRestricted &&
+										renderResizableHead("bgcolor", "Color Code")}
+									{isFieldEditable("word") &&
+										renderResizableHead("actions", "Actions")}
 								</TableRow>
 							</TableHeader>
 							{renderTableContent()}
