@@ -107,20 +107,19 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 		}
 
 		// Convert meanings object to Map format if provided
-		const updateData = { ...data };
+		const { _id, ...rest } = data;
+		const updateData: Record<string, unknown> = { ...rest };
 		if (updateData.meanings && typeof updateData.meanings === 'object' && !(updateData.meanings instanceof Map)) {
 			// Convert plain object to Map for Mongoose
-			const meaningsMap = new Map(Object.entries(updateData.meanings));
+			const meaningsMap = new Map(Object.entries(updateData.meanings as Record<string, string>));
 			updateData.meanings = meaningsMap;
 		}
 
-		// Update the document
+		// Update the document (partial $set — only fields present in the payload)
 		const updatedDoc = await Analysis.findByIdAndUpdate(
-			data._id,
+			_id ?? data._id,
 			{
-				$set: {
-					...updateData,
-				},
+				$set: updateData,
 			},
 			{
 				new: true,

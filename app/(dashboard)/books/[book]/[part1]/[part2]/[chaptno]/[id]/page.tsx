@@ -751,6 +751,7 @@ export default function AnalysisPage() {
 
 	const handleSave = async (index: number, rowOverride?: any) => {
 		const currentData = rowOverride ?? updatedData[index];
+		if (!currentData || currentData.deleted) return;
 
 		// Validate required fields
 		const emptyFields = [];
@@ -1307,18 +1308,21 @@ export default function AnalysisPage() {
 		setIsDeletingRow(true);
 		try {
 			const currentData = updatedData[pendingDeleteIndex];
-			const currentAnvayaNo = currentData.anvaya_no;
-			// Ensure sentno is always a trimmed string for consistent comparison
+			if (!currentData?._id) {
+				toast.error("Cannot delete row: missing id");
+				return;
+			}
+
+			const currentAnvayaNo = String(currentData.anvaya_no).trim();
 			const currentSentno = String(currentData.sentno).trim();
 			const [currentMain, currentSub] = currentAnvayaNo.split(".");
-			const currentMainNum = parseInt(currentMain);
-			const currentSubNum = parseInt(currentSub);
+			const currentMainNum = parseInt(currentMain, 10);
+			const currentSubNum = parseInt(currentSub, 10);
+			const deletedId = String(currentData._id);
 
-			// Store original data before deletion for undo
-			const originalDataBeforeDelete = [...updatedData];
-
-			// Store all rows that will be affected by renumbering
-			const affectedRowIds: string[] = [];
+			const originalDataBeforeDelete = updatedData.map((row) => ({
+				...row,
+			}));
 
 			const response = await fetch(
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${currentData.slokano}`,
@@ -1329,176 +1333,197 @@ export default function AnalysisPage() {
 						"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
 					},
 					body: JSON.stringify({
-						_id: currentData._id, // Send the exact document ID
-						anvaya_no: String(currentAnvayaNo).trim(),
+						_id: currentData._id,
+						anvaya_no: currentAnvayaNo,
 						sentno: currentSentno,
 					}),
 				}
 			);
 
-			if (response.ok) {
-				const result = await response.json();
-				const deletedRowData = result.deletedRow;
-				// Track changed rows
-				const changedRows: number[] = [];
-				const updateStateData = (prevData: any[]) => {
-					const isOnlyItemInGroup = !prevData.some((item) => {
-						const [itemMain] = item.anvaya_no.split(".");
-						const itemSentno = String(item.sentno).trim();
-						return (
-							parseInt(itemMain) === currentMainNum &&
-							item.anvaya_no !== currentAnvayaNo &&
-							itemSentno === currentSentno
-						);
-					});
-					const anvayaMapping: { [key: string]: string } = {};
-					prevData.forEach((item) => {
-						const itemSentno = String(item.sentno).trim();
-						if (itemSentno !== currentSentno) return;
-						const [itemMain, itemSub] = item.anvaya_no.split(".");
-						const itemMainNum = parseInt(itemMain);
-						const itemSubNum = parseInt(itemSub);
-						if (
-							itemMainNum === currentMainNum &&
-							itemSubNum > currentSubNum
-						) {
-							anvayaMapping[item.anvaya_no] = `${itemMain}.${
-								itemSubNum - 1
-							}`;
-						} else if (
-							isOnlyItemInGroup &&
-							itemMainNum > currentMainNum
-						) {
-							anvayaMapping[item.anvaya_no] = `${
-								itemMainNum - 1
-							}.${itemSub}`;
-						}
-					});
-					const updateRelations = (
-						relations: string,
-						deletedAnvayaNo: string
-					) => {
-						if (!relations) return "-";
-						return relations
-							.split("#")
-							.map((relation) => {
-								const [type, number] = relation.split(",");
-								if (number?.trim() === deletedAnvayaNo) {
-									return `${type},`;
-								}
-								if (number && anvayaMapping[number.trim()]) {
-									return `${type},${
-										anvayaMapping[number.trim()]
-									}`;
-								}
-								return relation;
-							})
-							.filter(Boolean)
-							.join("#");
-					};
-					return prevData.map((item, index) => {
-						const itemSentno = String(item.sentno).trim();
-						if (itemSentno !== currentSentno) return item;
-						const [itemMain, itemSub] = item.anvaya_no.split(".");
-						const itemMainNum = parseInt(itemMain);
-						const itemSubNum = parseInt(itemSub);
-						// Compare by _id to ensure we only delete the EXACT row
-						if (item._id === currentData._id) {
-							changedRows.push(index);
-							return {
-								...item,
-								deleted: true,
-								word: "-",
-								poem: "-",
-								morph_analysis: "-",
-								morph_in_context: "-",
-								kaaraka_sambandha: "-",
-								possible_relations: "-",
-								bgcolor: "-",
-							};
-						}
-						let updatedItem = { ...item };
-						if (
-							itemMainNum === currentMainNum &&
-							itemSubNum > currentSubNum
-						) {
-							changedRows.push(index);
-							updatedItem = {
-								...updatedItem,
-								anvaya_no: `${itemMain}.${itemSubNum - 1}`,
-							};
-						}
-						if (isOnlyItemInGroup && itemMainNum > currentMainNum) {
-							changedRows.push(index);
-							updatedItem = {
-								...updatedItem,
-								anvaya_no: `${itemMainNum - 1}.${itemSub}`,
-							};
-						}
-						const oldKaaraka = updatedItem.kaaraka_sambandha;
-						const oldPossible = updatedItem.possible_relations;
-						updatedItem.kaaraka_sambandha = updateRelations(
-							updatedItem.kaaraka_sambandha,
-							currentAnvayaNo
-						);
-						updatedItem.possible_relations = updateRelations(
-							updatedItem.possible_relations,
-							currentAnvayaNo
-						);
-						if (
-							oldKaaraka !== updatedItem.kaaraka_sambandha ||
-							oldPossible !== updatedItem.possible_relations
-						) {
-							changedRows.push(index);
-						}
-						return updatedItem;
-					});
-				};
-				const newData = updateStateData(updatedData);
-				setUpdatedData(newData);
-				setOriginalData(newData);
-				setChapter(newData);
-				// Auto-save all changed rows except the deleted one
-				for (const idx of Array.from(new Set(changedRows))) {
-					if (newData[idx].deleted) continue;
-					await handleSave(idx, newData[idx]);
+			if (!response.ok) {
+				const result = await response.json().catch(() => ({}));
+				toast.error(
+					"Error deleting row: " + (result.message || response.status)
+				);
+				return;
+			}
+
+			const result = await response.json();
+			const deletedRowData = result.deletedRow;
+
+			// Same-sentence peers excluding the deleted row
+			const peers = originalDataBeforeDelete.filter(
+				(item) =>
+					String(item._id) !== deletedId &&
+					String(item.sentno).trim() === currentSentno
+			);
+
+			const isOnlyItemInGroup = !peers.some((item) => {
+				const [itemMain] = String(item.anvaya_no).split(".");
+				return parseInt(itemMain, 10) === currentMainNum;
+			});
+
+			const anvayaMapping: Record<string, string> = {};
+			peers.forEach((item) => {
+				const [itemMain, itemSub] = String(item.anvaya_no).split(".");
+				const itemMainNum = parseInt(itemMain, 10);
+				const itemSubNum = parseInt(itemSub, 10);
+				if (
+					itemMainNum === currentMainNum &&
+					itemSubNum > currentSubNum
+				) {
+					anvayaMapping[item.anvaya_no] = `${itemMain}.${
+						itemSubNum - 1
+					}`;
+				} else if (
+					isOnlyItemInGroup &&
+					itemMainNum > currentMainNum
+				) {
+					anvayaMapping[item.anvaya_no] = `${
+						itemMainNum - 1
+					}.${itemSub}`;
 				}
+			});
 
-				// Collect all affected rows for complete undo
-				const affectedRows = changedRows.map((idx) => ({
-					index: idx,
-					original: originalDataBeforeDelete[idx],
-					updated: newData[idx],
-				}));
+			const updateRelations = (
+				relations: string,
+				separator: ";" | "#"
+			) => {
+				if (!relations || relations === "-") return relations || "-";
+				return relations
+					.split(separator)
+					.map((relation) => {
+						const commaIdx = relation.indexOf(",");
+						if (commaIdx === -1) return relation;
+						const type = relation.slice(0, commaIdx);
+						const number = relation.slice(commaIdx + 1).trim();
+						if (number === currentAnvayaNo) {
+							return `${type},`;
+						}
+						if (number && anvayaMapping[number]) {
+							return `${type},${anvayaMapping[number]}`;
+						}
+						return relation;
+					})
+					.filter(Boolean)
+					.join(separator);
+			};
 
-				// Add to undo history with complete state
-				const undoEntry = {
-					deletedRow: deletedRowData,
-					timestamp: Date.now(),
-					originalData: originalDataBeforeDelete,
-					affectedRows: affectedRows, // Store what changed
-					currentAnvayaNo,
-					currentSentno,
-				};
+			const cascadeUpdates: {
+				original: any;
+				updated: any;
+			}[] = [];
 
-				// Show success toast with undo button (5 seconds display)
-				const toastId = toast.success("Row deleted successfully!", {
-					duration: 5000, // Toast disappears after 5 seconds
-					action: {
-						label: "Undo",
-						onClick: () => handleUndoDelete(undoEntry),
-					},
+			const newData = originalDataBeforeDelete
+				.filter((item) => String(item._id) !== deletedId)
+				.map((item) => {
+					if (String(item.sentno).trim() !== currentSentno) {
+						return item;
+					}
+
+					let updatedItem = { ...item };
+					let changed = false;
+
+					if (anvayaMapping[item.anvaya_no]) {
+						updatedItem.anvaya_no = anvayaMapping[item.anvaya_no];
+						changed = true;
+					}
+
+					const nextKaaraka = updateRelations(
+						String(item.kaaraka_sambandha ?? ""),
+						";"
+					);
+					const nextPossible = updateRelations(
+						String(item.possible_relations ?? ""),
+						"#"
+					);
+
+					if (nextKaaraka !== item.kaaraka_sambandha) {
+						updatedItem.kaaraka_sambandha = nextKaaraka;
+						changed = true;
+					}
+					if (nextPossible !== item.possible_relations) {
+						updatedItem.possible_relations = nextPossible;
+						changed = true;
+					}
+
+					if (changed) {
+						cascadeUpdates.push({
+							original: item,
+							updated: updatedItem,
+						});
+					}
+					return updatedItem;
 				});
 
-				// Store with toast ID for later dismissal
-				setDeletedRowsHistory((prev) => [
-					...prev,
-					{ ...undoEntry, toastId },
-				]);
+			setUpdatedData(newData);
+			setOriginalData(newData);
+			setChapter(newData);
+			setChangedRows((prev) => {
+				const next = new Set<number>();
+				prev.forEach((idx) => {
+					if (idx < pendingDeleteIndex) next.add(idx);
+					else if (idx > pendingDeleteIndex) next.add(idx - 1);
+				});
+				return next;
+			});
 
-				setOpenDialog(null);
-				setPendingDeleteIndex(null);
+			// Cascade: only patch index/relation fields — never full-row overwrite
+			for (const { updated } of cascadeUpdates) {
+				const patchResponse = await fetch(
+					`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${updated.slokano}`,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+							"DB-Access-Key":
+								process.env.NEXT_PUBLIC_DBI_KEY || "",
+						},
+						body: JSON.stringify({
+							_id: updated._id,
+							anvaya_no: updated.anvaya_no,
+							kaaraka_sambandha: updated.kaaraka_sambandha,
+							possible_relations: updated.possible_relations,
+						}),
+					}
+				);
+				if (!patchResponse.ok) {
+					console.error(
+						"Cascade patch failed for",
+						updated._id,
+						await patchResponse.text()
+					);
+				}
 			}
+
+			const undoEntry = {
+				deletedRow: deletedRowData,
+				timestamp: Date.now(),
+				originalData: originalDataBeforeDelete,
+				affectedRows: cascadeUpdates.map((u, i) => ({
+					index: i,
+					original: u.original,
+					updated: u.updated,
+				})),
+				currentAnvayaNo,
+				currentSentno,
+			};
+
+			const toastId = toast.success("Row deleted successfully!", {
+				duration: 5000,
+				action: {
+					label: "Undo",
+					onClick: () => handleUndoDelete(undoEntry),
+				},
+			});
+
+			setDeletedRowsHistory((prev) => [
+				...prev,
+				{ ...undoEntry, toastId },
+			]);
+
+			setOpenDialog(null);
+			setPendingDeleteIndex(null);
 		} catch (error) {
 			console.error("Delete operation error:", error);
 			toast.error("Error deleting row: " + (error as Error).message);
@@ -1552,15 +1577,14 @@ export default function AnalysisPage() {
 				return;
 			}
 
-			// Step 2: Restore all affected rows to their original state
+			// Step 2: Restore cascade fields on affected rows (index/relations only)
 			if (undoEntry.affectedRows && undoEntry.affectedRows.length > 0) {
 				const updatePromises = undoEntry.affectedRows.map(
 					async (affected) => {
 						if (!affected.original || affected.original.deleted)
 							return;
 
-						// Restore original anvaya_no, kaaraka_sambandha, and possible_relations
-						return fetch(
+						const res = await fetch(
 							`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${affected.original.slokano}`,
 							{
 								method: "PUT",
@@ -1576,39 +1600,16 @@ export default function AnalysisPage() {
 										affected.original.kaaraka_sambandha,
 									possible_relations:
 										affected.original.possible_relations,
-									word: affected.original.word,
-									poem: affected.original.poem,
-									sandhied_word:
-										affected.original.sandhied_word,
-									morph_analysis:
-										affected.original.morph_analysis,
-									morph_in_context:
-										affected.original.morph_in_context,
-									hindi_meaning:
-										affected.original.hindi_meaning,
-									english_meaning:
-										affected.original.english_meaning,
-									samAsa: affected.original.samAsa,
-									prayoga: affected.original.prayoga,
-									sarvanAma: affected.original.sarvanAma,
-									name_classification:
-										affected.original.name_classification,
-									bgcolor: affected.original.bgcolor,
-									sentno: affected.original.sentno,
-									chaptno: decodedChaptno, // Use URL param
-									slokano: affected.original.slokano,
-									book: decodedBook, // Use URL param instead of affected.original.book
-									part1:
-										decodedPart1 !== "null"
-											? decodedPart1
-											: null, // Use URL param instead of affected.original.part1
-									part2:
-										decodedPart2 !== "null"
-											? decodedPart2
-											: null, // Use URL param instead of affected.original.part2
 								}),
 							}
 						);
+						if (!res.ok) {
+							console.error(
+								"Undo cascade restore failed",
+								affected.original._id,
+								await res.text()
+							);
+						}
 					}
 				);
 
@@ -1622,6 +1623,13 @@ export default function AnalysisPage() {
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
 			);
 			const refreshedData = await refreshResponse.json();
+			if (!Array.isArray(refreshedData)) {
+				toast.error(
+					refreshedData?.message ||
+						"Failed to refresh analysis after undo"
+				);
+				return;
+			}
 
 			// Update all relevant state with fresh data
 			setChapter(refreshedData);
@@ -2736,9 +2744,11 @@ export default function AnalysisPage() {
 
 	// Add this function to handle saving all changes
 	const handleSaveAll = async () => {
+		if (isDeletingRow) return;
 		for (const procIndex of Array.from(changedRows)) {
-			// Convert Set to Array
-			await handleSave(procIndex); // Call the existing handleSave function for each changed row
+			const row = updatedData[procIndex];
+			if (!row || row.deleted) continue;
+			await handleSave(procIndex);
 		}
 		toast.success("All changes saved successfully!");
 	};
@@ -2844,6 +2854,12 @@ export default function AnalysisPage() {
 				`/api/analysis/${decodedBook}/${decodedPart1}/${decodedPart2}/${decodedChaptno}/${shloka?.slokano}`
 			);
 			const chapterData = await chapterResponse.json();
+			if (!Array.isArray(chapterData)) {
+				toast.error(
+					chapterData?.message || "Failed to refresh analysis data"
+				);
+				return;
+			}
 
 			setChapter(chapterData);
 			setUpdatedData(chapterData);
@@ -4032,7 +4048,7 @@ export default function AnalysisPage() {
 																						.length
 																				}{" "}
 																				rows
-																				affected)
+																				renumbered/updated)
 																			</span>
 																		)}
 																</div>
@@ -4080,7 +4096,7 @@ export default function AnalysisPage() {
 						onClick={handleRefresh}
 						className="justify-center"
 						variant="outline"
-						disabled={loading}
+						disabled={loading || isDeletingRow}
 					>
 						Refresh
 					</Button>
@@ -4126,6 +4142,7 @@ export default function AnalysisPage() {
 						<Button
 							onClick={handleSaveAll}
 							className="w-5rem justify-center"
+							disabled={isDeletingRow}
 						>
 							Save All
 						</Button>

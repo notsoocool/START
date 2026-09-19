@@ -10,7 +10,15 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { KAARAKA_TAGS } from "@/lib/data/kaarakaTags";
+import { KAARAKA_TAGS, type KaarakaTag } from "@/lib/data/kaarakaTags";
+
+/** Blank / none option — stores `-` in kaaraka_sambandha. */
+const BLANK_OPTION: KaarakaTag = {
+	long: "None (blank)",
+	short: "-",
+};
+
+const DROPDOWN_TAGS: KaarakaTag[] = [BLANK_OPTION, ...KAARAKA_TAGS];
 
 interface KaarakaRelationComboboxProps {
 	/** Current relation label for this pair slot (before the comma / to_index). */
@@ -33,11 +41,15 @@ export function KaarakaRelationCombobox({
 
 	const filteredTags = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return KAARAKA_TAGS;
-		return KAARAKA_TAGS.filter(
+		if (!q) return DROPDOWN_TAGS;
+		return DROPDOWN_TAGS.filter(
 			(tag) =>
 				tag.long.toLowerCase().includes(q) ||
-				tag.short.toLowerCase().includes(q)
+				tag.short.toLowerCase().includes(q) ||
+				(tag.short === "-" &&
+					("none".includes(q) ||
+						"blank".includes(q) ||
+						"-".includes(q)))
 		);
 	}, [query]);
 
@@ -46,6 +58,9 @@ export function KaarakaRelationCombobox({
 		setOpen(false);
 		setQuery("");
 	};
+
+	const displayValue =
+		!value || value === "-" ? "None (blank)" : value;
 
 	return (
 		<Popover
@@ -65,12 +80,12 @@ export function KaarakaRelationCombobox({
 					disabled={disabled}
 					className={cn(
 						"w-[220px] justify-between bg-transparent font-normal hover:bg-transparent",
-						!value && "text-muted-foreground",
+						(!value || value === "-") && "text-muted-foreground",
 						className
 					)}
 				>
 					<span className="truncate text-left">
-						{value || placeholder}
+						{value ? displayValue : placeholder}
 					</span>
 					<ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
 				</Button>
@@ -101,7 +116,10 @@ export function KaarakaRelationCombobox({
 					) : (
 						filteredTags.map((tag) => {
 							const isSelected =
-								value === tag.short || value === tag.long;
+								value === tag.short ||
+								value === tag.long ||
+								(tag.short === "-" &&
+									(!value || value === "-"));
 							return (
 								<button
 									key={`${tag.long}-${tag.short}`}
@@ -113,7 +131,7 @@ export function KaarakaRelationCombobox({
 									)}
 								>
 									<span className="flex-1 truncate text-left font-medium">
-										{tag.short}
+										{tag.short === "-" ? "—" : tag.short}
 									</span>
 									<span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
 										{tag.long}
