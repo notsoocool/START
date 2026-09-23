@@ -60,8 +60,8 @@ export default function GroupsPage() {
 		isLoading: annotatorsLoading,
 		error: annotatorsError,
 	} = useUsers(1, 500, "", "Annotator");
-	const editors = editorsData?.users || [];
-	const annotators = annotatorsData?.users || [];
+	const editors: User[] = editorsData?.users ?? [];
+	const annotators: User[] = annotatorsData?.users ?? [];
 	const users = useMemo(
 		() => [...editors, ...annotators],
 		[editors, annotators]
@@ -80,7 +80,8 @@ export default function GroupsPage() {
 		assignedBooks: [] as string[],
 		supervisedGroups: [] as string[],
 	});
-	const filteredUsers = formData.type === "A" ? annotators : editors;
+	const filteredUsers: User[] =
+		formData.type === "A" ? annotators : editors;
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
 	const editFormRef = useRef<HTMLDivElement>(null);
