@@ -48,8 +48,26 @@ interface GroupData {
 
 export default function GroupsPage() {
 	const router = useRouter();
-	const { data, isLoading: usersLoading, error: usersError } = useUsers(1, 1000); // fetch all users for now
-	const users = data?.users || [];
+	// Role-scoped fetches: total users (~2k) exceed a single page, so "fetch all then
+	// filter" dropped Editors/Annotators whose names sort past the page limit.
+	const {
+		data: editorsData,
+		isLoading: editorsLoading,
+		error: editorsError,
+	} = useUsers(1, 500, "", "Editor");
+	const {
+		data: annotatorsData,
+		isLoading: annotatorsLoading,
+		error: annotatorsError,
+	} = useUsers(1, 500, "", "Annotator");
+	const editors = editorsData?.users || [];
+	const annotators = annotatorsData?.users || [];
+	const users = useMemo(
+		() => [...editors, ...annotators],
+		[editors, annotators]
+	);
+	const usersLoading = editorsLoading || annotatorsLoading;
+	const usersError = editorsError || annotatorsError;
 	const [groups, setGroups] = useState<GroupData[]>([]);
 	const [books, setBooks] = useState<Book[]>([]);
 	const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
@@ -62,7 +80,7 @@ export default function GroupsPage() {
 		assignedBooks: [] as string[],
 		supervisedGroups: [] as string[],
 	});
-	const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+	const filteredUsers = formData.type === "A" ? annotators : editors;
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [groupToDelete, setGroupToDelete] = useState<GroupData | null>(null);
 	const editFormRef = useRef<HTMLDivElement>(null);
@@ -157,14 +175,6 @@ export default function GroupsPage() {
 			toast.error("An unexpected error occurred while removing user from group");
 		}
 	};
-
-	useEffect(() => {
-		if (formData.type === "A") {
-			setFilteredUsers(users.filter((user: User) => user.perms === "Annotator"));
-		} else {
-			setFilteredUsers(users.filter((user: User) => user.perms === "Editor"));
-		}
-	}, [formData.type, users]);
 
 	const fetchGroups = async () => {
 		try {
