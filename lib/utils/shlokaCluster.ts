@@ -38,7 +38,7 @@ export function joinSparts(sparts: string[]): string {
 export function sentnoMaps(sources: { sentnos: string[] }[]): Map<string, string>[] {
 	let next = 1;
 	return sources.map((source) => {
-		const unique = [...new Set(source.sentnos)].sort((a, b) => {
+		const unique = Array.from(new Set(source.sentnos)).sort((a, b) => {
 			const na = Number(a);
 			const nb = Number(b);
 			if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
