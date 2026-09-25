@@ -11,6 +11,8 @@ import {
 	CardHeader,
 } from "@/components/ui/card";
 import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useShlokas } from "@/lib/hooks/use-api";
 import type { Shloka } from "./ChapterShlokaCards";
 
@@ -34,6 +36,9 @@ export default function Shlokas() {
 	const shlokaRefs = useRef<{ [key: string]: HTMLElement | null }>({});
 
 	const { book, part1, part2, chaptno } = useParams();
+	const queryClient = useQueryClient();
+	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [isCombining, setIsCombining] = useState(false);
 	const {
 		data: shlokasData,
 		isLoading,
@@ -66,6 +71,45 @@ export default function Shlokas() {
 			}
 		});
 	}, []);
+
+	const toggleSelected = (id: string) => {
+		setSelectedIds((current) =>
+			current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+		);
+	};
+
+	const handleCombine = async () => {
+		if (selectedIds.length < 2 || isCombining) return;
+		const confirmed = window.confirm(
+			"Combine the selected shlokas into one card? Their sentences stay separate."
+		);
+		if (!confirmed) return;
+
+		setIsCombining(true);
+		try {
+			const response = await fetch("/api/shlokas/cluster", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+				body: JSON.stringify({ shlokaIds: selectedIds }),
+			});
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(data.error || "Failed to cluster shlokas");
+			}
+			toast.success(`Combined into shloka ${data.slokano}`);
+			setSelectedIds([]);
+			await queryClient.invalidateQueries({
+				queryKey: ["shlokas", book, part1, part2, chaptno],
+			});
+		} catch (error) {
+			toast.error((error as Error).message);
+		} finally {
+			setIsCombining(false);
+		}
+	};
 
 	useEffect(() => {
 		window.addEventListener("scroll", handleScroll);
@@ -128,10 +172,19 @@ export default function Shlokas() {
 				{/* Shloka List - hidden on mobile, visible from md (tablet) upwards */}
 				<div className="hidden w-full transition-colors duration-500 md:block md:w-3/12">
 					<div className="flex flex-col items-start gap-2 rounded-lg bg-background/60 p-3 shadow-sm ring-1 ring-border/60 md:sticky md:top-24 md:max-h-[70vh] md:overflow-hidden">
-						<div className="flex w-full shrink-0 items-center justify-between transition-colors duration-500">
+						<div className="flex w-full shrink-0 items-center justify-between gap-2 transition-colors duration-500">
 							<strong className="p-1 text-lg text-gray-900 transition-colors duration-500 dark:text-gray-100">
 								Shlokas
 							</strong>
+							{selectedIds.length >= 2 && (
+								<Button
+									size="sm"
+									disabled={isCombining}
+									onClick={handleCombine}
+								>
+									{isCombining ? "Combining..." : `Combine (${selectedIds.length})`}
+								</Button>
+							)}
 						</div>
 						<div className="mt-1 flex w-full flex-1 flex-col gap-1 overflow-y-auto lg:flex-col">
 							{shlokas.map((shloka: Shloka) => (
@@ -164,6 +217,14 @@ export default function Shlokas() {
 													: "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-300"
 											}`}
 								>
+									<input
+										type="checkbox"
+										checked={selectedIds.includes(shloka._id)}
+										onClick={(event) => event.stopPropagation()}
+										onChange={() => toggleSelected(shloka._id)}
+										aria-label={`Select shloka ${shloka.slokano}`}
+										className="mr-2"
+									/>
 									<span className="font-medium">
 										Ch. {shloka.chaptno} · Shloka{" "}
 										{shloka.slokano}
