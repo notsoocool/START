@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+	buildClusterUndo,
+	CLUSTER_UNDO_WINDOW_MS,
 	clusterLabel,
 	compareSlokano,
+	isClusterUndoOpen,
 	joinSparts,
 	sentnoMaps,
 } from "./shlokaCluster";
@@ -43,5 +46,41 @@ describe("sentnoMaps", () => {
 		expect(maps[0].get("1")).toBe("1");
 		expect(maps[0].get("2")).toBe("2");
 		expect(maps[1].get("1")).toBe("3");
+	});
+});
+
+describe("isClusterUndoOpen", () => {
+	test("closes once 24 hours have passed and stays open when the time is unknown", () => {
+		const start = Date.parse("2026-09-25T10:00:00.000Z");
+		expect(isClusterUndoOpen(new Date(start), start + CLUSTER_UNDO_WINDOW_MS - 1)).toBe(true);
+		expect(isClusterUndoOpen(new Date(start), start + CLUSTER_UNDO_WINDOW_MS)).toBe(false);
+		expect(isClusterUndoOpen(null, start)).toBe(true);
+	});
+});
+
+describe("buildClusterUndo", () => {
+	test("stores each source and how many rows moved with each sentence number", () => {
+		const sentnos = [["1", "1"], ["1"]];
+		const maps = sentnoMaps(sentnos.map((group) => ({ sentnos: group })));
+		const undo = buildClusterUndo(
+			[
+				{ slokano: "051", spart: "अथ", sentnos: sentnos[0], locked: true, owner: "user_1" },
+				{ slokano: "052", spart: "द्वितीयः", sentnos: sentnos[1] },
+			],
+			maps
+		);
+
+		expect(undo[0]).toEqual({
+			slokano: "051",
+			spart: "अथ",
+			userPublished: false,
+			groupPublished: false,
+			locked: true,
+			owner: "user_1",
+			sentnoMap: [{ from: "1", to: "1", rows: 2 }],
+		});
+		expect(undo[1].sentnoMap).toEqual([{ from: "1", to: "2", rows: 1 }]);
+		expect(undo[1].locked).toBe(false);
+		expect(undo[1].owner).toBe(null);
 	});
 });

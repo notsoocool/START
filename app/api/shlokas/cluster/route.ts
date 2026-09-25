@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { currentUser } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db/connect";
 import Shloka from "@/lib/db/newShlokaModel";
 import Analysis from "@/lib/db/newAnalysisModel";
-import Perms from "@/lib/db/permissionsModel";
-import Group from "@/lib/db/groupModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
+import { authorizeClusterEdit } from "@/lib/auth/authorizeClusterEdit";
 import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
 import {
+	buildClusterUndo,
 	clusterLabel,
 	compareSlokano,
 	joinSparts,
@@ -26,31 +25,6 @@ const sameLocation = (
 	(a.part1 ?? null) === (b.part1 ?? null) &&
 	(a.part2 ?? null) === (b.part2 ?? null) &&
 	a.chaptno === b.chaptno;
-
-/**
- * Mirrors the Editor/Annotator group-membership rule used for shloka editing
- * (see app/(dashboard)/books/[book]/[part1]/[part2]/[chaptno]/[id]/page.tsx):
- * Root/Admin may always edit; Editor/Annotator may only edit if they belong
- * to a group that has this book assigned.
- */
-async function authorizeClusterEdit(
-	book: string
-): Promise<"unauthenticated" | "forbidden" | "ok"> {
-	const user = await currentUser();
-	if (!user) return "unauthenticated";
-
-	const userPerms = await Perms.findOne({ userID: user.id });
-	const role = userPerms?.perms;
-
-	if (role === "Root" || role === "Admin") return "ok";
-
-	if (role === "Editor" || role === "Annotator") {
-		const group = await Group.findOne({ members: user.id, assignedBooks: book });
-		if (group) return "ok";
-	}
-
-	return "forbidden";
-}
 
 export async function POST(req: NextRequest) {
 	const authResponse = await verifyDBAccess(req);
@@ -80,7 +54,7 @@ export async function POST(req: NextRequest) {
 	}
 
 	// Role check: the DBI key (checked above) is public. Only Root, Admin, or
-	// an Editor/Annotator assigned to this book's group may actually combine.
+	// an Editor assigned to this book's group may actually combine.
 	const authorization = await authorizeClusterEdit(anchor.book);
 	if (authorization === "unauthenticated") {
 		return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
@@ -90,10 +64,6 @@ export async function POST(req: NextRequest) {
 			{ error: "You do not have permission to combine shlokas in this book" },
 			{ status: 403 }
 		);
-	}
-
-	if (shlokas.some((shloka) => shloka.locked)) {
-		return NextResponse.json({ error: "A selected shloka is locked" }, { status: 400 });
 	}
 
 	const slokanoValues = shlokas.map((shloka) => String(shloka.slokano));
@@ -190,8 +160,21 @@ export async function POST(req: NextRequest) {
 						spart: joinSparts(ordered.map((shloka) => String(shloka.spart ?? ""))),
 						userPublished: ordered.every((shloka) => shloka.userPublished === true),
 						groupPublished: ordered.every((shloka) => shloka.groupPublished === true),
-						locked: false,
+						locked: ordered.some((shloka) => shloka.locked === true),
 						owner: ordered[0].owner ?? null,
+						clusteredAt: new Date(),
+						clusterUndo: buildClusterUndo(
+							ordered.map((shloka, index) => ({
+								slokano: String(shloka.slokano),
+								spart: String(shloka.spart ?? ""),
+								userPublished: shloka.userPublished === true,
+								groupPublished: shloka.groupPublished === true,
+								locked: shloka.locked === true,
+								owner: shloka.owner ?? null,
+								sentnos: analysesBySource[index].map((row) => String(row.sentno)),
+							})),
+							maps
+						),
 					},
 				],
 				{ session }

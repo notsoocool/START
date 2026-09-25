@@ -13,6 +13,14 @@ import {
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { useShlokas } from "@/lib/hooks/use-api";
 import type { Shloka } from "./ChapterShlokaCards";
 
@@ -40,6 +48,7 @@ export default function Shlokas() {
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [isCombining, setIsCombining] = useState(false);
 	const [canCombine, setCanCombine] = useState(false);
+	const [combineOpen, setCombineOpen] = useState(false);
 	const {
 		data: shlokasData,
 		isLoading,
@@ -53,10 +62,9 @@ export default function Shlokas() {
 
 	const shlokas = shlokasData?.shlokas || [];
 
-	// Mirrors the Editor/Annotator group-membership rule used for shloka editing
-	// (see app/(dashboard)/books/[book]/[part1]/[part2]/[chaptno]/[id]/page.tsx).
-	// Root/Admin may always combine; Editor/Annotator only if their group is
-	// assigned to this book. The server re-checks this independently.
+	// Root and Admin may always combine. An Editor may combine only if their
+	// group is assigned to this book. Annotators cannot combine. The server
+	// re-checks this independently.
 	useEffect(() => {
 		let active = true;
 		const decodedBook = decodeURIComponent((book as string) || "");
@@ -73,7 +81,7 @@ export default function Shlokas() {
 					return;
 				}
 
-				if (perms === "Editor" || perms === "Annotator") {
+				if (perms === "Editor") {
 					const groupsResponse = await fetch("/api/groups");
 					if (!groupsResponse.ok) throw new Error("Failed to fetch groups");
 					const groupsData = await groupsResponse.json();
@@ -137,10 +145,6 @@ export default function Shlokas() {
 
 	const handleCombine = async () => {
 		if (selectedIds.length < 2 || isCombining) return;
-		const confirmed = window.confirm(
-			"Combine the selected shlokas into one card? Their sentences stay separate."
-		);
-		if (!confirmed) return;
 
 		setIsCombining(true);
 		try {
@@ -157,6 +161,7 @@ export default function Shlokas() {
 				throw new Error(data.error || "Failed to cluster shlokas");
 			}
 			toast.success(`Combined into shloka ${data.slokano}`);
+			setCombineOpen(false);
 			setSelectedIds([]);
 			await queryClient.invalidateQueries({
 				queryKey: ["shlokas", book, part1, part2, chaptno],
@@ -223,6 +228,11 @@ export default function Shlokas() {
 		);
 	}
 
+	const selectedLabels = shlokas
+		.filter((shloka: Shloka) => selectedIds.includes(shloka._id))
+		.map((shloka: Shloka) => shloka.slokano)
+		.join(", ");
+
 	return (
 		<div className="flex min-h-screen flex-col bg-fixed bg-gradient-to-b from-white/80 to-slate-50/80 dark:from-gray-900/80 dark:to-gray-900/80 transition-colors duration-500">
 			<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 md:flex-row md:py-10">
@@ -237,7 +247,7 @@ export default function Shlokas() {
 							<Button
 								size="sm"
 								disabled={isCombining}
-								onClick={handleCombine}
+								onClick={() => setCombineOpen(true)}
 							>
 								{isCombining ? "Combining..." : `Combine (${selectedIds.length})`}
 							</Button>
@@ -309,6 +319,29 @@ export default function Shlokas() {
 					/>
 				</div>
 			</div>
+			<Dialog open={combineOpen} onOpenChange={setCombineOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Combine shlokas</DialogTitle>
+						<DialogDescription>
+							Combine shlokas {selectedLabels} into one card. Their
+							sentences stay separate.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setCombineOpen(false)}
+							disabled={isCombining}
+						>
+							Cancel
+						</Button>
+						<Button onClick={handleCombine} disabled={isCombining}>
+							{isCombining ? "Combining..." : "Combine"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

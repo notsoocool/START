@@ -116,6 +116,8 @@ type Shloka = {
 	groupPublished: boolean;
 	locked: boolean;
 	owner: string | null;
+	clusteredAt?: string | Date | null;
+	clusterUndo?: { slokano: string }[];
 };
 
 export default function AnalysisPage() {

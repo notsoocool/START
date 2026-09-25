@@ -12,6 +12,7 @@ export type UsageAction =
 	| "shloka_delete"
 	| "shloka_bulk_delete"
 	| "shloka_cluster"
+	| "shloka_uncluster"
 	| "analysis_bulk_delete"
 	| "publish"
 	| "unpublish"
@@ -43,6 +44,7 @@ const UsageHistorySchema: Schema = new Schema(
 				"shloka_delete",
 				"shloka_bulk_delete",
 				"shloka_cluster",
+				"shloka_uncluster",
 				"analysis_bulk_delete",
 				"publish",
 				"unpublish",

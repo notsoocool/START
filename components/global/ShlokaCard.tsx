@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MessageSquare, Share2Icon, Trash, Edit2 } from "lucide-react";
+import { MessageSquare, Share2Icon, Trash, Edit2, Undo2 } from "lucide-react";
 import BookmarkButton from "./BookmarkButton";
 import { toPng } from "html-to-image";
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { isClusterUndoOpen } from "@/lib/utils/shlokaCluster";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -21,6 +22,8 @@ interface ShlokaCardProps {
 		_id: string;
 		slokano: string;
 		spart: string;
+		clusteredAt?: string | Date | null;
+		clusterUndo?: { slokano: string }[];
 	};
 	analysisID: string;
 	permissions: string | null;
@@ -52,6 +55,8 @@ export function ShlokaCard({
 		spart: shloka.spart,
 	});
 	const [isEditing, setIsEditing] = useState(false);
+	const [undoOpen, setUndoOpen] = useState(false);
+	const [isUndoing, setIsUndoing] = useState(false);
 
 	// Helper function to check if user can edit based on permissions and group membership
 	const canEditShloka = () => {
@@ -71,6 +76,46 @@ export function ShlokaCard({
 		}
 
 		return false;
+	};
+
+	const canUndoCluster = () => {
+		if (!shloka.clusterUndo || shloka.clusterUndo.length < 2) return false;
+		if (!isClusterUndoOpen(shloka.clusteredAt)) return false;
+		if (permissions === "Root" || permissions === "Admin") return true;
+		if (permissions === "Editor") {
+			if (!bookAssignedGroup) return false;
+			return userGroups.includes(bookAssignedGroup);
+		}
+		return false;
+	};
+
+	const handleUndoCluster = async () => {
+		if (isUndoing) return;
+		setIsUndoing(true);
+		try {
+			const response = await fetch("/api/shlokas/cluster/undo", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+				body: JSON.stringify({ shlokaId: shloka._id }),
+			});
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(data.error || "Failed to undo cluster");
+			}
+			toast.success(`Restored shlokas ${data.slokanos.join(", ")}`);
+			setUndoOpen(false);
+			const bookName = typeof book === "string" ? book : book[0];
+			router.push(
+				`/books/${encodeURIComponent(bookName)}/${encodeURIComponent(part1)}/${encodeURIComponent(part2)}/${encodeURIComponent(chaptno)}`
+			);
+		} catch (error) {
+			toast.error((error as Error).message);
+		} finally {
+			setIsUndoing(false);
+		}
 	};
 
 	const handleShare = async () => {
@@ -318,6 +363,27 @@ export function ShlokaCard({
 	);
 
 	return (
+		<>
+		<Dialog open={undoOpen} onOpenChange={setUndoOpen}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Undo combine</DialogTitle>
+					<DialogDescription>
+						Split shloka {shloka.slokano} back into{" "}
+						{shloka.clusterUndo?.map((source) => source.slokano).join(", ")}. Each
+						shloka&apos;s sentences go back to the numbers they had before combining.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button variant="outline" onClick={() => setUndoOpen(false)} disabled={isUndoing}>
+						Cancel
+					</Button>
+					<Button onClick={handleUndoCluster} disabled={isUndoing}>
+						{isUndoing ? "Restoring..." : "Undo combine"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 		<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
 			<div ref={shlokaRef}>
 				<CardHeader className="border-b border-border flex flex-row justify-between items-center h-16">
@@ -334,6 +400,12 @@ export function ShlokaCard({
 					</div>
 					<div className="flex items-center gap-2">
 						<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
+						{canUndoCluster() && (
+							<Button variant="outline" size="sm" onClick={() => setUndoOpen(true)}>
+								<Undo2 className="mr-2 size-4" />
+								Undo combine
+							</Button>
+						)}
 						{canEditShloka() && (
 							<>
 								<Button variant="outline" size="icon" onClick={() => setEditDialogOpen(true)} className="size-8">
@@ -372,5 +444,6 @@ export function ShlokaCard({
 			{renderDeleteAnalysisDialog()}
 			{renderEditDialog()}
 		</Card>
+		</>
 	);
 }

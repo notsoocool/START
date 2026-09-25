@@ -11,6 +11,16 @@ export interface Shloka extends Document {
 	groupPublished: boolean;
 	locked: boolean;
 	owner: string | null;
+	clusteredAt?: Date | null;
+	clusterUndo?: {
+		slokano: string;
+		spart: string;
+		userPublished: boolean;
+		groupPublished: boolean;
+		locked: boolean;
+		owner: string | null;
+		sentnoMap: { from: string; to: string; rows: number }[];
+	}[];
 }
 
 const ShlokaSchema: Schema = new Schema(
@@ -55,6 +65,33 @@ const ShlokaSchema: Schema = new Schema(
 			type: String,
 			required: false,
 			default: null,
+		},
+		clusteredAt: {
+			type: Date,
+			required: false,
+		},
+		clusterUndo: {
+			type: [
+				{
+					slokano: { type: String, required: true },
+					spart: { type: String, required: true },
+					userPublished: { type: Boolean, default: false },
+					groupPublished: { type: Boolean, default: false },
+					locked: { type: Boolean, default: false },
+					owner: { type: String, default: null },
+					sentnoMap: {
+						type: [
+							{
+								from: { type: String, required: true },
+								to: { type: String, required: true },
+								rows: { type: Number, required: true },
+							},
+						],
+						default: [],
+					},
+				},
+			],
+			required: false,
 		},
 	},
 	{
