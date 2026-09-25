@@ -39,6 +39,7 @@ export default function Shlokas() {
 	const queryClient = useQueryClient();
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [isCombining, setIsCombining] = useState(false);
+	const [canCombine, setCanCombine] = useState(false);
 	const {
 		data: shlokasData,
 		isLoading,
@@ -51,6 +52,62 @@ export default function Shlokas() {
 	);
 
 	const shlokas = shlokasData?.shlokas || [];
+
+	// Mirrors the Editor/Annotator group-membership rule used for shloka editing
+	// (see app/(dashboard)/books/[book]/[part1]/[part2]/[chaptno]/[id]/page.tsx).
+	// Root/Admin may always combine; Editor/Annotator only if their group is
+	// assigned to this book. The server re-checks this independently.
+	useEffect(() => {
+		let active = true;
+		const decodedBook = decodeURIComponent((book as string) || "");
+
+		const fetchCombinePermission = async () => {
+			try {
+				const userResponse = await fetch("/api/getCurrentUser");
+				if (!userResponse.ok) throw new Error("Not authenticated");
+				const userData = await userResponse.json();
+				const perms = userData.perms;
+
+				if (perms === "Root" || perms === "Admin") {
+					if (active) setCanCombine(true);
+					return;
+				}
+
+				if (perms === "Editor" || perms === "Annotator") {
+					const groupsResponse = await fetch("/api/groups");
+					if (!groupsResponse.ok) throw new Error("Failed to fetch groups");
+					const groupsData = await groupsResponse.json();
+					const isAssigned = Array.isArray(groupsData) && groupsData.some(
+						(group: any) =>
+							group.members?.includes(userData.id) &&
+							group.assignedBooks?.includes(decodedBook)
+					);
+					if (active) setCanCombine(isAssigned);
+					return;
+				}
+
+				if (active) setCanCombine(false);
+			} catch {
+				if (active) setCanCombine(false);
+			}
+		};
+
+		fetchCombinePermission();
+		return () => {
+			active = false;
+		};
+	}, [book]);
+
+	// Drop any selected id that is no longer present in the loaded shloka list
+	// (e.g. after a refetch removed/renamed a shloka).
+	useEffect(() => {
+		setSelectedIds((current) => {
+			const filtered = current.filter((id) =>
+				shlokas.some((shloka: Shloka) => shloka._id === id)
+			);
+			return filtered.length === current.length ? current : filtered;
+		});
+	}, [shlokas]);
 
 	// Scroll event to observe which shloka is visible
 	const handleScroll = useCallback(() => {
@@ -176,20 +233,32 @@ export default function Shlokas() {
 							<strong className="p-1 text-lg text-gray-900 transition-colors duration-500 dark:text-gray-100">
 								Shlokas
 							</strong>
-							{selectedIds.length >= 2 && (
+						{canCombine && selectedIds.length >= 2 && (
+							<Button
+								size="sm"
+								disabled={isCombining}
+								onClick={handleCombine}
+							>
+								{isCombining ? "Combining..." : `Combine (${selectedIds.length})`}
+							</Button>
+						)}
+					</div>
+					<div className="mt-1 flex w-full flex-1 flex-col gap-1 overflow-y-auto lg:flex-col">
+						{shlokas.map((shloka: Shloka) => (
+							<div
+								key={shloka._id}
+								className="flex w-full shrink-0 items-center gap-2"
+							>
+								{canCombine && (
+									<input
+										type="checkbox"
+										checked={selectedIds.includes(shloka._id)}
+										disabled={isCombining}
+										onChange={() => toggleSelected(shloka._id)}
+										aria-label={`Select shloka ${shloka.slokano}`}
+									/>
+								)}
 								<Button
-									size="sm"
-									disabled={isCombining}
-									onClick={handleCombine}
-								>
-									{isCombining ? "Combining..." : `Combine (${selectedIds.length})`}
-								</Button>
-							)}
-						</div>
-						<div className="mt-1 flex w-full flex-1 flex-col gap-1 overflow-y-auto lg:flex-col">
-							{shlokas.map((shloka: Shloka) => (
-								<Button
-									key={shloka._id}
 									variant={
 										shloka._id === activeShlokaId
 											? "secondary"
@@ -217,21 +286,14 @@ export default function Shlokas() {
 													: "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-300"
 											}`}
 								>
-									<input
-										type="checkbox"
-										checked={selectedIds.includes(shloka._id)}
-										onClick={(event) => event.stopPropagation()}
-										onChange={() => toggleSelected(shloka._id)}
-										aria-label={`Select shloka ${shloka.slokano}`}
-										className="mr-2"
-									/>
 									<span className="font-medium">
 										Ch. {shloka.chaptno} · Shloka{" "}
 										{shloka.slokano}
 									</span>
 								</Button>
-							))}
-						</div>
+							</div>
+						))}
+					</div>
 					</div>
 				</div>
 
