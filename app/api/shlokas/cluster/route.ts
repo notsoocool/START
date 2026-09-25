@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
 	if (!Array.isArray(shlokaIds) || shlokaIds.length < 2 || shlokaIds.some((id) => typeof id !== "string")) {
 		return NextResponse.json({ error: "Select at least two shlokas" }, { status: 400 });
 	}
+	if (shlokaIds.some((id) => !mongoose.isValidObjectId(id))) {
+		return NextResponse.json({ error: "One or more shlokas were not found" }, { status: 400 });
+	}
 
 	await dbConnect();
 
