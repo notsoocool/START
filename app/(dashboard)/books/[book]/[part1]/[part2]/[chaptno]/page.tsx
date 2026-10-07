@@ -325,7 +325,8 @@ export default function Shlokas() {
 						<DialogTitle>Combine shlokas</DialogTitle>
 						<DialogDescription>
 							Combine shlokas {selectedLabels} into one card. Their
-							sentences stay separate.
+							sentences stay separate. Shlokas you did not select stay as
+							they are.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

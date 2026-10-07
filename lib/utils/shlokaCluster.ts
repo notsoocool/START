@@ -30,14 +30,23 @@ export function gapsInSelection(chapterSlokanos: string[], selectedSlokanos: str
 	return sorted.slice(first, last + 1).filter((value) => !selected.has(value));
 }
 
-export function clusterLabel(slokanos: string[]): string {
+/**
+ * Names the combined card from the selected numbers only.
+ * A run with nothing skipped is "015-017". If a chapter shloka sits between
+ * the selection and was not selected, the label lists only the selection,
+ * "015+017", so 016 is not implied.
+ */
+export function clusterLabel(slokanos: string[], chapterSlokanos: string[] = slokanos): string {
 	if (slokanos.length < 2) {
 		throw new Error("Select at least two shlokas");
 	}
-	if (slokanos.some((value) => value.includes("-"))) {
+	if (slokanos.some((value) => value.includes("-") || value.includes("+"))) {
 		throw new Error("A selected shloka is already clustered");
 	}
 	const sorted = [...slokanos].sort(compareSlokano);
+	if (gapsInSelection(chapterSlokanos, sorted).length > 0) {
+		return sorted.join("+");
+	}
 	return `${sorted[0]}-${sorted[sorted.length - 1]}`;
 }
 

@@ -10,7 +10,6 @@ import {
 	buildClusterUndo,
 	clusterLabel,
 	compareSlokano,
-	gapsInSelection,
 	joinSparts,
 	leadingSlokano,
 	sentnoMaps,
@@ -72,13 +71,6 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: "Duplicate shloka selected" }, { status: 400 });
 	}
 
-	let label: string;
-	try {
-		label = clusterLabel(slokanoValues);
-	} catch (error) {
-		return NextResponse.json({ error: (error as Error).message }, { status: 400 });
-	}
-
 	const ordered = [...shlokas].sort((a, b) => compareSlokano(String(a.slokano), String(b.slokano)));
 	const location = {
 		book: anchor.book,
@@ -87,9 +79,6 @@ export async function POST(req: NextRequest) {
 		chaptno: anchor.chaptno,
 	};
 
-	// Contiguity follows chapter order, not the shared leading integer.
-	// 015.1–015.6 may be combined without 015 a, which sorts before 015.1.
-	// 051 and 053 still require 052, which sits between them.
 	const selectionNums = slokanoValues.map((value) => leadingSlokano(value));
 	if (selectionNums.some((n) => n === null)) {
 		return NextResponse.json(
@@ -98,32 +87,17 @@ export async function POST(req: NextRequest) {
 		);
 	}
 
-	const chapterShlokas = await Shloka.find(location).select("_id slokano");
-	const selectedIdSet = new Set(shlokas.map((shloka) => String(shloka._id)));
-	const sortedChapter = [...chapterShlokas].sort((a, b) =>
-		compareSlokano(String(a.slokano), String(b.slokano))
-	);
-	const selectedInOrder = sortedChapter
-		.filter((shloka) => selectedIdSet.has(String(shloka._id)))
-		.map((shloka) => String(shloka.slokano));
-	const gapNumbers = new Set(
-		gapsInSelection(
-			sortedChapter.map((shloka) => String(shloka.slokano)),
-			selectedInOrder
-		)
-	);
-	const gaps = sortedChapter.filter(
-		(shloka) => gapNumbers.has(String(shloka.slokano)) && !selectedIdSet.has(String(shloka._id))
-	);
-	if (gaps.length > 0) {
-		return NextResponse.json(
-			{
-				error: `Selection is not contiguous; shloka(s) ${gaps
-					.map((shloka) => shloka.slokano)
-					.join(", ")} fall inside the range but were not selected`,
-			},
-			{ status: 400 }
+	// Only the ticked shlokas are combined. A number between them, such as 016
+	// when 015 and 017 are selected, stays its own card.
+	const chapterShlokas = await Shloka.find(location).select("slokano");
+	let label: string;
+	try {
+		label = clusterLabel(
+			slokanoValues,
+			chapterShlokas.map((shloka) => String(shloka.slokano))
 		);
+	} catch (error) {
+		return NextResponse.json({ error: (error as Error).message }, { status: 400 });
 	}
 
 	const existingShloka = await Shloka.findOne({ ...location, slokano: label });

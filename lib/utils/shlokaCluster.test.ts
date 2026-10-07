@@ -39,12 +39,17 @@ describe("clusterLabel", () => {
 		expect(clusterLabel(["053", "051", "052"])).toBe("051-053");
 	});
 
+	test("lists only the selection when a chapter shloka between them was not selected", () => {
+		expect(clusterLabel(["017", "015"], ["015", "016", "017"])).toBe("015+017");
+	});
+
 	test("rejects fewer than two values", () => {
 		expect(() => clusterLabel(["051"])).toThrow("at least two");
 	});
 
 	test("rejects an existing cluster number", () => {
 		expect(() => clusterLabel(["051-052", "053"])).toThrow("already clustered");
+		expect(() => clusterLabel(["015+017", "018"])).toThrow("already clustered");
 	});
 });
 
