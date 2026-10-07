@@ -4,6 +4,7 @@ import {
 	CLUSTER_UNDO_WINDOW_MS,
 	clusterLabel,
 	compareSlokano,
+	gapsInSelection,
 	isClusterUndoOpen,
 	joinSparts,
 	sentnoMaps,
@@ -13,6 +14,22 @@ describe("compareSlokano", () => {
 	test("orders by leading integer, then full string", () => {
 		const sorted = ["052", "051-052", "051", "10"].sort(compareSlokano);
 		expect(sorted).toEqual(["10", "051", "051-052", "052"]);
+	});
+});
+
+describe("gapsInSelection", () => {
+	const chapter = ["014", "015 a", "015.1", "015.2", "015.3", "015.4", "015.5", "015.6", "020"];
+
+	test("a dotted run does not include the lettered shloka that sorts before it", () => {
+		expect(gapsInSelection(chapter, ["015.6", "015.1", "015.2", "015.3", "015.4", "015.5"])).toEqual([]);
+	});
+
+	test("still requires a whole number that sits between two selected numbers", () => {
+		expect(gapsInSelection(["051", "052", "053"], ["051", "053"])).toEqual(["052"]);
+	});
+
+	test("requires a dotted number skipped inside the selection", () => {
+		expect(gapsInSelection(chapter, ["015.1", "015.3"])).toEqual(["015.2"]);
 	});
 });
 

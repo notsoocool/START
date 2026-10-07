@@ -12,6 +12,24 @@ export function compareSlokano(a: string, b: string): number {
 	return a.localeCompare(b);
 }
 
+/**
+ * Chapter numbers that sit strictly between the first and last selected number.
+ * Order is the leading integer, then the full string, so "015 a" is before
+ * "015.1" and is not a hole in a 015.1–015.6 selection. Skipping 052 between
+ * 051 and 053 still is.
+ */
+export function gapsInSelection(chapterSlokanos: string[], selectedSlokanos: string[]): string[] {
+	const selected = new Set(selectedSlokanos);
+	const sorted = [...chapterSlokanos].sort(compareSlokano);
+	const indexes = sorted
+		.map((value, index) => (selected.has(value) ? index : -1))
+		.filter((index) => index >= 0);
+	if (indexes.length === 0) return [];
+	const first = indexes[0];
+	const last = indexes[indexes.length - 1];
+	return sorted.slice(first, last + 1).filter((value) => !selected.has(value));
+}
+
 export function clusterLabel(slokanos: string[]): string {
 	if (slokanos.length < 2) {
 		throw new Error("Select at least two shlokas");

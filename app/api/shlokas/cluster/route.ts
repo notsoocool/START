@@ -10,6 +10,7 @@ import {
 	buildClusterUndo,
 	clusterLabel,
 	compareSlokano,
+	gapsInSelection,
 	joinSparts,
 	leadingSlokano,
 	sentnoMaps,
@@ -86,10 +87,9 @@ export async function POST(req: NextRequest) {
 		chaptno: anchor.chaptno,
 	};
 
-	// Contiguity check: the label is a real range (e.g. "051-055"), so every
-	// shloka in the chapter whose leading number falls inside that range must
-	// be part of the selection. Otherwise 052-054 would silently vanish into
-	// sentence 1 of the new "051-055" shloka.
+	// Contiguity follows chapter order, not the shared leading integer.
+	// 015.1–015.6 may be combined without 015 a, which sorts before 015.1.
+	// 051 and 053 still require 052, which sits between them.
 	const selectionNums = slokanoValues.map((value) => leadingSlokano(value));
 	if (selectionNums.some((n) => n === null)) {
 		return NextResponse.json(
@@ -97,17 +97,24 @@ export async function POST(req: NextRequest) {
 			{ status: 400 }
 		);
 	}
-	const numericSelectionNums = selectionNums as number[];
-	const minNum = Math.min(...numericSelectionNums);
-	const maxNum = Math.max(...numericSelectionNums);
 
 	const chapterShlokas = await Shloka.find(location).select("_id slokano");
 	const selectedIdSet = new Set(shlokas.map((shloka) => String(shloka._id)));
-	const gaps = chapterShlokas.filter((shloka) => {
-		if (selectedIdSet.has(String(shloka._id))) return false;
-		const n = leadingSlokano(String(shloka.slokano));
-		return n !== null && n >= minNum && n <= maxNum;
-	});
+	const sortedChapter = [...chapterShlokas].sort((a, b) =>
+		compareSlokano(String(a.slokano), String(b.slokano))
+	);
+	const selectedInOrder = sortedChapter
+		.filter((shloka) => selectedIdSet.has(String(shloka._id)))
+		.map((shloka) => String(shloka.slokano));
+	const gapNumbers = new Set(
+		gapsInSelection(
+			sortedChapter.map((shloka) => String(shloka.slokano)),
+			selectedInOrder
+		)
+	);
+	const gaps = sortedChapter.filter(
+		(shloka) => gapNumbers.has(String(shloka.slokano)) && !selectedIdSet.has(String(shloka._id))
+	);
 	if (gaps.length > 0) {
 		return NextResponse.json(
 			{
