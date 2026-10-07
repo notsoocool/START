@@ -17,6 +17,7 @@ export interface INotification extends Document {
 	resolvedAt?: Date; // When the error was resolved
 	shouldDeleteAfterRead: boolean; // true if notification should be deleted after being read
 	deleteAfterHours: number; // Number of hours after reading before deletion (default 24)
+	link?: string; // In-app path to open, such as the analysis that was commented on
 }
 
 const notificationSchema: Schema = new mongoose.Schema({
@@ -82,6 +83,10 @@ const notificationSchema: Schema = new mongoose.Schema({
 	deleteAfterHours: {
 		type: Number,
 		default: 24,
+	},
+	link: {
+		type: String,
+		required: false,
 	},
 });
 

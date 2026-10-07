@@ -35,6 +35,12 @@ export async function DELETE(request: Request) {
 			return NextResponse.json({ error: "Notification not found" }, { status: 404 });
 		}
 
+		// A comment alert is one shared row. The commenter is the sender, so
+		// they must not be able to delete it for every admin. Root can.
+		if (notification.recipientID === "admins" && userPermissions.perms !== "Root") {
+			return NextResponse.json({ error: "Not authorized to delete this notification" }, { status: 403 });
+		}
+
 		// Only allow deletion if:
 		// 1. User is Root
 		// 2. User is the sender

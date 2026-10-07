@@ -32,6 +32,11 @@ export async function PUT(request: Request) {
 			return NextResponse.json({ error: "Notification not found" }, { status: 404 });
 		}
 
+		// Shared comment alerts are read through markRead. Only Root may edit the text or link.
+		if (notification.recipientID === "admins" && userPermissions.perms !== "Root") {
+			return NextResponse.json({ error: "Not authorized to update this notification" }, { status: 403 });
+		}
+
 		// Only allow updates if:
 		// 1. User is Root
 		// 2. User is the sender

@@ -33,10 +33,14 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "One or more notifications not found" }, { status: 404 });
 		}
 
-		// Check permissions for all notifications
-		const unauthorizedNotifications = notifications.filter(
-			(notification) => userPermissions.perms !== "Root" && notification.senderID !== id && notification.recipientID !== id
-		);
+		const isReadState = operation === "markRead" || operation === "markUnread";
+		const unauthorizedNotifications = notifications.filter((notification) => {
+			if (userPermissions.perms === "Root") return false;
+			if (notification.recipientID === "admins") {
+				return !(isReadState && userPermissions.perms === "Admin");
+			}
+			return notification.senderID !== id && notification.recipientID !== id;
+		});
 
 		if (unauthorizedNotifications.length > 0) {
 			return NextResponse.json({ error: "Not authorized to modify one or more notifications" }, { status: 403 });

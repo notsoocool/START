@@ -28,6 +28,7 @@ interface Notification {
 	createdAt: string;
 	isErrorReport: boolean;
 	isResolved: boolean;
+	link?: string;
 }
 
 export const Header = () => {
@@ -42,7 +43,9 @@ export const Header = () => {
 	useEffect(() => setMounted(true), []);
 
 	const notifications = notificationsData?.notifications || [];
-	const unreadCount = notifications.filter((n: Notification) => !n.isRead).length;
+	const unreadCount =
+		notificationsData?.pagination?.unread ??
+		notifications.filter((n: Notification) => !n.isRead).length;
 
 	const handleMarkAsRead = async (notificationId: string, event: React.MouseEvent) => {
 		event.stopPropagation(); // Prevent navigation when clicking the check button
@@ -79,12 +82,15 @@ export const Header = () => {
 		return "/notifications";
 	};
 
-	const handleNotificationClick = () => {
+	const handleNotificationClick = (notification: Notification) => {
 		const dropdown = document.getElementById("notifications-dropdown");
 		if (dropdown) {
 			dropdown.classList.add("hidden");
 		}
-		router.push(getViewAllLink());
+		if (!notification.isRead) {
+			markAsReadMutation.mutate(notification._id);
+		}
+		router.push(notification.link || getViewAllLink());
 	};
 
 	return (
@@ -125,7 +131,7 @@ export const Header = () => {
 											<Bell className="h-5 w-5" />
 											{unreadCount > 0 && (
 												<Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-													{unreadCount}
+													{unreadCount > 9 ? "9+" : unreadCount}
 												</Badge>
 											)}
 										</Button>
@@ -172,7 +178,7 @@ export const Header = () => {
 																className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer ${
 																	!notification.isRead ? "bg-muted/50" : ""
 																}`}
-																onClick={handleNotificationClick}
+																onClick={() => handleNotificationClick(notification)}
 															>
 																<div className="flex items-start justify-between">
 																	<div className="space-y-1">

@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import Notification from "@/lib/db/notificationModel";
 import Perms from "@/lib/db/permissionsModel";
 import dbConnect from "@/lib/db/connect";
+import { notificationsVisibleTo } from "@/lib/notifications/visibleTo";
 
 export const dynamic = "force-dynamic";
 
@@ -25,42 +26,11 @@ export async function GET(request: Request) {
 		const { searchParams } = new URL(request.url);
 		const page = parseInt(searchParams.get("page") || "1");
 		const limit = parseInt(searchParams.get("limit") || "10");
-		const isRoot = userPermissions.perms === "Root";
+		const query = notificationsVisibleTo(id, userPermissions.perms);
 
-		// Build the query based on user permissions
-		let query: any = {};
-
-		if (userPermissions.perms === "Root") {
-			// Root users can see all notifications except resolution notifications
-			query = {
-				$or: [{ subject: { $not: { $regex: "Error Report Resolved:", $options: "i" } } }, { subject: { $exists: false } }],
-			};
-		} else {
-			// Regular users can only see:
-			// 1. Notifications sent to them (excluding error reports)
-			// 2. Notifications sent to all users (excluding error reports)
-			// 3. Resolution notifications sent to them
-			query = {
-				$or: [
-					{
-						$and: [
-							{
-								$or: [{ recipientID: id }, { recipientID: null }],
-							},
-							{
-								$or: [{ isErrorReport: false }, { isErrorReport: { $exists: false } }],
-							},
-						],
-					},
-					{
-						$and: [{ recipientID: id }, { subject: { $regex: "Error Report Resolved:", $options: "i" } }],
-					},
-				],
-			};
-		}
-
-		// Count total notifications for pagination
+		// Count total notifications for pagination, and unread across every page.
 		const total = await Notification.countDocuments(query);
+		const unread = await Notification.countDocuments({ ...query, readBy: { $nin: [id] } });
 		const pages = Math.ceil(total / limit);
 
 		// Fetch paginated notifications
@@ -82,6 +52,7 @@ export async function GET(request: Request) {
 				page,
 				pages,
 				total,
+				unread,
 			},
 		});
 	} catch (error) {

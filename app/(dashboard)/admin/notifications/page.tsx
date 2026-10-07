@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { useNotifications } from "@/lib/hooks/use-api";
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 interface User {
 	userID: string;
@@ -40,6 +41,7 @@ interface Notification {
 	isResolved: boolean;
 	resolutionMessage?: string;
 	resolvedAt?: string;
+	link?: string;
 }
 
 export default function NotificationsPage() {
@@ -359,6 +361,17 @@ export default function NotificationsPage() {
 											</div>
 											<Separator className="my-2" />
 											<p className="whitespace-pre-wrap">{notification.message}</p>
+											{notification.link && (
+												<Link
+													href={notification.link}
+													className="mt-2 inline-block text-sm text-primary underline"
+													onClick={() => {
+														if (!notification.isRead) handleMarkAsRead(notification._id);
+													}}
+												>
+													Open analysis
+												</Link>
+											)}
 											{notification.isErrorReport && !notification.isResolved && (
 												<>
 													<Separator className="my-2" />

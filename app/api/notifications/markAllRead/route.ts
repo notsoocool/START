@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import Notification from "@/lib/db/notificationModel";
 import Perms from "@/lib/db/permissionsModel";
 import dbConnect from "@/lib/db/connect";
+import { notificationsVisibleTo } from "@/lib/notifications/visibleTo";
 
 export async function POST() {
 	try {
@@ -20,36 +21,7 @@ export async function POST() {
 			return NextResponse.json({ error: "User permissions not found" }, { status: 404 });
 		}
 
-		// Same query as get route - notifications the user can see
-		let query: Record<string, unknown> = {};
-
-		if (userPermissions.perms === "Root") {
-			query = {
-				$or: [
-					{ subject: { $not: { $regex: "Error Report Resolved:", $options: "i" } } },
-					{ subject: { $exists: false } },
-				],
-			};
-		} else {
-			query = {
-				$or: [
-					{
-						$and: [
-							{ $or: [{ recipientID: id }, { recipientID: null }] },
-							{
-								$or: [{ isErrorReport: false }, { isErrorReport: { $exists: false } }],
-							},
-						],
-					},
-					{
-						$and: [
-							{ recipientID: id },
-							{ subject: { $regex: "Error Report Resolved:", $options: "i" } },
-						],
-					},
-				],
-			};
-		}
+		const query = notificationsVisibleTo(id, userPermissions.perms);
 
 		// Mark all as read: add user to readBy where not already present
 		const result = await Notification.updateMany(

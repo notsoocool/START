@@ -12,6 +12,7 @@ import { Loader2, Send, Check, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser, useNotifications, useMarkNotificationAsRead } from "@/lib/hooks/use-api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 interface Notification {
 	_id: string;
@@ -28,6 +29,7 @@ interface Notification {
 	isResolved: boolean;
 	resolutionMessage?: string;
 	resolvedAt?: string;
+	link?: string;
 }
 
 export default function UserNotificationsPage() {
@@ -213,6 +215,17 @@ export default function UserNotificationsPage() {
 											</div>
 											<Separator className="my-2" />
 											<p className="whitespace-pre-wrap">{notification.message}</p>
+											{notification.link && (
+												<Link
+													href={notification.link}
+													className="mt-2 inline-block text-sm text-primary underline"
+													onClick={() => {
+														if (!notification.isRead) handleMarkAsRead(notification._id);
+													}}
+												>
+													Open analysis
+												</Link>
+											)}
 											{notification.isResolved && notification.resolutionMessage && (
 												<>
 													<Separator className="my-2" />

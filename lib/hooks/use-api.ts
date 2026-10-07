@@ -28,6 +28,7 @@ interface Notification {
 	isResolved: boolean;
 	resolutionMessage?: string;
 	resolvedAt?: string;
+	link?: string;
 }
 
 // New types for additional endpoints
@@ -72,7 +73,7 @@ const fetchCurrentUser = async (): Promise<User> => {
 
 const fetchNotifications = async (
 	page: number = 1
-): Promise<{ notifications: Notification[]; pagination: any }> => {
+): Promise<{ notifications: Notification[]; pagination: { page: number; pages: number; total: number; unread?: number } }> => {
 	const response = await fetch(`/api/notifications/get?page=${page}`);
 	if (!response.ok) {
 		throw new Error("Failed to fetch notifications");
@@ -111,6 +112,7 @@ export function useNotifications(page: number = 1) {
 		queryKey: ["notifications", page],
 		queryFn: () => fetchNotifications(page),
 		staleTime: 30 * 1000, // 30 seconds
+		refetchInterval: 60 * 1000,
 		enabled: !!currentUser, // Only run when user is loaded
 		retry: (failureCount, error) => {
 			console.error("Notifications query error:", error);
