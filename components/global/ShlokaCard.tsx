@@ -546,7 +546,7 @@ export function ShlokaCard({
 						</div>
 					</div>
 					<div className="space-y-1.5">
-						<Label>Analysis sentences on first śloka</Label>
+						<Label>Also move analysis rows?</Label>
 						{loadingSentnos ? (
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Loader2 className="h-4 w-4 animate-spin" />
@@ -554,27 +554,32 @@ export function ShlokaCard({
 							</div>
 						) : sentnos.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
-								No analysis rows — text only will be split.
+								No analysis rows — only the text will be split.
 							</p>
 						) : (
-							<Select value={cutAfterSentno} onValueChange={setCutAfterSentno}>
-								<SelectTrigger>
-									<SelectValue placeholder="Choose cut" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="__all__">
-										Keep all sentences on first
-									</SelectItem>
-									{sentnos.map((s) => (
-										<SelectItem key={s} value={s}>
-											Through sentence {s}
-											{s !== sentnos[sentnos.length - 1]
-												? " (later → second)"
-												: ""}
+							<>
+								<p className="text-xs text-muted-foreground">
+									Text is split by the line cut above. Use this only if
+									analysis sentences should move with the second śloka.
+								</p>
+								<Select value={cutAfterSentno} onValueChange={setCutAfterSentno}>
+									<SelectTrigger>
+										<SelectValue placeholder="Choose option" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__all__">
+											No — keep all analysis on the first śloka
 										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+										{sentnos.map((s) => (
+											<SelectItem key={s} value={s}>
+												{s === sentnos[sentnos.length - 1]
+													? `Keep through sentence ${s} (nothing left to move)`
+													: `Yes — keep through sentence ${s}; move later sentences to the second śloka`}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</>
 						)}
 					</div>
 				</div>
