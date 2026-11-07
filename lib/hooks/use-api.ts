@@ -59,6 +59,7 @@ interface Discussion {
 interface UserPerm {
 	userID: string;
 	name: string;
+	email?: string | null;
 	perms: string;
 }
 

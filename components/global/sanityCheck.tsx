@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { chapterNos } from "@/lib/books/chapterNo";
 
 const SANITY_ERRORS_KEY = "sanity-check-errors";
 
@@ -131,8 +132,9 @@ export default function SanityCheck() {
 					(p) => p.part === (selectedPart2 === "none" ? null : selectedPart2)
 				);
 				if (part2) {
-					setAvailableChapters(part2.chapters?.length ? ["all", ...part2.chapters] : []);
-					setSelectedChapter(part2.chapters?.length ? "" : "");
+					const nos = chapterNos(part2.chapters);
+					setAvailableChapters(nos.length ? ["all", ...nos] : []);
+					setSelectedChapter(nos.length ? "" : "");
 				} else {
 					setAvailableChapters([]);
 				}

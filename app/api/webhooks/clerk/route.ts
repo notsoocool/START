@@ -4,6 +4,7 @@ import { WebhookEvent } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Start from "@/lib/db/permissionsModel";
+import { primaryEmailFromClerkUser } from "@/lib/auth/clerkEmail";
 
 export const dynamic = "force-dynamic";
 
@@ -67,16 +68,22 @@ export async function POST(req: Request) {
 			const firstName = userData.first_name || "";
 			const lastName = userData.last_name || "";
 			const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
+			const email = primaryEmailFromClerkUser(userData);
 
 			console.log("Creating user with data:", {
 				userID: userData.id,
 				name: fullName,
+				email,
 				perms: "User",
 			});
 
 			// Check if user already exists
 			const existingUser = await Start.findOne({ userID: userData.id });
 			if (existingUser) {
+				if (email && !existingUser.email) {
+					existingUser.email = email;
+					await existingUser.save();
+				}
 				console.log("User already exists in database:", existingUser);
 				return NextResponse.json({ success: true, user: existingUser, message: "User already exists" });
 			}
@@ -85,6 +92,7 @@ export async function POST(req: Request) {
 			const newUser = await Start.create({
 				userID: userData.id,
 				name: fullName,
+				email,
 				perms: "User", // Default permission
 			});
 

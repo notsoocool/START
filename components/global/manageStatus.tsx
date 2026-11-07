@@ -234,53 +234,41 @@ export default function BookPublishPage() {
 		new Set(data.chapters.map((c) => c.book))
 	).sort();
 
-	// Function to check if a book is partially published
+	/** Book publish is whole-book: on only when every chapter matches. */
 	const getBookPublishingStatus = (bookName: string) => {
+		const book = data.books.find((b) => b.book === bookName);
 		const bookChapters = data.chapters.filter((c) => c.book === bookName);
-		if (bookChapters.length === 0)
+		if (bookChapters.length === 0) {
 			return {
-				status: "no-chapters",
+				status: "no-chapters" as const,
 				userPublished: false,
 				groupPublished: false,
-			};
-
-		const totalChapters = bookChapters.length;
-		const userPublishedChapters = bookChapters.filter(
-			(c) => c.userPublished
-		).length;
-		const groupPublishedChapters = bookChapters.filter(
-			(c) => c.groupPublished
-		).length;
-
-		const book = data.books.find((b) => b.book === bookName);
-		const bookUserPublished = book?.userPublished || false;
-		const bookGroupPublished = book?.groupPublished || false;
-
-		// If book is published, all chapters are considered published
-		if (bookUserPublished || bookGroupPublished) {
-			return {
-				status: "fully-published",
-				userPublished: bookUserPublished,
-				groupPublished: bookGroupPublished,
+				needsSync: false,
 			};
 		}
 
-		// Check if some chapters are published but not all
-		if (userPublishedChapters > 0 || groupPublishedChapters > 0) {
+		const bookUserPublished = book?.userPublished || false;
+		const bookGroupPublished = book?.groupPublished || false;
+		const anyUser = bookChapters.some((c) => c.userPublished);
+		const anyGroup = bookChapters.some((c) => c.groupPublished);
+		// Mixed rows left over from old adds — tick publish again to sync whole book
+		const needsSync =
+			(!bookUserPublished && anyUser) || (!bookGroupPublished && anyGroup);
+
+		if (bookUserPublished || bookGroupPublished) {
 			return {
-				status: "partially-published",
-				userPublished: userPublishedChapters > 0,
-				groupPublished: groupPublishedChapters > 0,
-				userPublishedCount: userPublishedChapters,
-				groupPublishedCount: groupPublishedChapters,
-				totalChapters,
+				status: "fully-published" as const,
+				userPublished: bookUserPublished,
+				groupPublished: bookGroupPublished,
+				needsSync: false,
 			};
 		}
 
 		return {
-			status: "not-published",
+			status: "not-published" as const,
 			userPublished: false,
 			groupPublished: false,
+			needsSync,
 		};
 	};
 
@@ -340,20 +328,10 @@ export default function BookPublishPage() {
 												<p className="text-sm text-gray-500">
 													{book.shlokaCount} shlokas
 												</p>
-												{publishingStatus.status ===
-													"partially-published" && (
+												{publishingStatus.needsSync && (
 													<div className="text-xs text-orange-600 dark:text-orange-400">
-														Partially Published:{" "}
-														{publishingStatus.userPublishedCount ||
-															0}{" "}
-														user-published,{" "}
-														{publishingStatus.groupPublishedCount ||
-															0}{" "}
-														group-published out of{" "}
-														{
-															publishingStatus.totalChapters
-														}{" "}
-														chapters
+														Flags differ across shlokas — tick
+														User/Group publish to set the whole book
 													</div>
 												)}
 											</div>

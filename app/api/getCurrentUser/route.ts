@@ -4,6 +4,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import Perms from "@/lib/db/permissionsModel"; // Import your Mongoose model
 import dbConnect from "@/lib/db/connect";
 import { e2eBypassUser, requestHasValidE2EBypass } from "@/lib/auth/e2eBypass";
+import { primaryEmailFromClerkUser } from "@/lib/auth/clerkEmail";
 
 export async function GET(req: NextRequest) {
 	await dbConnect();
@@ -44,10 +45,19 @@ export async function GET(req: NextRequest) {
 			{ status: 404 }
 		);
 	}
+
+	// Backfill email from Clerk when missing
+	const email = primaryEmailFromClerkUser(user);
+	if (email && !userPermissions.email) {
+		userPermissions.email = email;
+		await userPermissions.save();
+	}
+
 	return NextResponse.json({
 		id,
 		firstName,
 		lastName,
+		email: userPermissions.email || email || null,
 		perms: userPermissions.perms,
 	});
 }

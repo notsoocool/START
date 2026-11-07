@@ -1,22 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Group from "@/lib/db/groupModel";
 import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
+import { requirePerms } from "@/lib/auth/requirePerms";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
 	try {
-		await dbConnect();
-		console.log("Database connected successfully");
+		const auth = await requirePerms(
+			["User", "Annotator", "Editor", "Admin", "Root", "Developer"],
+			request
+		);
+		if (auth instanceof NextResponse) return auth;
 
-		// Fetch groups and populate the supervisedGroups field for Group B
+		await dbConnect();
+
 		const groups = await Group.find({})
 			.populate({
 				path: "supervisedGroups",
 				select: "name type members assignedBooks",
 			})
 			.lean();
-
-		console.log("Fetched groups from database:", groups);
 
 		if (!Array.isArray(groups)) {
 			console.error("Invalid groups data from database:", groups);
@@ -30,33 +33,31 @@ export async function GET() {
 	}
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
 	try {
+		const auth = await requirePerms(["Admin", "Root"], request);
+		if (auth instanceof NextResponse) return auth;
+
 		await dbConnect();
 		const data = await request.json();
 
-		// Validate that members is an array
 		if (!Array.isArray(data.members)) {
 			return NextResponse.json({ error: "Members must be an array" }, { status: 400 });
 		}
 
-		// For Group B, validate supervisedGroups and collect their books
 		let assignedBooks = data.assignedBooks || [];
 		if (data.type === "B" && data.supervisedGroups) {
 			if (!Array.isArray(data.supervisedGroups)) {
 				return NextResponse.json({ error: "Supervised groups must be an array" }, { status: 400 });
 			}
-			// Verify that supervised groups are actually Group A
 			const supervisedGroups = await Group.find({ _id: { $in: data.supervisedGroups } });
 			const invalidGroups = supervisedGroups.filter((group) => group.type !== "A");
 			if (invalidGroups.length > 0) {
 				return NextResponse.json({ error: "Can only supervise Group A (Annotator) groups" }, { status: 400 });
 			}
-			// Collect all books from supervised groups
 			assignedBooks = Array.from(new Set(supervisedGroups.flatMap((group) => group.assignedBooks)));
 		}
 
-		// Create the group with the member IDs
 		const group = new Group({
 			...data,
 			members: data.members,
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
 			type: group.type,
 			members: group.members,
 			assignedBooks: group.assignedBooks,
+			by: auth.userId,
 		});
 		return NextResponse.json(group);
 	} catch (error) {

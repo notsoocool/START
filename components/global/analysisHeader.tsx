@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Settings } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
+import { chapterNos, type ChapterRef } from "@/lib/books/chapterNo";
 
 interface HeaderProps {
     book: string;
@@ -27,7 +28,7 @@ interface HeaderProps {
     handleOpacityChange: (value: number[]) => void;
     setSelectedDictionary: (value: string) => void;
     handleGenerateGraph: () => void;
-    chapters: string[];
+    chapters: ChapterRef[];
     onChapterChange: (chapter: string) => Promise<any[]>;
 }
 
@@ -54,6 +55,7 @@ export function Header({
     const [isLoading, setIsLoading] = useState(false);
     const [isChangingChapter, setIsChangingChapter] = useState(false);
     const [displayChapter, setDisplayChapter] = useState(chaptno);
+    const chapterNumbers = useMemo(() => chapterNos(chapters), [chapters]);
 
     const handleChapterSelect = async (newChapter: string) => {
         if (newChapter === displayChapter) return;
@@ -146,8 +148,8 @@ export function Header({
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                {chapters && chapters.length > 0 ? (
-                                    chapters.map((chapter) => (
+                                {chapterNumbers.length > 0 ? (
+                                    chapterNumbers.map((chapter) => (
                                         <SelectItem
                                             key={chapter}
                                             value={chapter}

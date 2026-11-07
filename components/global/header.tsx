@@ -1,6 +1,12 @@
 "use client";
 
-import { ClerkLoaded, ClerkLoading, UserButton, SignInButton } from "@clerk/nextjs";
+import {
+	ClerkLoaded,
+	ClerkLoading,
+	UserButton,
+	SignInButton,
+	useAuth,
+} from "@clerk/nextjs";
 import { Loader2, Bell, Check } from "lucide-react";
 import { Navigation } from "./navigation";
 import { HeaderLogo } from "./header-logo";
@@ -34,6 +40,7 @@ interface Notification {
 export const Header = () => {
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const { isSignedIn } = useAuth();
 	const { data: currentUser } = useCurrentUser();
 	const { data: notificationsData, isLoading: notificationsLoading } = useNotifications(1);
 	const markAsReadMutation = useMarkNotificationAsRead();
@@ -114,109 +121,111 @@ export const Header = () => {
 							</div>
 						)}
 						<ClerkLoaded>
-							{currentUser ? (
+							{isSignedIn ? (
 								<>
-									<div className="relative">
-										<Button
-											variant="ghost"
-											size="icon"
-											className="relative"
-											onClick={() => {
-												const dropdown = document.getElementById("notifications-dropdown");
-												if (dropdown) {
-													dropdown.classList.toggle("hidden");
-												}
-											}}
-										>
-											<Bell className="h-5 w-5" />
-											{unreadCount > 0 && (
-												<Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-													{unreadCount > 9 ? "9+" : unreadCount}
-												</Badge>
-											)}
-										</Button>
-										<div
-											id="notifications-dropdown"
-											className="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-950 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800"
-										>
-											<div className="p-4 border-b border-gray-200 dark:border-gray-800">
-												<div className="flex items-center justify-between gap-2">
-													<h3 className="font-semibold">Notifications</h3>
-													<div className="flex items-center gap-1">
-														{unreadCount > 0 && (
-															<Button
-																variant="ghost"
-																size="sm"
-																className="text-xs"
-																onClick={handleMarkAllAsRead}
-																disabled={markAllReadLoading}
-															>
-																{markAllReadLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-0.5" />}
-																Read all
-															</Button>
-														)}
-														<Link href={getViewAllLink()}>
-															<Button variant="ghost" size="sm" className="text-xs" data-navigate="true">
-																View All
-															</Button>
-														</Link>
+									{currentUser && (
+										<div className="relative">
+											<Button
+												variant="ghost"
+												size="icon"
+												className="relative"
+												onClick={() => {
+													const dropdown = document.getElementById("notifications-dropdown");
+													if (dropdown) {
+														dropdown.classList.toggle("hidden");
+													}
+												}}
+											>
+												<Bell className="h-5 w-5" />
+												{unreadCount > 0 && (
+													<Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+														{unreadCount > 9 ? "9+" : unreadCount}
+													</Badge>
+												)}
+											</Button>
+											<div
+												id="notifications-dropdown"
+												className="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-950 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800"
+											>
+												<div className="p-4 border-b border-gray-200 dark:border-gray-800">
+													<div className="flex items-center justify-between gap-2">
+														<h3 className="font-semibold">Notifications</h3>
+														<div className="flex items-center gap-1">
+															{unreadCount > 0 && (
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="text-xs"
+																	onClick={handleMarkAllAsRead}
+																	disabled={markAllReadLoading}
+																>
+																	{markAllReadLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-0.5" />}
+																	Read all
+																</Button>
+															)}
+															<Link href={getViewAllLink()}>
+																<Button variant="ghost" size="sm" className="text-xs" data-navigate="true">
+																	View All
+																</Button>
+															</Link>
+														</div>
 													</div>
 												</div>
-											</div>
-											<ScrollArea className="h-[400px]">
-												{notificationsLoading ? (
-													<div className="flex justify-center py-8">
-														<Loader2 className="h-6 w-6 animate-spin text-primary" />
-													</div>
-												) : notifications.length === 0 ? (
-													<div className="text-center py-8 text-muted-foreground text-sm">No notifications</div>
-												) : (
-													<div className="divide-y divide-gray-200 dark:divide-gray-800">
-														{notifications.map((notification) => (
-															<div
-																key={notification._id}
-																className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer ${
-																	!notification.isRead ? "bg-muted/50" : ""
-																}`}
-																onClick={() => handleNotificationClick(notification)}
-															>
-																<div className="flex items-start justify-between">
-																	<div className="space-y-1">
-																		<div className="flex items-center gap-2">
-																			<h4 className="text-sm font-medium">{notification.subject}</h4>
-																			{notification.isErrorReport && (
-																				<Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 text-xs">
-																					Error Report
-																				</Badge>
-																			)}
-																			{notification.isResolved && (
-																				<Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 text-xs">
-																					Resolved
-																				</Badge>
-																			)}
+												<ScrollArea className="h-[400px]">
+													{notificationsLoading ? (
+														<div className="flex justify-center py-8">
+															<Loader2 className="h-6 w-6 animate-spin text-primary" />
+														</div>
+													) : notifications.length === 0 ? (
+														<div className="text-center py-8 text-muted-foreground text-sm">No notifications</div>
+													) : (
+														<div className="divide-y divide-gray-200 dark:divide-gray-800">
+															{notifications.map((notification) => (
+																<div
+																	key={notification._id}
+																	className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer ${
+																		!notification.isRead ? "bg-muted/50" : ""
+																	}`}
+																	onClick={() => handleNotificationClick(notification)}
+																>
+																	<div className="flex items-start justify-between">
+																		<div className="space-y-1">
+																			<div className="flex items-center gap-2">
+																				<h4 className="text-sm font-medium">{notification.subject}</h4>
+																				{notification.isErrorReport && (
+																					<Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 text-xs">
+																						Error Report
+																					</Badge>
+																				)}
+																				{notification.isResolved && (
+																					<Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 text-xs">
+																						Resolved
+																					</Badge>
+																				)}
+																			</div>
+																			<p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
+																			<p className="text-xs text-muted-foreground">{formatDate(notification.createdAt)}</p>
 																		</div>
-																		<p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
-																		<p className="text-xs text-muted-foreground">{formatDate(notification.createdAt)}</p>
+																		{!notification.isRead && (
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				className="h-6 w-6"
+																				onClick={(e) => handleMarkAsRead(notification._id, e)}
+																				disabled={markAsReadMutation.isPending}
+																			>
+																				{markAsReadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+																			</Button>
+																		)}
 																	</div>
-																	{!notification.isRead && (
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			className="h-6 w-6"
-																			onClick={(e) => handleMarkAsRead(notification._id, e)}
-																			disabled={markAsReadMutation.isPending}
-																		>
-																			{markAsReadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-																		</Button>
-																	)}
 																</div>
-															</div>
-														))}
-													</div>
-												)}
-											</ScrollArea>
+															))}
+														</div>
+													)}
+												</ScrollArea>
+											</div>
 										</div>
-									</div>
+									)}
 									<UserButton
 										afterSignOutUrl="/"
 										appearance={{

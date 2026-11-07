@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Trash2 } from "lucide-react";
+import { chapterNos } from "@/lib/books/chapterNo";
 
 interface DeleteEntryProps {
 	treeData: TreeNode[];
@@ -441,28 +442,25 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 
 		// Case 1: If part1 is not selected or "all", show all chapters from the book
 		if (!selectedPart1 || selectedPart1 === "all") {
-			return (currentBook.part1 ?? [])
-				.flatMap((p1) => p1.part2 ?? [])
-				.flatMap((p2) => p2.chapters ?? [])
-				.filter(
-					(chapter, index, self) => self.indexOf(chapter) === index
-				)
-				.sort((a, b) => Number(a) - Number(b));
+			const all = chapterNos(
+				(currentBook.part1 ?? [])
+					.flatMap((p1) => p1.part2 ?? [])
+					.flatMap((p2) => p2.chapters ?? [])
+			);
+			return [...new Set(all)].sort((a, b) => Number(a) - Number(b));
 		}
 
 		// Case 2: If part1 is selected (including "null") but no specific part2 ("all" or empty)
 		if ((!selectedPart2 || selectedPart2 === "all") && currentPart1) {
-			return currentPart1.part2
-				.flatMap((p2) => p2.chapters)
-				.filter(
-					(chapter, index, self) => self.indexOf(chapter) === index
-				)
-				.sort((a, b) => Number(a) - Number(b));
+			const all = chapterNos(
+				currentPart1.part2.flatMap((p2) => p2.chapters)
+			);
+			return [...new Set(all)].sort((a, b) => Number(a) - Number(b));
 		}
 
 		// Case 3: Both part1 and part2 are selected (including "null")
 		if (currentPart2) {
-			return [...currentPart2.chapters].sort(
+			return chapterNos(currentPart2.chapters).sort(
 				(a, b) => Number(a) - Number(b)
 			);
 		}

@@ -66,6 +66,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Header } from "@/components/global/analysisHeader";
+import { chapterNos } from "@/lib/books/chapterNo";
 import BookmarkButton from "@/components/global/BookmarkButton";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import {
@@ -550,9 +551,11 @@ export default function AnalysisPage() {
 				});
 
 				if (currentBook) {
-					const chapters =
-						currentBook.part1?.[0]?.part2?.[0]?.chapters || [];
-					setChapters(chapters);
+					setChapters(
+						chapterNos(
+							currentBook.part1?.[0]?.part2?.[0]?.chapters || []
+						)
+					);
 				}
 
 				const availableShlokaData =

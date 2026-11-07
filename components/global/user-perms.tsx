@@ -28,6 +28,7 @@ import { toast } from "sonner";
 type User = {
 	userID: string;
 	name: string;
+	email?: string | null;
 	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root" | "Developer";
 };
 
@@ -330,10 +331,10 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<Input
 					type="search"
-					placeholder="Search users..."
+					placeholder="Search by name, email, or user ID…"
 					value={searchTerm}
 					onChange={(e) => setSearchTerm(e.target.value)}
-					className="max-w-sm"
+					className="max-w-md"
 				/>
 				<Button onClick={() => refetch()} variant="outline" size="sm">
 					<Loader2 className="h-4 w-4 mr-2" />
@@ -344,6 +345,7 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 				<TableHeader>
 					<TableRow>
 						<TableHead>Name</TableHead>
+						<TableHead>Email</TableHead>
 						<TableHead>Current Permission</TableHead>
 						<TableHead>Group Status</TableHead>
 						<TableHead>Change Permission</TableHead>
@@ -354,7 +356,7 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 						{users.length === 0 ? (
 							<TableRow>
 								<TableCell
-									colSpan={4}
+									colSpan={5}
 									className="text-center py-4"
 								>
 									{searchTerm
@@ -380,6 +382,9 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 										}}
 									>
 										<TableCell>{user.name}</TableCell>
+										<TableCell className="max-w-[240px] truncate text-muted-foreground">
+											{user.email || "—"}
+										</TableCell>
 										<TableCell>
 											{user.perms === "Root"
 												? "Root"

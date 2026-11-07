@@ -45,6 +45,7 @@ type Item = {
         locked: boolean;
         userPublished?: boolean;
         groupPublished?: boolean;
+        owners?: string[];
         owner?: string | null;
     };
     /** For sub-subpart: actual part2 value for URL (null -> "null") */
@@ -69,6 +70,171 @@ const colorMap = {
         "bg-gradient-to-r from-yellow-100 to-yellow-200 dark:from-yellow-900 dark:to-yellow-950 hover:from-yellow-200 hover:to-yellow-300 dark:hover:from-yellow-800 dark:hover:to-yellow-900 shadow-sm",
 };
 
+function PublishStatusDots({
+    status,
+    showAdminExtras,
+    onContributorsClick,
+}: {
+    status?: Item["status"];
+    showAdminExtras?: boolean;
+    onContributorsClick?: () => void;
+}) {
+    if (!status) return null;
+    const owners = status.owners?.length
+        ? status.owners
+        : status.owner
+          ? [status.owner]
+          : [];
+    const showGreen = Boolean(status.userPublished);
+    const showBlue = Boolean(status.groupPublished);
+    const showLock = showAdminExtras && Boolean(status.locked);
+    const showOwner =
+        showAdminExtras &&
+        owners.length > 0 &&
+        !status.userPublished &&
+        !status.groupPublished;
+
+    return (
+        <div className="flex items-center gap-2">
+            {showLock && (
+                <div className="relative group z-50">
+                    <Lock className="h-4 w-4 text-red-500" />
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
+                        Locked
+                    </span>
+                </div>
+            )}
+            {showGreen && (
+                <div className="relative group z-50">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
+                        Public
+                    </span>
+                </div>
+            )}
+            {showBlue && (
+                <div className="relative group z-50">
+                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
+                        Group shared
+                    </span>
+                </div>
+            )}
+            {showOwner && (
+                <div className="relative group z-50">
+                    <User
+                        className="h-4 w-4 text-orange-500 cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onContributorsClick?.();
+                        }}
+                    />
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
+                        {owners.length === 1
+                            ? "Private (1 contributor)"
+                            : `Private (${owners.length} contributors)`}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+type ContributorRow = {
+    userID: string;
+    name: string;
+    perms: string;
+    shlokaCount: number;
+};
+
+function ContributorsDialog({
+    book,
+    open,
+    onOpenChange,
+}: {
+    book: string | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const [loading, setLoading] = useState(false);
+    const [rows, setRows] = useState<ContributorRow[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!open || !book) return;
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(
+                    `/api/books/contributors?book=${encodeURIComponent(book)}`
+                );
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to load");
+                if (!cancelled) setRows(data.contributors || []);
+            } catch (e) {
+                if (!cancelled) setError((e as Error).message);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [open, book]);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Private contributors</DialogTitle>
+                    <DialogDescription>
+                        Everyone who has added shlokas to {book || "this book"}
+                    </DialogDescription>
+                </DialogHeader>
+                {loading ? (
+                    <div className="flex justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                ) : error ? (
+                    <p className="text-sm text-red-600">{error}</p>
+                ) : rows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        No owners recorded on this book.
+                    </p>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead className="text-right">Shlokas</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {rows.map((r) => (
+                                <TableRow key={r.userID}>
+                                    <TableCell>
+                                        <div className="font-medium">{r.name}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {r.userID}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{r.perms}</TableCell>
+                                    <TableCell className="text-right">
+                                        {r.shlokaCount}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // Component for book card in grid view
 const BookCard = ({
     item,
@@ -79,98 +245,43 @@ const BookCard = ({
     onExpand: () => void;
     currentUser: any;
 }) => {
-    const [ownerName, setOwnerName] = useState<string | null>(null);
+    const [contribOpen, setContribOpen] = useState(false);
     const Icon = iconMap[item.type];
 
-    useEffect(() => {
-        if (
-            item.status?.owner &&
-            (currentUser?.perms === "Admin" || currentUser?.perms === "Root")
-        ) {
-            const ownerId = item.status.owner;
-            if (!ownerId) return;
-
-            const fetchOwnerName = async () => {
-                try {
-                    const response = await fetch(`/api/users?ids=${ownerId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        const owner = data.users?.find(
-                            (u: any) => u.userID === ownerId
-                        );
-                        if (owner) {
-                            setOwnerName(owner.name);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error fetching owner name:", error);
-                }
-            };
-            fetchOwnerName();
-        }
-    }, [item.status?.owner, currentUser?.perms]);
-
     return (
-        <motion.div
-            layoutId={`book-grid-${item.id}`}
-            className="w-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-visible transition-colors duration-500 cursor-pointer shadow-md hover:shadow-lg"
-            onClick={onExpand}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-        >
-            <div className="p-6 overflow-visible">
-                <div className="flex items-center gap-3 overflow-visible">
-                    <Icon className="h-6 w-6 text-neutral-700 dark:text-neutral-200 flex-shrink-0" />
-                    <h3 className="font-medium text-base text-neutral-700 dark:text-neutral-200">
-                        {item.title}
-                    </h3>
-                    {item.status && (
-                        <div className="flex items-center gap-2 flex-wrap ml-auto overflow-visible">
-                            {item.status.locked === true &&
-                                (currentUser?.perms === "Admin" ||
-                                    currentUser?.perms === "Root") && (
-                                    <div className="relative group z-50">
-                                        <Lock className="h-4 w-4 text-red-500" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                            Locked
-                                        </span>
-                                    </div>
-                                )}
-                            {item.status.userPublished &&
-                                (currentUser?.perms === "Admin" ||
-                                    currentUser?.perms === "Root") && (
-                                    <div className="relative group z-50">
-                                        <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                            User Published
-                                        </span>
-                                    </div>
-                                )}
-                            {item.status.groupPublished && (
-                                <div className="relative group z-50">
-                                    <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                        Group Published
-                                    </span>
-                                </div>
-                            )}
-                            {item.status?.owner &&
-                                !item.status.userPublished &&
-                                !item.status.groupPublished &&
-                                (currentUser?.perms === "Admin" ||
-                                    currentUser?.perms === "Root") && (
-                                    <div className="relative group z-50">
-                                        <User className="h-4 w-4 text-orange-500" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                            {ownerName ? `Owned by ${ownerName}` : "Private"}
-                                        </span>
-                                    </div>
-                                )}
+        <>
+            <motion.div
+                layoutId={`book-grid-${item.id}`}
+                className="w-full flex flex-col bg-primary-foreground sm:rounded-3xl overflow-visible transition-colors duration-500 cursor-pointer shadow-md hover:shadow-lg"
+                onClick={onExpand}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+            >
+                <div className="p-6 overflow-visible">
+                    <div className="flex items-center gap-3 overflow-visible">
+                        <Icon className="h-6 w-6 text-neutral-700 dark:text-neutral-200 flex-shrink-0" />
+                        <h3 className="font-medium text-base text-neutral-700 dark:text-neutral-200">
+                            {item.title}
+                        </h3>
+                        <div className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                            <PublishStatusDots
+                                status={item.status}
+                                showAdminExtras={
+                                    currentUser?.perms === "Admin" ||
+                                    currentUser?.perms === "Root"
+                                }
+                                onContributorsClick={() => setContribOpen(true)}
+                            />
                         </div>
-                    )}
+                    </div>
                 </div>
-            </div>
-        </motion.div>
+            </motion.div>
+            <ContributorsDialog
+                book={item.title}
+                open={contribOpen}
+                onOpenChange={setContribOpen}
+            />
+        </>
     );
 };
 
@@ -191,60 +302,10 @@ const TreeNode = ({
     isHorizontal?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [showOwnerDialog, setShowOwnerDialog] = useState(false);
-    const [ownerData, setOwnerData] = useState<any>(null);
-    const [loadingOwner, setLoadingOwner] = useState(false);
-    const [ownerName, setOwnerName] = useState<string | null>(null);
+    const [contribOpen, setContribOpen] = useState(false);
     const router = useRouter();
     const { data: currentUser } = useCurrentUser(); // Use the cached user data
-
-    // Fetch owner name when component mounts if there's an owner
-    useEffect(() => {
-        if (
-            item.status?.owner &&
-            (currentUser?.perms === "Admin" || currentUser?.perms === "Root")
-        ) {
-            const ownerId = item.status.owner;
-            if (!ownerId) return;
-
-            const fetchOwnerName = async () => {
-                try {
-                    const response = await fetch(`/api/users?ids=${ownerId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        const owner = data.users?.find(
-                            (u: any) => u.userID === ownerId
-                        );
-                        if (owner) {
-                            setOwnerName(owner.name);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error fetching owner name:", error);
-                }
-            };
-            fetchOwnerName();
-        }
-    }, [item.status?.owner, currentUser?.perms]);
-
-    const handleOwnerClick = async (ownerId: string) => {
-        if (!ownerId) return;
-        setLoadingOwner(true);
-        setShowOwnerDialog(true);
-        try {
-            const response = await fetch(`/api/users/${ownerId}/shlokas`);
-            if (response.ok) {
-                const data = await response.json();
-                setOwnerData(data);
-            } else {
-                console.error("Failed to fetch owner data");
-            }
-        } catch (error) {
-            console.error("Error fetching owner data:", error);
-        } finally {
-            setLoadingOwner(false);
-        }
-    };
+    const bookName = book || (item.type === "book" ? item.title : undefined);
 
     const handleChapterClick = () => {
         if (item.type === "chapter") {
@@ -278,71 +339,32 @@ const TreeNode = ({
                             >
                                 {item.title}
                             </motion.h3>
-                            {item.type === "book" && item.status && (
-                                <div className="flex items-center gap-2 mt-2 overflow-visible">
-                                    {/* Locked indicator - only show to Admin/Root */}
-                                    {item.status.locked === true &&
-                                        (currentUser?.perms === "Admin" ||
-                                            currentUser?.perms === "Root") && (
-                                            <div className="relative group z-50">
-                                                <Lock className="h-4 w-4 text-red-500" />
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                    Locked - Only Admin/Root
-                                                </span>
-                                            </div>
-                                        )}
-
-                                    {/* User Published indicator */}
-                                    {item.status.userPublished &&
-                                        (currentUser?.perms === "Admin" ||
-                                            currentUser?.perms === "Root") && (
-                                            <div className="relative group z-50">
-                                                <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                    User Published - All users can see
-                                                </span>
-                                            </div>
-                                        )}
-
-                                    {/* Group Published indicator */}
-                                    {item.status.groupPublished && (
-                                        <div className="relative group z-50">
-                                            <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                Group Published - Group members only
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* Private/Owned indicator - only show to Admin/Root */}
-                                    {item.status?.owner &&
-                                        !item.status.userPublished &&
-                                        !item.status.groupPublished &&
-                                        (currentUser?.perms === "Admin" ||
-                                            currentUser?.perms === "Root") && (
-                                            <div className="relative group z-50">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-4 w-4 p-0 hover:bg-transparent"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (item.status?.owner) {
-                                                            handleOwnerClick(
-                                                                item.status.owner
-                                                            );
-                                                        }
-                                                    }}
-                                                >
-                                                    <User className="h-4 w-4 text-orange-500 cursor-pointer" />
-                                                </Button>
-                                                <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                    {ownerName
-                                                        ? `Private - Owned by ${ownerName}. Click to view details.`
-                                                        : "Private - Click to view owner details"}
-                                                </span>
-                                            </div>
-                                        )}
+                            {item.type === "book" && (
+                                <div className="mt-2">
+                                    <PublishStatusDots
+                                        status={item.status}
+                                        showAdminExtras={
+                                            currentUser?.perms === "Admin" ||
+                                            currentUser?.perms === "Root"
+                                        }
+                                        onContributorsClick={() =>
+                                            setContribOpen(true)
+                                        }
+                                    />
+                                </div>
+                            )}
+                            {item.type === "chapter" && item.status && (
+                                <div className="mt-2">
+                                    <PublishStatusDots
+                                        status={item.status}
+                                        showAdminExtras={
+                                            currentUser?.perms === "Admin" ||
+                                            currentUser?.perms === "Root"
+                                        }
+                                        onContributorsClick={() =>
+                                            setContribOpen(true)
+                                        }
+                                    />
                                 </div>
                             )}
                         </div>
@@ -363,142 +385,11 @@ const TreeNode = ({
                         </HoverBorderGradient>
                     ) : null}
                 </div>
-                {/* Owner Details Dialog */}
-                <Dialog
-                    open={showOwnerDialog}
-                    onOpenChange={setShowOwnerDialog}
-                >
-                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>Owner Details</DialogTitle>
-                            <DialogDescription>
-                                View owner information and all shlokas they have
-                                added
-                            </DialogDescription>
-                        </DialogHeader>
-                        {loadingOwner ? (
-                            <div className="flex items-center justify-center p-8">
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            </div>
-                        ) : ownerData ? (
-                            <div className="space-y-4">
-                                <div className="border rounded-lg p-4">
-                                    <h3 className="font-semibold mb-2">
-                                        Owner Information
-                                    </h3>
-                                    <div className="space-y-1 text-sm">
-                                        <p>
-                                            <strong>Name:</strong>{" "}
-                                            {ownerData.owner.name}
-                                        </p>
-                                        <p>
-                                            <strong>User ID:</strong>{" "}
-                                            {ownerData.owner.id}
-                                        </p>
-                                        <p>
-                                            <strong>Permission Level:</strong>{" "}
-                                            {ownerData.owner.perms}
-                                        </p>
-                                        <p>
-                                            <strong>Total Shlokas:</strong>{" "}
-                                            {ownerData.totalShlokas}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="border rounded-lg">
-                                    <h3 className="font-semibold mb-2 p-4 border-b">
-                                        Shlokas by Book
-                                    </h3>
-                                    <div className="space-y-4 p-4">
-                                        {ownerData.books.length === 0 ? (
-                                            <p className="text-muted-foreground text-center py-4">
-                                                No shlokas found
-                                            </p>
-                                        ) : (
-                                            ownerData.books.map(
-                                                (
-                                                    bookData: any,
-                                                    idx: number
-                                                ) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="border rounded p-3"
-                                                    >
-                                                        <h4 className="font-medium mb-2">
-                                                            {bookData.book}
-                                                            {bookData.part1 &&
-                                                                ` - Part 1: ${bookData.part1}`}
-                                                            {bookData.part2 &&
-                                                                ` - Part 2: ${bookData.part2}`}
-                                                        </h4>
-                                                        <Table>
-                                                            <TableHeader>
-                                                                <TableRow>
-                                                                    <TableHead>
-                                                                        Chapter
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Shloka
-                                                                        No.
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Content
-                                                                    </TableHead>
-                                                                    <TableHead>
-                                                                        Created
-                                                                    </TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {bookData.shlokas.map(
-                                                                    (
-                                                                        shloka: any,
-                                                                        sIdx: number
-                                                                    ) => (
-                                                                        <TableRow
-                                                                            key={
-                                                                                sIdx
-                                                                            }
-                                                                        >
-                                                                            <TableCell>
-                                                                                {
-                                                                                    shloka.chaptno
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                {
-                                                                                    shloka.slokano
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell className="max-w-md truncate">
-                                                                                {
-                                                                                    shloka.spart
-                                                                                }
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                {new Date(
-                                                                                    shloka.createdAt
-                                                                                ).toLocaleDateString()}
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    )
-                                                                )}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </div>
-                                                )
-                                            )
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-center text-muted-foreground py-4">
-                                No owner data available
-                            </p>
-                        )}
-                    </DialogContent>
-                </Dialog>
+                <ContributorsDialog
+                    book={bookName || null}
+                    open={contribOpen}
+                    onOpenChange={setContribOpen}
+                />
                 <AnimatePresence>
                     {isOpen && hasChildren && (
                         <motion.div
@@ -565,57 +456,7 @@ const ExpandedBookView = ({
     currentUser: any;
 }) => {
     const [isOpen, setIsOpen] = useState(true);
-    const [showOwnerDialog, setShowOwnerDialog] = useState(false);
-    const [ownerData, setOwnerData] = useState<any>(null);
-    const [loadingOwner, setLoadingOwner] = useState(false);
-    const [ownerName, setOwnerName] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (
-            item.status?.owner &&
-            (currentUser?.perms === "Admin" || currentUser?.perms === "Root")
-        ) {
-            const ownerId = item.status.owner;
-            if (!ownerId) return;
-
-            const fetchOwnerName = async () => {
-                try {
-                    const response = await fetch(`/api/users?ids=${ownerId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        const owner = data.users?.find(
-                            (u: any) => u.userID === ownerId
-                        );
-                        if (owner) {
-                            setOwnerName(owner.name);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error fetching owner name:", error);
-                }
-            };
-            fetchOwnerName();
-        }
-    }, [item.status?.owner, currentUser?.perms]);
-
-    const handleOwnerClick = async (ownerId: string) => {
-        if (!ownerId) return;
-        setLoadingOwner(true);
-        setShowOwnerDialog(true);
-        try {
-            const response = await fetch(`/api/users/${ownerId}/shlokas`);
-            if (response.ok) {
-                const data = await response.json();
-                setOwnerData(data);
-            } else {
-                console.error("Failed to fetch owner data");
-            }
-        } catch (error) {
-            console.error("Error fetching owner data:", error);
-        } finally {
-            setLoadingOwner(false);
-        }
-    };
+    const [contribOpen, setContribOpen] = useState(false);
 
     const Icon = iconMap[item.type];
     const hasChildren = item.children && item.children.length > 0;
@@ -631,64 +472,16 @@ const ExpandedBookView = ({
                         <h3 className="font-medium text-lg text-neutral-700 dark:text-neutral-200">
                             {item.title}
                         </h3>
-                        {item.status && (
-                            <div className="flex items-center gap-2 flex-wrap ml-2 overflow-visible">
-                                {item.status.locked === true &&
-                                    (currentUser?.perms === "Admin" ||
-                                        currentUser?.perms === "Root") && (
-                                        <div className="relative group z-50">
-                                            <Lock className="h-4 w-4 text-red-500" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-red-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                Locked - Only Admin/Root
-                                            </span>
-                                        </div>
-                                    )}
-                                {item.status.userPublished &&
-                                    (currentUser?.perms === "Admin" ||
-                                        currentUser?.perms === "Root") && (
-                                        <div className="relative group z-50">
-                                            <div className="h-2 w-2 bg-green-500 rounded-full" />
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-green-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                User Published - All users can see
-                                            </span>
-                                        </div>
-                                    )}
-                                {item.status.groupPublished && (
-                                    <div className="relative group z-50">
-                                        <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                                        <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-blue-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                            Group Published - Group members only
-                                        </span>
-                                    </div>
-                                )}
-                                {item.status?.owner &&
-                                    !item.status.userPublished &&
-                                    !item.status.groupPublished &&
-                                    (currentUser?.perms === "Admin" ||
-                                        currentUser?.perms === "Root") && (
-                                        <div className="relative group z-50">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-4 w-4 p-0 hover:bg-transparent"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (item.status?.owner) {
-                                                        handleOwnerClick(item.status.owner);
-                                                    }
-                                                }}
-                                            >
-                                                <User className="h-4 w-4 text-orange-500 cursor-pointer" />
-                                            </Button>
-                                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-orange-500 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-[100] pointer-events-none">
-                                                {ownerName
-                                                    ? `Private - Owned by ${ownerName}. Click to view details.`
-                                                    : "Private - Click to view owner details"}
-                                            </span>
-                                        </div>
-                                    )}
-                            </div>
-                        )}
+                        <div className="ml-2">
+                            <PublishStatusDots
+                                status={item.status}
+                                showAdminExtras={
+                                    currentUser?.perms === "Admin" ||
+                                    currentUser?.perms === "Root"
+                                }
+                                onContributorsClick={() => setContribOpen(true)}
+                            />
+                        </div>
                     </div>
                     <button
                         onClick={onClose}
@@ -726,116 +519,11 @@ const ExpandedBookView = ({
                     )}
                 </AnimatePresence>
             </div>
-            <Dialog
-                open={showOwnerDialog}
-                onOpenChange={setShowOwnerDialog}
-            >
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Owner Details</DialogTitle>
-                        <DialogDescription>
-                            View owner information and all shlokas they have added
-                        </DialogDescription>
-                    </DialogHeader>
-                    {loadingOwner ? (
-                        <div className="flex items-center justify-center p-8">
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                        </div>
-                    ) : ownerData ? (
-                        <div className="space-y-4">
-                            <div className="border rounded-lg p-4">
-                                <h3 className="font-semibold mb-2">
-                                    Owner Information
-                                </h3>
-                                <div className="space-y-1 text-sm">
-                                    <p>
-                                        <strong>Name:</strong> {ownerData.owner.name}
-                                    </p>
-                                    <p>
-                                        <strong>User ID:</strong> {ownerData.owner.id}
-                                    </p>
-                                    <p>
-                                        <strong>Permission Level:</strong>{" "}
-                                        {ownerData.owner.perms}
-                                    </p>
-                                    <p>
-                                        <strong>Total Shlokas:</strong>{" "}
-                                        {ownerData.totalShlokas}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="border rounded-lg">
-                                <h3 className="font-semibold mb-2 p-4 border-b">
-                                    Shlokas by Book
-                                </h3>
-                                <div className="space-y-4 p-4">
-                                    {ownerData.books.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-4">
-                                            No shlokas found
-                                        </p>
-                                    ) : (
-                                        ownerData.books.map(
-                                            (bookData: any, idx: number) => (
-                                                <div
-                                                    key={idx}
-                                                    className="border rounded p-3"
-                                                >
-                                                    <h4 className="font-medium mb-2">
-                                                        {bookData.book}
-                                                        {bookData.part1 &&
-                                                            ` - Part 1: ${bookData.part1}`}
-                                                        {bookData.part2 &&
-                                                            ` - Part 2: ${bookData.part2}`}
-                                                    </h4>
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Chapter</TableHead>
-                                                                <TableHead>Shloka No.</TableHead>
-                                                                <TableHead>Content</TableHead>
-                                                                <TableHead>Created</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {bookData.shlokas.map(
-                                                                (
-                                                                    shloka: any,
-                                                                    sIdx: number
-                                                                ) => (
-                                                                    <TableRow key={sIdx}>
-                                                                        <TableCell>
-                                                                            {shloka.chaptno}
-                                                                        </TableCell>
-                                                                        <TableCell>
-                                                                            {shloka.slokano}
-                                                                        </TableCell>
-                                                                        <TableCell className="max-w-md truncate">
-                                                                            {shloka.spart}
-                                                                        </TableCell>
-                                                                        <TableCell>
-                                                                            {new Date(
-                                                                                shloka.createdAt
-                                                                            ).toLocaleDateString()}
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )
-                                                            )}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                            )
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-center text-muted-foreground py-4">
-                            No owner data available
-                        </p>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <ContributorsDialog
+                book={item.title}
+                open={contribOpen}
+                onOpenChange={setContribOpen}
+            />
         </motion.div>
     );
 };
@@ -888,11 +576,22 @@ function BooksContent() {
                                 .map((part1: any) => {
                                     if (part1.part === null) {
                                         return part1.part2[0].chapters.map(
-                                            (chapter: string) => ({
-                                                id: `${book.book}-chapter-${chapter}`,
-                                                title: `Chapter ${chapter}`,
-                                                type: "chapter" as const,
-                                            })
+                                            (chapter: string | { chaptno: string; status?: Item["status"] }) => {
+                                                const chaptno =
+                                                    typeof chapter === "string"
+                                                        ? chapter
+                                                        : chapter.chaptno;
+                                                const status =
+                                                    typeof chapter === "string"
+                                                        ? undefined
+                                                        : chapter.status;
+                                                return {
+                                                    id: `${book.book}-chapter-${chaptno}`,
+                                                    title: `Chapter ${chaptno}`,
+                                                    type: "chapter" as const,
+                                                    status,
+                                                };
+                                            }
                                         );
                                     }
                                     // part1.part2 can have BOTH { part: null, chapters } AND { part: "X", chapters }
@@ -909,11 +608,22 @@ function BooksContent() {
                                             type: "subpart" as const,
                                             children:
                                                 part1.part2?.[0]?.chapters?.map(
-                                                    (chapter: string) => ({
-                                                        id: `${book.book}-${part1.part}-chapter-${chapter}`,
-                                                        title: `Chapter ${chapter}`,
-                                                        type: "chapter" as const,
-                                                    })
+                                                    (chapter: string | { chaptno: string; status?: Item["status"] }) => {
+                                                        const chaptno =
+                                                            typeof chapter === "string"
+                                                                ? chapter
+                                                                : chapter.chaptno;
+                                                        const status =
+                                                            typeof chapter === "string"
+                                                                ? undefined
+                                                                : chapter.status;
+                                                        return {
+                                                            id: `${book.book}-${part1.part}-chapter-${chaptno}`,
+                                                            title: `Chapter ${chaptno}`,
+                                                            type: "chapter" as const,
+                                                            status,
+                                                        };
+                                                    }
                                                 ) || [],
                                         };
                                     }
@@ -945,11 +655,22 @@ function BooksContent() {
                                                     type: "sub-subpart" as const,
                                                     part2Value,
                                                     children: (part2.chapters || []).map(
-                                                        (chapter: string) => ({
-                                                            id: `${part2Id}-chapter-${chapter}`,
-                                                            title: `Chapter ${chapter}`,
-                                                            type: "chapter" as const,
-                                                        })
+                                                        (chapter: string | { chaptno: string; status?: Item["status"] }) => {
+                                                            const chaptno =
+                                                                typeof chapter === "string"
+                                                                    ? chapter
+                                                                    : chapter.chaptno;
+                                                            const status =
+                                                                typeof chapter === "string"
+                                                                    ? undefined
+                                                                    : chapter.status;
+                                                            return {
+                                                                id: `${part2Id}-chapter-${chaptno}`,
+                                                                title: `Chapter ${chaptno}`,
+                                                                type: "chapter" as const,
+                                                                status,
+                                                            };
+                                                        }
                                                     ),
                                                 };
                                             })
@@ -958,11 +679,24 @@ function BooksContent() {
                                 })
                                 .flat()
                             : book.chapters
-                                ? book.chapters.map((chapter: string) => ({
-                                    id: `${book.book}-chapter-${chapter}`,
-                                    title: `Chapter ${chapter}`,
-                                    type: "chapter" as const,
-                                }))
+                                ? book.chapters.map(
+                                      (chapter: string | { chaptno: string; status?: Item["status"] }) => {
+                                          const chaptno =
+                                              typeof chapter === "string"
+                                                  ? chapter
+                                                  : chapter.chaptno;
+                                          const status =
+                                              typeof chapter === "string"
+                                                  ? undefined
+                                                  : chapter.status;
+                                          return {
+                                              id: `${book.book}-chapter-${chaptno}`,
+                                              title: `Chapter ${chaptno}`,
+                                              type: "chapter" as const,
+                                              status,
+                                          };
+                                      }
+                                  )
                                 : [],
                 };
             }
@@ -1087,7 +821,7 @@ export default function SacredTexts() {
                 <h2 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-3">
                     Sanskrit Texts
                 </h2>
-                <p className="text-center text-sm text-muted-foreground mb-8 max-w-xl mx-auto">
+                <p className={`text-center text-sm text-muted-foreground max-w-xl mx-auto ${isSignedIn ? "mb-4" : "mb-8"}`}>
                     <a
                         href="/E-reader.pdf"
                         target="_blank"
@@ -1098,6 +832,18 @@ export default function SacredTexts() {
                         What is an e-reader? (PDF)
                     </a>
                 </p>
+                {isSignedIn && (
+                    <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground mb-8">
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            Public
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-blue-500" />
+                            Group shared
+                        </span>
+                    </div>
+                )}
                 <div className="w-full">
                     {!isSignedIn ? (
                         <div className="w-full max-w-2xl mx-auto backdrop-blur-sm bg-white/30 dark:bg-gray-900/40 p-6 rounded-xl shadow-xl">

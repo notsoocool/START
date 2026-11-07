@@ -4,6 +4,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IStart extends Document {
 	userID: string;
 	name: string;
+	email?: string | null;
 	perms: string;
 }
 
@@ -15,6 +16,12 @@ const startSchema: Schema = new mongoose.Schema({
 	name: {
 		type: String,
 		required: true,
+	},
+	email: {
+		type: String,
+		required: false,
+		default: null,
+		index: true,
 	},
 	perms: {
 		type: String,

@@ -4,15 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MessageSquare, Share2Icon, Trash, Edit2, Undo2 } from "lucide-react";
+import { MessageSquare, Share2Icon, Trash, Edit2, Undo2, Scissors } from "lucide-react";
 import BookmarkButton from "./BookmarkButton";
 import { toPng } from "html-to-image";
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { isClusterUndoOpen } from "@/lib/utils/shlokaCluster";
+import { spartParts, suggestNextSlokano } from "@/lib/utils/shlokaSplit";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
 interface ShlokaCardProps {
@@ -57,6 +66,17 @@ export function ShlokaCard({
 	const [isEditing, setIsEditing] = useState(false);
 	const [undoOpen, setUndoOpen] = useState(false);
 	const [isUndoing, setIsUndoing] = useState(false);
+	const [splitOpen, setSplitOpen] = useState(false);
+	const [isSplitting, setIsSplitting] = useState(false);
+	const parts = spartParts(shloka.spart);
+	const [cutAfterPartIndex, setCutAfterPartIndex] = useState(0);
+	const [keepSlokano, setKeepSlokano] = useState(shloka.slokano);
+	const [secondSlokano, setSecondSlokano] = useState(
+		suggestNextSlokano(shloka.slokano) || ""
+	);
+	const [sentnos, setSentnos] = useState<string[]>([]);
+	const [cutAfterSentno, setCutAfterSentno] = useState<string>("__all__");
+	const [loadingSentnos, setLoadingSentnos] = useState(false);
 
 	// Helper function to check if user can edit based on permissions and group membership
 	const canEditShloka = () => {
@@ -87,6 +107,93 @@ export function ShlokaCard({
 			return userGroups.includes(bookAssignedGroup);
 		}
 		return false;
+	};
+
+	const canAttemptSplit = () => {
+		if (permissions === "Root" || permissions === "Admin") return true;
+		if (permissions === "Editor") {
+			if (!bookAssignedGroup) return false;
+			return userGroups.includes(bookAssignedGroup);
+		}
+		return false;
+	};
+
+	const canSplitShloka = () => canAttemptSplit() && parts.length >= 2;
+
+	const openSplitDialog = async () => {
+		setKeepSlokano(shloka.slokano);
+		setSecondSlokano(suggestNextSlokano(shloka.slokano) || "");
+		setCutAfterPartIndex(0);
+		setCutAfterSentno("__all__");
+		setSplitOpen(true);
+		setLoadingSentnos(true);
+		try {
+			const bookName = typeof book === "string" ? book : book[0];
+			const res = await fetch(
+				`/api/analysis/${encodeURIComponent(bookName)}/${encodeURIComponent(part1)}/${encodeURIComponent(part2)}/${encodeURIComponent(chaptno)}/${encodeURIComponent(shloka.slokano)}`
+			);
+			if (!res.ok) {
+				setSentnos([]);
+				return;
+			}
+			const rows = await res.json();
+			const unique = Array.from(
+				new Set(
+					(Array.isArray(rows) ? rows : [])
+						.map((r: { sentno?: string }) => String(r.sentno ?? ""))
+						.filter(Boolean)
+				)
+			).sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+			setSentnos(unique);
+			setCutAfterSentno("__all__");
+		} catch {
+			setSentnos([]);
+		} finally {
+			setLoadingSentnos(false);
+		}
+	};
+
+	const handleSplitShloka = async () => {
+		if (isSplitting) return;
+		if (!secondSlokano.trim()) {
+			toast.error("Enter the second śloka number");
+			return;
+		}
+		setIsSplitting(true);
+		try {
+			const response = await fetch("/api/shlokas/split", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"DB-Access-Key": process.env.NEXT_PUBLIC_DBI_KEY || "",
+				},
+				body: JSON.stringify({
+					shlokaId: shloka._id,
+					cutAfterPartIndex,
+					keepSlokano: keepSlokano.trim() || shloka.slokano,
+					secondSlokano: secondSlokano.trim(),
+					cutAfterSentno:
+						cutAfterSentno === "__all__" ? null : cutAfterSentno,
+				}),
+			});
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				throw new Error(data.error || "Failed to split śloka");
+			}
+			toast.success(
+				`Split into ${data.first?.slokano} and ${data.second?.slokano}`
+			);
+			setSplitOpen(false);
+			const bookName = typeof book === "string" ? book : book[0];
+			router.push(
+				`/books/${encodeURIComponent(bookName)}/${encodeURIComponent(part1)}/${encodeURIComponent(part2)}/${encodeURIComponent(chaptno)}`
+			);
+			router.refresh();
+		} catch (error) {
+			toast.error((error as Error).message);
+		} finally {
+			setIsSplitting(false);
+		}
 	};
 
 	const handleUndoCluster = async () => {
@@ -384,6 +491,107 @@ export function ShlokaCard({
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+		<Dialog open={splitOpen} onOpenChange={setSplitOpen}>
+			<DialogContent className="max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Split śloka</DialogTitle>
+					<DialogDescription>
+						Cut this card into two ślokas at a text boundary. Use this for
+						imported clusters that mix lines from different verse numbers.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4 py-2">
+					<div className="space-y-2">
+						<Label>Cut after this line</Label>
+						<div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-2">
+							{parts.map((part, index) => (
+								<button
+									key={index}
+									type="button"
+									disabled={index >= parts.length - 1}
+									onClick={() => setCutAfterPartIndex(index)}
+									className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors ${
+										cutAfterPartIndex === index
+											? "bg-primary/10 ring-1 ring-primary"
+											: "hover:bg-muted"
+									} ${index >= parts.length - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
+								>
+									<span className="text-xs text-muted-foreground mr-2">
+										{index + 1}.
+									</span>
+									<span className="font-sanskrit">{part.trim() || "(empty)"}</span>
+									{cutAfterPartIndex === index && index < parts.length - 1 && (
+										<span className="ml-2 text-xs text-primary">← cut here</span>
+									)}
+								</button>
+							))}
+						</div>
+					</div>
+					<div className="grid grid-cols-2 gap-3">
+						<div className="space-y-1.5">
+							<Label htmlFor="keep-slokano">First śloka no.</Label>
+							<Input
+								id="keep-slokano"
+								value={keepSlokano}
+								onChange={(e) => setKeepSlokano(e.target.value)}
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<Label htmlFor="second-slokano">Second śloka no.</Label>
+							<Input
+								id="second-slokano"
+								value={secondSlokano}
+								onChange={(e) => setSecondSlokano(e.target.value)}
+							/>
+						</div>
+					</div>
+					<div className="space-y-1.5">
+						<Label>Analysis sentences on first śloka</Label>
+						{loadingSentnos ? (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<Loader2 className="h-4 w-4 animate-spin" />
+								Loading…
+							</div>
+						) : sentnos.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								No analysis rows — text only will be split.
+							</p>
+						) : (
+							<Select value={cutAfterSentno} onValueChange={setCutAfterSentno}>
+								<SelectTrigger>
+									<SelectValue placeholder="Choose cut" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__all__">
+										Keep all sentences on first
+									</SelectItem>
+									{sentnos.map((s) => (
+										<SelectItem key={s} value={s}>
+											Through sentence {s}
+											{s !== sentnos[sentnos.length - 1]
+												? " (later → second)"
+												: ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+					</div>
+				</div>
+				<DialogFooter>
+					<Button
+						variant="outline"
+						onClick={() => setSplitOpen(false)}
+						disabled={isSplitting}
+					>
+						Cancel
+					</Button>
+					<Button onClick={handleSplitShloka} disabled={isSplitting}>
+						{isSplitting ? "Splitting…" : "Split śloka"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 		<Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
 			<div ref={shlokaRef}>
 				<CardHeader className="border-b border-border flex flex-row justify-between items-center h-16">
@@ -400,6 +608,22 @@ export function ShlokaCard({
 					</div>
 					<div className="flex items-center gap-2">
 						<BookmarkButton analysisID={analysisID} shlokaID={shloka._id} />
+						{canAttemptSplit() && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={openSplitDialog}
+								disabled={!canSplitShloka()}
+								title={
+									canSplitShloka()
+										? "Split this card into two ślokas"
+										: "Needs at least two text lines (separated by #) to split"
+								}
+							>
+								<Scissors className="mr-2 size-4" />
+								Split
+							</Button>
+						)}
 						{canUndoCluster() && (
 							<Button variant="outline" size="sm" onClick={() => setUndoOpen(true)}>
 								<Undo2 className="mr-2 size-4" />

@@ -18,12 +18,22 @@ export async function GET(request: Request) {
 		let query: any = {};
 		let total;
 
+		const searchOr = search
+			? {
+					$or: [
+						{ name: { $regex: search, $options: "i" } },
+						{ userID: { $regex: search, $options: "i" } },
+						{ email: { $regex: search, $options: "i" } },
+					],
+				}
+			: null;
+
 		// If specific IDs are requested, fetch only those users
 		if (ids) {
 			const idArray = ids.split(",").map((id) => id.trim());
 			query = { userID: { $in: idArray } };
 			total = await Perms.countDocuments(query);
-			const users = await Perms.find(query, "userID name perms");
+			const users = await Perms.find(query, "userID name email perms");
 
 			const mappedUsers = users.map((user) => ({
 				...user.toObject(),
@@ -33,14 +43,9 @@ export async function GET(request: Request) {
 			return NextResponse.json({ users: mappedUsers, total });
 		}
 
-		// Add search functionality
-		if (search) {
-			query = {
-				$or: [
-					{ name: { $regex: search, $options: "i" } },
-					{ userID: { $regex: search, $options: "i" } },
-				],
-			};
+		// Add search functionality (name, userID, email)
+		if (searchOr) {
+			query = searchOr;
 		}
 
 		// Add role filter
@@ -50,7 +55,7 @@ export async function GET(request: Request) {
 
 		// Fetch paginated users with optional search
 		total = await Perms.countDocuments(query);
-		const users = await Perms.find(query, "userID name perms")
+		const users = await Perms.find(query, "userID name email perms")
 			.skip(skip)
 			.limit(limit)
 			.sort({ name: 1 });
@@ -61,9 +66,7 @@ export async function GET(request: Request) {
 		}));
 
 		// Get counts by role - always full counts (no role filter) for badge display
-		const countMatch: any = search
-			? { $or: [{ name: { $regex: search, $options: "i" } }, { userID: { $regex: search, $options: "i" } }] }
-			: {};
+		const countMatch: any = searchOr || {};
 		const countsByRole = await Perms.aggregate([
 			{ $match: countMatch },
 			{ $group: { _id: "$perms", count: { $sum: 1 } } },

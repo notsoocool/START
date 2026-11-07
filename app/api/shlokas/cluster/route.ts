@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
 	// Role check: the DBI key (checked above) is public. Only Root, Admin, or
 	// an Editor assigned to this book's group may actually combine.
-	const authorization = await authorizeClusterEdit(anchor.book);
+	const authorization = await authorizeClusterEdit(anchor.book, req);
 	if (authorization === "unauthenticated") {
 		return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
 	}

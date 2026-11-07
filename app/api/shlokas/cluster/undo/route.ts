@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 		return NextResponse.json({ error: "Shloka not found" }, { status: 400 });
 	}
 
-	const authorization = await authorizeClusterEdit(cluster.book);
+	const authorization = await authorizeClusterEdit(cluster.book, req);
 	if (authorization === "unauthenticated") {
 		return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
 	}

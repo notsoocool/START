@@ -5,6 +5,7 @@ import AHShloka from "@/lib/db/newShlokaModel";
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 import { currentUser } from "@clerk/nextjs/server";
 import { logUsageHistory } from "@/lib/utils/usageHistoryLogger";
+import { inheritPublishFlags } from "@/lib/books/inheritPublishFlags";
 
 interface Params {
 	book: string;
@@ -164,38 +165,27 @@ export async function POST(request: Request, { params }: { params: Params }) {
 			);
 		}
 
-		// Check if the book exists by finding any existing shloka with this book name
-		const existingShloka = await AHShloka.findOne({ book });
+		const part1Val = isNullParam(part1) ? null : part1;
+		const part2Val = isNullParam(part2) ? null : part2;
+		const inherited = await inheritPublishFlags({
+			book,
+			part1: part1Val,
+			part2: part2Val,
+			chaptno,
+		});
+		const owner = inherited.owner || user.id;
 
-		let userPublished = false;
-		let groupPublished = false;
-		let owner: string | null = null;
-
-		if (existingShloka) {
-			// Book exists - use the same publishing status as the book
-			userPublished = existingShloka.userPublished || false;
-			groupPublished = existingShloka.groupPublished || false;
-			// Use the existing owner if it exists, otherwise set current user as owner
-			owner = existingShloka.owner || user.id;
-		} else {
-			// Book is new - set owner to current user and keep publishing status as false
-			// This ensures only the owner, root, and admin can see it
-			owner = user.id;
-			userPublished = false;
-			groupPublished = false;
-		}
-
-		// Create new shloka
+		// Create new shloka — inherit chapter/book publish flags so adds don't break published books
 		const shloka = await AHShloka.create({
 			book,
-			part1: isNullParam(part1) ? null : part1,
-			part2: isNullParam(part2) ? null : part2,
+			part1: part1Val,
+			part2: part2Val,
 			chaptno,
 			slokano: data.slokano,
 			spart: data.spart,
-			userPublished,
-			groupPublished,
-			locked: false,
+			userPublished: inherited.userPublished,
+			groupPublished: inherited.groupPublished,
+			locked: inherited.locked,
 			owner,
 		});
 

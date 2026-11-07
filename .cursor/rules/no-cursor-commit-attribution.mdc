@@ -1,0 +1,11 @@
+---
+description: Never add Cursor attribution to git commits
+alwaysApply: true
+---
+
+# No Cursor attribution in commits
+
+When creating git commits:
+
+- **Do not** add `Co-Authored-By: Cursor`, `Made with Cursor`, `Done by Cursor`, or any similar Cursor / AI attribution trailer or sentence.
+- Keep commit messages normal project-style messages only (what/why), with no agent branding.

@@ -32,6 +32,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { chapterNos } from "@/lib/books/chapterNo";
 import {
 	Dialog,
 	DialogContent,
@@ -1385,7 +1386,7 @@ export default function ShlokaPage() {
 				p.part === selectedPart2 ||
 				(p.part === null && selectedPart2 === "null")
 		);
-		return part2Data?.chapters || [];
+		return chapterNos(part2Data?.chapters || []);
 	}, [booksData, selectedBook, selectedPart1, selectedPart2]);
 
 	const handleSave = async () => {

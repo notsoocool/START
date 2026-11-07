@@ -392,11 +392,13 @@ export default function GroupsPage() {
 												<Checkbox
 													id={`member-${user.userID}`}
 													checked={formData.members.includes(user.userID)}
-													onCheckedChange={(checked) => {
-														const newMembers = checked ? [...formData.members, user.userID] : formData.members.filter((id) => id !== user.userID);
+														onCheckedChange={(checked) => {
+														const newMembers = checked
+															? [...formData.members, user.userID]
+															: formData.members.filter((id) => id !== user.userID);
 														setFormData({ ...formData, members: newMembers });
 													}}
-												/>
+													/>
 												<Label htmlFor={`member-${user.userID}`} className="text-sm font-normal cursor-pointer">
 													{user.name} ({user.perms})
 												</Label>

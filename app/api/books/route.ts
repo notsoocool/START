@@ -3,8 +3,12 @@ import dbConnect from "@/lib/db/connect";
 import AHShloka from "@/lib/db/newShlokaModel"; // Adjust the path as needed
 import { verifyDBAccess } from "@/middleware/dbAccessMiddleware";
 import Perms from "@/lib/db/permissionsModel";
-import Group from "@/lib/db/groupModel";
 import { currentUser } from "@clerk/nextjs/server";
+import { rollupPublishStatus } from "@/lib/books/publishStatus";
+import {
+	e2eBypassUser,
+	requestHasValidE2EBypass,
+} from "@/lib/auth/e2eBypass";
 
 // Helper function to handle CORS
 const corsHeaders = {
@@ -24,15 +28,25 @@ export async function GET(request: NextRequest) {
 	await dbConnect();
 
 	try {
-		// Get current user from Clerk
-		const user = await currentUser();
+		// Local E2E bypass header/cookie → Root view (no Clerk, no DB user upsert)
+		const e2eRoot = requestHasValidE2EBypass(request)
+			? e2eBypassUser()
+			: null;
+		const user = e2eRoot
+			? ({ id: e2eRoot.userId } as Awaited<ReturnType<typeof currentUser>>)
+			: await currentUser();
 
-		// Build the match condition based on user authentication and permissions
-		let matchCondition = {};
-		let userPermissions = null;
+		// Visibility: User = public/own only. Annotator+ = also groupPublished (view).
+		// Editing still requires group membership + Annotator/Editor elsewhere.
+		let matchCondition: Record<string, unknown> = {};
+		let userPermissions: { perms: string; userID?: string } | null = null;
+		const isAdminOrRoot = (perms?: string | null) =>
+			perms === "Admin" || perms === "Root";
 
-		if (!user) {
-			// For unauthenticated users, show only user-published books that are not locked
+		if (e2eRoot) {
+			userPermissions = { perms: "Root", userID: e2eRoot.userId };
+			matchCondition = {};
+		} else if (!user) {
 			matchCondition = {
 				$and: [
 					{ userPublished: true },
@@ -45,7 +59,6 @@ export async function GET(request: NextRequest) {
 				],
 			};
 		} else {
-			// Get user permissions
 			userPermissions = await Perms.findOne({ userID: user.id });
 			if (!userPermissions) {
 				return NextResponse.json(
@@ -54,111 +67,69 @@ export async function GET(request: NextRequest) {
 				);
 			}
 
-			// Get user's groups and their assigned books
-			const userGroups = await Group.find({ members: user.id });
-			const userGroupIds = userGroups.map((group) =>
-				group._id.toString()
-			);
-			const parentGroupIds = userGroups
-				.filter((group) => group.parentGroup)
-				.map((group) => group.parentGroup);
-
-			// Get all books assigned to user's groups
-			const assignedBooks = userGroups.flatMap(
-				(group) => group.assignedBooks || []
-			);
-			const parentGroupBooks = await Group.find({
-				_id: { $in: parentGroupIds },
-			}).distinct("assignedBooks");
-			const allAssignedBooks = [...assignedBooks, ...parentGroupBooks];
-
-			if (userPermissions.perms === "User") {
-				// Regular users can see:
-				// 1. User-published books (regardless of owner/group)
-				// 2. Their own books (if they are the owner)
-				// 3. Group-published books from their assigned groups
-				// 4. None of the above if the book is locked (except Admin/Root can see locked books)
-				matchCondition = {
-					$and: [
-						{
-							$or: [
-								{ userPublished: true },
-								{ owner: user.id },
-								{
-									$and: [
-										{ groupPublished: true },
-										{ book: { $in: allAssignedBooks } },
-									],
-								},
-							],
-						},
-						{
-							$or: [
-								{ locked: { $ne: true } },
-								{ locked: { $exists: false } },
-							],
-						},
-					],
-				};
-			} else if (
-				userPermissions.perms === "Annotator" ||
-				userPermissions.perms === "Editor"
-			) {
-				// Annotators and Editors can see:
-				// 1. User-published books (regardless of owner/group)
-				// 2. Group-published books from their assigned groups
-				// 3. Their own books
-				// 4. None of the above if the book is locked (except Admin/Root can see locked books)
-				matchCondition = {
-					$and: [
-						{
-							$or: [
-								{ userPublished: true },
-								{ owner: user.id },
-								{
-									$and: [
-										{ groupPublished: true },
-										{ book: { $in: allAssignedBooks } },
-									],
-								},
-							],
-						},
-						{
-							$or: [
-								{ locked: { $ne: true } },
-								{ locked: { $exists: false } },
-							],
-						},
-					],
-				};
-			} else if (
-				userPermissions.perms === "Admin" ||
-				userPermissions.perms === "Root"
-			) {
-				// Admins and Root can see everything, including locked books
+			if (isAdminOrRoot(userPermissions.perms)) {
 				matchCondition = {};
+			} else if (userPermissions.perms === "User") {
+				// Users: public + own only (no group-shared)
+				matchCondition = {
+					$and: [
+						{
+							$or: [{ userPublished: true }, { owner: user.id }],
+						},
+						{
+							$or: [
+								{ locked: { $ne: true } },
+								{ locked: { $exists: false } },
+							],
+						},
+					],
+				};
+			} else {
+				// Annotator / Editor / Developer: public, own, or any group-shared
+				matchCondition = {
+					$and: [
+						{
+							$or: [
+								{ userPublished: true },
+								{ owner: user.id },
+								{ groupPublished: true },
+							],
+						},
+						{
+							$or: [
+								{ locked: { $ne: true } },
+								{ locked: { $exists: false } },
+							],
+						},
+					],
+				};
 			}
 		}
 
 		const tree = await AHShloka.aggregate([
-			// Add match stage to filter based on permissions
 			{
 				$match: matchCondition,
 			},
-			// Filter to only show chapters that are individually published OR owned by the user (but not for Admin/Root)
 			...(userPermissions &&
-			userPermissions.perms !== "Admin" &&
-			userPermissions.perms !== "Root" &&
+			!isAdminOrRoot(userPermissions.perms) &&
 			user
 				? [
 						{
-							$match: {
-								$or: [
-									{ userPublished: true },
-									{ groupPublished: true },
-									{ owner: user.id },
-								],
-							},
+							$match:
+								userPermissions.perms === "User"
+									? {
+											$or: [
+												{ userPublished: true },
+												{ owner: user.id },
+											],
+									  }
+									: {
+											$or: [
+												{ userPublished: true },
+												{ owner: user.id },
+												{ groupPublished: true },
+											],
+									  },
 						},
 				  ]
 				: []),
@@ -179,13 +150,47 @@ export async function GET(request: NextRequest) {
 						part2: "$part2",
 						chaptno: "$chaptno",
 					},
+					userPublishedMin: {
+						$min: { $cond: [{ $eq: ["$userPublished", true] }, 1, 0] },
+					},
+					groupPublishedMin: {
+						$min: { $cond: [{ $eq: ["$groupPublished", true] }, 1, 0] },
+					},
+					lockedMin: { $min: { $cond: [{ $eq: ["$locked", true] }, 1, 0] } },
+					owners: { $addToSet: "$owner" },
+				},
+			},
+			{
+				$addFields: {
 					status: {
-						$first: {
-							locked: "$locked",
-							userPublished: "$userPublished",
-							groupPublished: "$groupPublished",
-							owner: "$owner",
+						// Published only when every shloka in the chapter matches (no partial)
+						userPublished: { $eq: ["$userPublishedMin", 1] },
+						groupPublished: { $eq: ["$groupPublishedMin", 1] },
+						locked: { $eq: ["$lockedMin", 1] },
+						owners: {
+							$filter: {
+								input: "$owners",
+								as: "o",
+								cond: {
+									$and: [
+										{ $ne: ["$$o", null] },
+										{ $ne: ["$$o", ""] },
+										{ $ne: ["$$o", "none"] },
+									],
+								},
+							},
 						},
+					},
+				},
+			},
+			{
+				$addFields: {
+					"status.owner": {
+						$cond: [
+							{ $gt: [{ $size: "$status.owners" }, 0] },
+							{ $arrayElemAt: ["$status.owners", 0] },
+							null,
+						],
 					},
 				},
 			},
@@ -197,18 +202,19 @@ export async function GET(request: NextRequest) {
 						part2: "$_id.part2",
 					},
 					chapters: {
-						$push: "$_id.chaptno",
+						$push: {
+							chaptno: "$_id.chaptno",
+							status: "$status",
+						},
 					},
-					status: { $first: "$status" },
 				},
 			},
-			// Sort chapters array
 			{
 				$addFields: {
 					chapters: {
 						$sortArray: {
 							input: "$chapters",
-							sortBy: 1,
+							sortBy: { chaptno: 1 },
 						},
 					},
 				},
@@ -225,10 +231,8 @@ export async function GET(request: NextRequest) {
 							chapters: "$chapters",
 						},
 					},
-					status: { $first: "$status" },
 				},
 			},
-			// Sort part2 array
 			{
 				$addFields: {
 					part2: {
@@ -248,10 +252,8 @@ export async function GET(request: NextRequest) {
 							part2: "$part2",
 						},
 					},
-					status: { $first: "$status" },
 				},
 			},
-			// Sort part1 array
 			{
 				$addFields: {
 					part1: {
@@ -267,24 +269,8 @@ export async function GET(request: NextRequest) {
 					_id: 0,
 					book: "$_id",
 					part1: 1,
-					status: 1,
 				},
 			},
-			// Add this stage to enforce field order
-			{
-				$replaceRoot: {
-					newRoot: {
-						$mergeObjects: [
-							{
-								book: "$book",
-								part1: "$part1",
-								status: "$status",
-							},
-						],
-					},
-				},
-			},
-			// Final sort by book
 			{
 				$sort: {
 					book: 1,
@@ -292,7 +278,22 @@ export async function GET(request: NextRequest) {
 			},
 		]);
 
-		return NextResponse.json(tree, { headers: { ...corsHeaders } });
+		const withStatus = tree.map((book: any) => {
+			const chapterStatuses: any[] = [];
+			for (const p1 of book.part1 || []) {
+				for (const p2 of p1.part2 || []) {
+					for (const ch of p2.chapters || []) {
+						if (ch?.status) chapterStatuses.push(ch.status);
+					}
+				}
+			}
+			return {
+				...book,
+				status: rollupPublishStatus(chapterStatuses),
+			};
+		});
+
+		return NextResponse.json(withStatus, { headers: { ...corsHeaders } });
 	} catch (error) {
 		return NextResponse.json(
 			{

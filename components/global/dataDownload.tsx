@@ -31,6 +31,7 @@ import {
 	Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { chapterNos } from "@/lib/books/chapterNo";
 
 interface Book {
 	book: string;
@@ -382,7 +383,7 @@ export default function DataDownload() {
 							(selectedPart2 === "none" ? null : selectedPart2)
 					);
 					if (part2) {
-						setAvailableChapters(part2.chapters);
+						setAvailableChapters(chapterNos(part2.chapters));
 						setSelectedChapter("");
 						setSelectedShloka("all");
 					}
