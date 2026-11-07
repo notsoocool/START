@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
+import { authorizeExport } from "@/lib/auth/authorizeExport";
+import { logApiAccess } from "@/lib/api/axiom";
 
 // Maximum timeout allowed on Vercel hobby plan
 export const maxDuration = 60; // 60 seconds max
@@ -77,6 +79,7 @@ function filterToFields<T extends Record<string, unknown>>(
 }
 
 export async function GET(request: NextRequest) {
+	const started = Date.now();
 	try {
 		const { searchParams } = request.nextUrl;
 
@@ -122,6 +125,25 @@ export async function GET(request: NextRequest) {
 				{ status: 400 }
 			);
 		}
+
+		const auth = await authorizeExport(request, book);
+		if ("error" in auth) {
+			return NextResponse.json({ error: auth.error }, { status: auth.status });
+		}
+
+		const logDeveloperPull = (status: number) => {
+			if (auth.kind !== "apiKey") return;
+			void logApiAccess({
+				userId: auth.userId,
+				keyPrefix: auth.keyPrefix,
+				book,
+				route: "/api/download",
+				status,
+				ip: request.headers.get("x-forwarded-for"),
+				userAgent: request.headers.get("user-agent"),
+				durationMs: Date.now() - started,
+			});
+		};
 
 		// For "all" book selection, no other parameters are required
 		// For specific book selection, we need at least some level of specificity
@@ -574,6 +596,7 @@ export async function GET(request: NextRequest) {
 
 			console.log("Final CSV data length:", csvData.length);
 
+			logDeveloperPull(200);
 			return new NextResponse(csvData, {
 				headers: {
 					"Content-Type": "text/csv",
@@ -594,6 +617,7 @@ export async function GET(request: NextRequest) {
 				jsonResult = result; // Keep the "both" structure
 			}
 
+			logDeveloperPull(200);
 			return NextResponse.json(jsonResult, {
 				headers: {
 					"Content-Disposition": `attachment; filename="${filename}"`,

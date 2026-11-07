@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 		}
 
 		// Add role filter
-		if (role && ["User", "Annotator", "Editor", "Admin", "Root"].includes(role)) {
+		if (role && ["User", "Annotator", "Editor", "Admin", "Root", "Developer"].includes(role)) {
 			query.perms = role;
 		}
 
@@ -74,6 +74,7 @@ export async function GET(request: Request) {
 			Editor: 0,
 			Admin: 0,
 			Root: 0,
+			Developer: 0,
 		};
 		countsByRole.forEach((r) => {
 			if (r._id in roleCounts) roleCounts[r._id as keyof typeof roleCounts] = r.count;

@@ -23,6 +23,7 @@ import SanityCheck from "@/components/global/sanityCheck";
 import MissingAnalysisShlokas from "@/components/global/missingAnalysisShlokas";
 import LanguageManagement from "@/components/global/languageManagement";
 import OnlineUsers from "@/components/global/onlineUsers";
+import ApiAccessAdmin from "@/components/global/apiAccessAdmin";
 import { TreeNode } from "@/types/treeNode";
 
 import { toast } from "sonner";
@@ -63,6 +64,7 @@ export default function AdminPage() {
 				"sanity",
 				"missing-analysis",
 				"online",
+				"api-access",
 			].includes(tabParam)
 		) {
 			setActiveTab(tabParam);
@@ -208,6 +210,9 @@ export default function AdminPage() {
 								<SelectItem value="online">
 									Online Users
 								</SelectItem>
+								<SelectItem value="api-access">
+									API Access
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -305,6 +310,12 @@ export default function AdminPage() {
 								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
 							>
 								Online Users
+							</TabsTrigger>
+							<TabsTrigger
+								value="api-access"
+								className="whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm"
+							>
+								API Access
 							</TabsTrigger>
 						</TabsList>
 					</div>
@@ -446,6 +457,18 @@ export default function AdminPage() {
 				<div className="mt-4">
 					<MissingAnalysisShlokas />
 				</div>
+			</TabsContent>
+			<TabsContent value="api-access">
+				<Card className="mt-4">
+					<CardHeader>
+						<CardTitle className="text-lg font-semibold">
+							API Access Requests
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ApiAccessAdmin />
+					</CardContent>
+				</Card>
 			</TabsContent>
 			<TabsContent value="online">
 				<Card className="mt-4">

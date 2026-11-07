@@ -1,5 +1,6 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { requestHasValidE2EBypass } from "@/lib/auth/e2eBypass";
 
 // List of paths that should be accessible without authentication
 const publicPaths = ["/sign-in", "/sign-up", "/api/", "/_next", "/favicon.ico"];
@@ -21,6 +22,12 @@ export default clerkMiddleware((auth, request) => {
 
 	// Allow access to home page without authentication
 	if (request.nextUrl.pathname === "/") {
+		return NextResponse.next();
+	}
+
+	// LOCAL ONLY: optional E2E bypass cookie (see lib/auth/e2eBypass.ts).
+	// Hard-refuses outside development; never a substitute for Clerk in prod.
+	if (requestHasValidE2EBypass(request)) {
 		return NextResponse.next();
 	}
 

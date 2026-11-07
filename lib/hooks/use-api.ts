@@ -10,7 +10,7 @@ interface User {
 	id: string;
 	firstName: string;
 	lastName: string;
-	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root";
+	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root" | "Developer";
 }
 
 interface Notification {

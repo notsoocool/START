@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db/connect";
 import Analysis from "@/lib/db/newAnalysisModel";
 import Shloka from "@/lib/db/newShlokaModel";
+import { authorizeExport } from "@/lib/auth/authorizeExport";
+import { logApiAccess } from "@/lib/api/axiom";
 
 // Maximum timeout allowed on Vercel hobby plan
 export const maxDuration = 60; // 60 seconds max
@@ -10,6 +12,7 @@ export const maxDuration = 60; // 60 seconds max
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+	const started = Date.now();
 	try {
 		const { searchParams } = request.nextUrl;
 		const book = searchParams.get("book");
@@ -26,6 +29,30 @@ export async function GET(request: NextRequest) {
 			searchParams.get("analysisFields")?.split(",") || [];
 		const shlokaFields = searchParams.get("shlokaFields")?.split(",") || [];
 		const downloadId = searchParams.get("downloadId");
+
+		if (!book) {
+			return NextResponse.json(
+				{ error: "Missing required parameter: book" },
+				{ status: 400 }
+			);
+		}
+
+		const auth = await authorizeExport(request, book);
+		if ("error" in auth) {
+			return NextResponse.json({ error: auth.error }, { status: auth.status });
+		}
+		if (auth.kind === "apiKey") {
+			void logApiAccess({
+				userId: auth.userId,
+				keyPrefix: auth.keyPrefix,
+				book,
+				route: "/api/download/stream",
+				status: 200,
+				ip: request.headers.get("x-forwarded-for"),
+				userAgent: request.headers.get("user-agent"),
+				durationMs: Date.now() - started,
+			});
+		}
 
 		console.log("Streaming download request parameters:", {
 			book,

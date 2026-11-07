@@ -28,7 +28,7 @@ import { toast } from "sonner";
 type User = {
 	userID: string;
 	name: string;
-	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root"; // Include Root in User type
+	perms: "User" | "Annotator" | "Editor" | "Admin" | "Root" | "Developer";
 };
 
 interface UsersApiResponse {
@@ -40,6 +40,7 @@ interface UsersApiResponse {
 		Editor: number;
 		Admin: number;
 		Root: number;
+		Developer: number;
 	};
 }
 
@@ -82,6 +83,7 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 		Editor: 0,
 		Admin: 0,
 		Root: 0,
+		Developer: 0,
 	};
 	const [currentUser, setCurrentUser] = useState<{
 		id: string;
@@ -297,12 +299,14 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 								countsByRole.Editor +
 								countsByRole.Annotator +
 								countsByRole.Admin +
-								countsByRole.Root,
+								countsByRole.Root +
+								(countsByRole.Developer ?? 0),
 							className: "bg-background",
 						},
 						{ label: "User", value: "User", count: countsByRole.User, className: "bg-background" },
 						{ label: "Editor", value: "Editor", count: countsByRole.Editor, className: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
 						{ label: "Annotator", value: "Annotator", count: countsByRole.Annotator, className: "bg-green-500/10 text-green-700 dark:text-green-300" },
+						{ label: "Developer", value: "Developer", count: countsByRole.Developer ?? 0, className: "bg-sky-500/10 text-sky-700 dark:text-sky-300" },
 						{ label: "Admin", value: "Admin", count: countsByRole.Admin, className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
 						{ label: "Root", value: "Root", count: countsByRole.Root, className: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
 					].map(({ label, value, count, className }) => {
@@ -498,6 +502,9 @@ export default function UserPerms({ changeTab }: UserPermsProps) {
 													</SelectItem>
 													<SelectItem value="Editor">
 														Editor
+													</SelectItem>
+													<SelectItem value="Developer">
+														Developer
 													</SelectItem>
 													<SelectItem
 														value="Admin"

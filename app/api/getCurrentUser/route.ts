@@ -1,11 +1,28 @@
 // api/getCurrentUser/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import Perms from "@/lib/db/permissionsModel"; // Import your Mongoose model
 import dbConnect from "@/lib/db/connect";
+import { e2eBypassUser, requestHasValidE2EBypass } from "@/lib/auth/e2eBypass";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
 	await dbConnect();
+
+	if (requestHasValidE2EBypass(req)) {
+		const bypass = e2eBypassUser();
+		await Perms.findOneAndUpdate(
+			{ userID: bypass.userId },
+			{ userID: bypass.userId, name: bypass.name, perms: bypass.perms },
+			{ upsert: true, new: true }
+		);
+		return NextResponse.json({
+			id: bypass.userId,
+			firstName: bypass.firstName,
+			lastName: bypass.lastName,
+			perms: bypass.perms,
+		});
+	}
+
 	const user = await currentUser();
 
 	if (!user) {
@@ -17,8 +34,6 @@ export async function GET() {
 
 	// Extracting user ID, first name, and last name
 	const { id, firstName, lastName } = user;
-
-	// Connect to the database
 
 	// Fetching user permissions from the database
 	const userPermissions = await Perms.findOne({ userID: id });

@@ -53,6 +53,10 @@ export const Navigation = () => {
 
 	const { data: currentUser, isLoading } = useCurrentUser();
 	const isAdmin = currentUser?.perms === "Root" || currentUser?.perms === "Admin";
+	const canApiAccess =
+		currentUser?.perms === "Developer" ||
+		currentUser?.perms === "Admin" ||
+		currentUser?.perms === "Root";
 
 	const onClick = (href: string) => {
 		router.push(href);
@@ -90,6 +94,21 @@ export const Navigation = () => {
 									{route.label}
 								</Button>
 							))}
+							{canApiAccess && (
+								<Button
+									variant="ghost"
+									onClick={() => onClick("/api-access")}
+									data-navigate="true"
+									className={cn(
+										"w-full justify-start font-medium transition-all duration-300",
+										"hover:bg-purple-100 dark:hover:bg-purple-900/30",
+										"hover:text-purple-700 dark:hover:text-purple-300",
+										pathname === "/api-access" && "text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20"
+									)}
+								>
+									API Access
+								</Button>
+							)}
 							{isAdmin && (
 								<Button
 									variant="ghost"
@@ -113,6 +132,9 @@ export const Navigation = () => {
 					{routes.map((route) => (
 						<NavButton key={route.href} href={route.href} label={route.label} isActive={pathname === route.href} />
 					))}
+					{canApiAccess && (
+						<NavButton href="/api-access" label="API Access" isActive={pathname === "/api-access"} />
+					)}
 					{isAdmin && <NavButton href="/admin" label="Admin" isActive={pathname === "/admin"} />}
 				</nav>
 			)}
