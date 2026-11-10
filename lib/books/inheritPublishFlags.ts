@@ -39,12 +39,12 @@ async function aggregateFlags(match: Record<string, unknown>): Promise<Inherited
 	if (!rows.length || !rows[0].count) return null;
 
 	const row = rows[0];
-	const withOwner = await AHShloka.findOne({
+	const withOwner = (await AHShloka.findOne({
 		...match,
 		owner: { $nin: [null, ""] },
 	})
 		.select("owner")
-		.lean();
+		.lean()) as { owner?: string | null } | null;
 
 	return {
 		userPublished: row.userPublished === 1,

@@ -447,7 +447,7 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 					.flatMap((p1) => p1.part2 ?? [])
 					.flatMap((p2) => p2.chapters ?? [])
 			);
-			return [...new Set(all)].sort((a, b) => Number(a) - Number(b));
+			return Array.from(new Set(all)).sort((a, b) => Number(a) - Number(b));
 		}
 
 		// Case 2: If part1 is selected (including "null") but no specific part2 ("all" or empty)
@@ -455,7 +455,7 @@ export default function DeleteEntry({ treeData }: DeleteEntryProps) {
 			const all = chapterNos(
 				currentPart1.part2.flatMap((p2) => p2.chapters)
 			);
-			return [...new Set(all)].sort((a, b) => Number(a) - Number(b));
+			return Array.from(new Set(all)).sort((a, b) => Number(a) - Number(b));
 		}
 
 		// Case 3: Both part1 and part2 are selected (including "null")
