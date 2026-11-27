@@ -160,6 +160,10 @@ export const KAARAKA_TAGS: KaarakaTag[] = [
     "short": "निर्धा"
   },
   {
+    "long": "निमित्त_सप्तमी",
+    "short": "निमित्त_सप्तमी"
+  },
+  {
     "long": "नित्यसम्बन्धः",
     "short": "नित्य_सं"
   },

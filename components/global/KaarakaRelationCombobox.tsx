@@ -18,7 +18,13 @@ const BLANK_OPTION: KaarakaTag = {
 	short: "-",
 };
 
-const DROPDOWN_TAGS: KaarakaTag[] = [BLANK_OPTION, ...KAARAKA_TAGS];
+// Alphabetical by the label shown first (the short name); numeric so T2 comes before T7.
+const collator = new Intl.Collator("hi", { numeric: true });
+
+const DROPDOWN_TAGS: KaarakaTag[] = [
+	BLANK_OPTION,
+	...[...KAARAKA_TAGS].sort((a, b) => collator.compare(a.short, b.short)),
+];
 
 interface KaarakaRelationComboboxProps {
 	/** Current relation label for this pair slot (before the comma / to_index). */
